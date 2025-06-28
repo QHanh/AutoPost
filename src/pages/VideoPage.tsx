@@ -2,9 +2,27 @@ import React, { useState } from 'react';
 import { Video, Users } from 'lucide-react';
 import { SingleVoiceMode } from '../components/VideoCreation/SingleVoiceMode';
 import { PodcastMode } from '../components/VideoCreation/PodcastMode';
+import { useAuth } from '../hooks/useAuth';
+import { Navigate } from 'react-router-dom';
 
 export const VideoPage: React.FC = () => {
   const [mode, setMode] = useState<'single' | 'podcast'>('single');
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">

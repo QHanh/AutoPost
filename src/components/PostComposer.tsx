@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PlatformAccount, MediaFile } from '../types/platform';
-import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle } from 'lucide-react';
+import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, Maximize2 } from 'lucide-react';
 import { MediaUploader } from './MediaUploader';
 import { PlatformMediaValidator } from './PlatformMediaValidator';
 import { AIContentGenerator } from './AIContentGenerator';
-import { HashtagManager } from './HashtagManager';
 import { validateMediaForPlatform } from '../utils/mediaUtils';
 import { useAuth } from '../hooks/useAuth';
 
@@ -19,9 +18,9 @@ interface PlatformPostTypes {
 }
 
 interface ContentBoxes {
-  short_video?: { caption: string };
-  long_video?: { caption: string };
-  youtube?: { 
+  short_video: { caption: string };
+  long_video: { caption: string };
+  youtube: { 
     description: string;
     tags: string[];
     title: string;
@@ -33,9 +32,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   getSocialAccountId,
   onPostScheduled
 }) => {
-  const [content, setContent] = useState('');
-  const [selectedHashtags, setSelectedHashtags] = useState<string[]>([]);
-  const [lastGeneratedContent, setLastGeneratedContent] = useState('');
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<PlatformAccount[]>([]);
   const [platformPostTypes, setPlatformPostTypes] = useState<PlatformPostTypes>({});
@@ -46,11 +42,17 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   // AI generation data for API
   const [aiGenerationData, setAiGenerationData] = useState<any>(null);
   
-  // Content boxes from AI generation
-  const [contentBoxes, setContentBoxes] = useState<ContentBoxes>({});
-  const [activeContentTypes, setActiveContentTypes] = useState<Set<string>>(new Set());
+  // Content boxes - always present
+  const [contentBoxes, setContentBoxes] = useState<ContentBoxes>({
+    short_video: { caption: '' },
+    long_video: { caption: '' },
+    youtube: { description: '', tags: [], title: '' }
+  });
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [activeContentTypes, setActiveContentTypes] = useState<Set<string>>(new Set());
+  const [lockedContentTypes, setLockedContentTypes] = useState<Set<string>>(new Set());
+  const [expandedBox, setExpandedBox] = useState<string | null>(null);
+  
   const { user } = useAuth();
 
   const connectedAccounts = accounts.filter(acc => acc.connected);
@@ -102,6 +104,31 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return hasVideo;
   };
 
+  // Update active content types and lock status based on selected accounts and post types
+  useEffect(() => {
+    const newActiveTypes = new Set<string>();
+    const newLockedTypes = new Set<string>();
+    
+    selectedAccounts.forEach(account => {
+      const postTypes = platformPostTypes[account.id] || [];
+      postTypes.forEach(postType => {
+        if (postType === 'reel' || postType === 'reels') {
+          newActiveTypes.add('short_video');
+          newLockedTypes.add('short_video');
+        } else if (postType === 'facebook' || postType === 'photo' || postType === 'carousel') {
+          newActiveTypes.add('long_video');
+          newLockedTypes.add('long_video');
+        } else if (postType === 'youtube') {
+          newActiveTypes.add('youtube');
+          newLockedTypes.add('youtube');
+        }
+      });
+    });
+    
+    setActiveContentTypes(newActiveTypes);
+    setLockedContentTypes(newLockedTypes);
+  }, [selectedAccounts, platformPostTypes]);
+
   // Handle post type selection for an account
   const handlePostTypeToggle = (accountId: string, postType: string) => {
     if (!canSelectPostType(accountId, postType)) {
@@ -119,43 +146,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         [accountId]: newTypes
       };
     });
-  };
-
-  // Update active content types based on selected accounts and post types
-  useEffect(() => {
-    const newActiveTypes = new Set<string>();
-    
-    selectedAccounts.forEach(account => {
-      const postTypes = platformPostTypes[account.id] || [];
-      postTypes.forEach(postType => {
-        if (postType === 'reel' || postType === 'reels') {
-          newActiveTypes.add('short_video');
-        } else if (postType === 'facebook' || postType === 'photo' || postType === 'carousel') {
-          newActiveTypes.add('long_video');
-        } else if (postType === 'youtube') {
-          newActiveTypes.add('youtube');
-        }
-      });
-    });
-    
-    setActiveContentTypes(newActiveTypes);
-  }, [selectedAccounts, platformPostTypes]);
-
-  // Update content display with hashtags
-  const getDisplayContent = () => {
-    let displayContent = content;
-    
-    if (selectedHashtags.length > 0) {
-      const hashtagString = selectedHashtags.map(tag => `#${tag}`).join(' ');
-      
-      if (displayContent.trim()) {
-        displayContent += '\n\n' + hashtagString;
-      } else {
-        displayContent = hashtagString;
-      }
-    }
-    
-    return displayContent;
   };
 
   const handleAccountToggle = (account: PlatformAccount) => {
@@ -207,38 +197,34 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   };
 
   const handleAIContentGenerated = (generatedContent: any, generationData: any) => {
-    setContentBoxes(generatedContent);
+    // Update content boxes with AI generated content
+    const newContentBoxes = { ...contentBoxes };
+    
+    if (generatedContent.short_video) {
+      newContentBoxes.short_video = generatedContent.short_video;
+    }
+    if (generatedContent.long_video) {
+      newContentBoxes.long_video = generatedContent.long_video;
+    }
+    if (generatedContent.youtube) {
+      newContentBoxes.youtube = generatedContent.youtube;
+    }
+    
+    setContentBoxes(newContentBoxes);
     setAiGenerationData(generationData);
   };
 
-  const handleHashtagsChange = (hashtags: string[]) => {
-    setSelectedHashtags(hashtags);
-  };
-
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    const hashtagString = selectedHashtags.length > 0 ? '\n\n' + selectedHashtags.map(tag => `#${tag}`).join(' ') : '';
-    
-    if (newValue.endsWith(hashtagString)) {
-      setContent(newValue.replace(hashtagString, ''));
-    } else {
-      const lines = newValue.split('\n');
-      const contentLines = [];
-      let foundHashtagSection = false;
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.startsWith('#') && !foundHashtagSection) {
-          foundHashtagSection = true;
-          break;
-        }
-        if (!foundHashtagSection) {
-          contentLines.push(line);
-        }
+  // Update content box
+  const updateContentBox = (type: keyof ContentBoxes, field: string, value: string) => {
+    setContentBoxes(prev => {
+      const updated = { ...prev };
+      if (type === 'short_video' || type === 'long_video') {
+        updated[type] = { caption: value };
+      } else if (type === 'youtube') {
+        updated[type] = { ...updated[type], [field]: value };
       }
-      
-      setContent(contentLines.join('\n').trim());
-    }
+      return updated;
+    });
   };
 
   // Convert datetime-local to ISO format for API
@@ -250,9 +236,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const finalContent = getDisplayContent();
+    // Check if any content box has content
+    const hasContent = contentBoxes.short_video.caption.trim() || 
+                      contentBoxes.long_video.caption.trim() || 
+                      contentBoxes.youtube.description.trim();
     
-    if (!finalContent.trim() && media.length === 0 && Object.keys(contentBoxes).length === 0) {
+    if (!hasContent && media.length === 0) {
       setSchedulingStatus({ type: 'error', message: 'Vui lòng nhập nội dung hoặc thêm media' });
       return;
     }
@@ -327,9 +316,8 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       formData.append('prompt', aiGenerationData?.platform_specific_data?.prompt || 'Generated content');
       formData.append('scheduled_at', formatDateTimeForAPI(scheduledTime));
 
-      // Preview content - send the entire AI response or fallback content
-      const previewContent = Object.keys(contentBoxes).length > 0 ? JSON.stringify(contentBoxes) : finalContent;
-      formData.append('preview_content', previewContent);
+      // Preview content - send the entire content boxes
+      formData.append('preview_content', JSON.stringify(contentBoxes));
 
       // Media files
       media.forEach((mediaFile, index) => {
@@ -377,15 +365,16 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       });
 
       // Reset form on success
-      setContent('');
-      setSelectedHashtags([]);
-      setLastGeneratedContent('');
+      setContentBoxes({
+        short_video: { caption: '' },
+        long_video: { caption: '' },
+        youtube: { description: '', tags: [], title: '' }
+      });
       setMedia([]);
       setSelectedAccounts([]);
       setPlatformPostTypes({});
       setScheduledTime('');
       setAiGenerationData(null);
-      setContentBoxes({});
 
       // Notify parent to refresh posts
       onPostScheduled();
@@ -408,15 +397,16 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   };
 
   const clearForm = () => {
-    setContent('');
-    setSelectedHashtags([]);
-    setLastGeneratedContent('');
+    setContentBoxes({
+      short_video: { caption: '' },
+      long_video: { caption: '' },
+      youtube: { description: '', tags: [], title: '' }
+    });
     setMedia([]);
     setSelectedAccounts([]);
     setPlatformPostTypes({});
     setScheduledTime('');
     setAiGenerationData(null);
-    setContentBoxes({});
     setSchedulingStatus(null);
   };
 
@@ -444,16 +434,13 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   const isAllSelected = selectedAccounts.length === connectedAccounts.length && connectedAccounts.length > 0;
   const isSomeSelected = selectedAccounts.length > 0 && selectedAccounts.length < connectedAccounts.length;
 
-  // Calculate final content length with hashtags
-  const finalContentLength = getDisplayContent().length;
-
   // Calculate total posts that will be scheduled
   const totalPostsToSchedule = selectedAccounts.reduce((total, account) => {
     const postTypes = platformPostTypes[account.id] || [];
     return total + postTypes.filter(type => canSelectPostType(account.id, type)).length;
   }, 0);
 
-  // Get content box title and icon
+  // Get content box info
   const getContentBoxInfo = (type: string) => {
     switch (type) {
       case 'short_video':
@@ -494,33 +481,28 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Left Column - Content & AI Generator */}
+          {/* Left Column - Content Boxes & AI Generator */}
           <div className="space-y-6">
-            {/* AI Content Generator */}
-            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
-
-            {/* Content Boxes from AI */}
-            {Object.keys(contentBoxes).length > 0 && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                  <CheckCircle size={16} className="text-green-500" />
-                  Nội dung AI đã tạo
-                </h4>
+            {/* Content Boxes - Always Present */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Nội dung bài đăng</h3>
+              
+              {Object.entries(contentBoxes).map(([type, content]) => {
+                const boxInfo = getContentBoxInfo(type);
+                const isActive = activeContentTypes.has(type);
+                const isLocked = lockedContentTypes.has(type);
                 
-                {Object.entries(contentBoxes).map(([type, content]) => {
-                  const boxInfo = getContentBoxInfo(type);
-                  const isActive = activeContentTypes.has(type);
-                  
-                  return (
-                    <div 
-                      key={type} 
-                      className={`border-2 rounded-lg p-3 transition-all ${
-                        isActive 
-                          ? `${boxInfo.color} border-opacity-100` 
-                          : 'border-gray-200 bg-gray-50 opacity-60'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
+                return (
+                  <div 
+                    key={type} 
+                    className={`border-2 rounded-lg p-4 transition-all ${
+                      isActive 
+                        ? `${boxInfo.color} border-opacity-100` 
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={isActive}
@@ -534,57 +516,86 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                             Sẽ đăng
                           </span>
                         )}
+                        {isLocked && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                            Đã chọn
+                          </span>
+                        )}
                       </div>
                       
-                      <div className="text-sm text-gray-700 bg-white rounded p-2 border max-h-20 overflow-y-auto">
-                        {type === 'youtube' && 'description' in content 
-                          ? content.description.substring(0, 150) + '...'
-                          : 'caption' in content 
-                          ? content.caption.substring(0, 150) + '...'
-                          : ''}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedBox(type)}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm transition-colors"
+                        title="Mở rộng để chỉnh sửa"
+                      >
+                        <Maximize2 size={14} />
+                        Mở rộng
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Traditional Content Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nội dung bài đăng (tùy chọn)
-              </label>
-              <div className="relative">
-                <textarea
-                  ref={textareaRef}
-                  value={getDisplayContent()}
-                  onChange={handleContentChange}
-                  placeholder="Chia sẻ suy nghĩ của bạn trên tất cả các nền tảng mạng xã hội..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-32 overflow-y-auto transition-all duration-200"
-                />
-                {selectedHashtags.length > 0 && (
-                  <div className="absolute bottom-3 right-3 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                    {selectedHashtags.length} hashtag{selectedHashtags.length !== 1 ? 's' : ''} đã thêm
+                    
+                    {type === 'youtube' ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Tiêu đề:</label>
+                          <input
+                            type="text"
+                            value={content.title}
+                            onChange={(e) => updateContentBox('youtube', 'title', e.target.value)}
+                            disabled={isLocked}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                              isLocked ? 'bg-gray-100 cursor-not-allowed' : ''
+                            }`}
+                            placeholder="Tiêu đề video YouTube..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Mô tả:</label>
+                          <textarea
+                            value={content.description}
+                            onChange={(e) => updateContentBox('youtube', 'description', e.target.value)}
+                            disabled={isLocked}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm ${
+                              isLocked ? 'bg-gray-100 cursor-not-allowed' : ''
+                            }`}
+                            rows={4}
+                            placeholder="Mô tả video YouTube..."
+                          />
+                        </div>
+                        {content.tags && content.tags.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Tags:</label>
+                            <div className="text-xs text-gray-600 bg-white p-2 rounded border">
+                              {content.tags.join(', ')}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={content.caption}
+                        onChange={(e) => updateContentBox(type as keyof ContentBoxes, 'caption', e.target.value)}
+                        disabled={isLocked}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm ${
+                          isLocked ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        rows={4}
+                        placeholder={`Nội dung ${boxInfo.title}...`}
+                      />
+                    )}
+                    
+                    {isLocked && (
+                      <div className="mt-2 text-xs text-orange-600">
+                        Để chỉnh sửa, bỏ chọn loại đăng bài tương ứng ở bên phải
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="mt-1 text-xs text-gray-500 text-right">
-                {finalContentLength}/2200 ký tự
-                {selectedHashtags.length > 0 && (
-                  <span className="ml-2 text-blue-600">
-                    (bao gồm {selectedHashtags.length} hashtag{selectedHashtags.length !== 1 ? 's' : ''})
-                  </span>
-                )}
-              </div>
+                );
+              })}
             </div>
 
-            {/* Hashtag Manager */}
-            <HashtagManager
-              content={content}
-              onHashtagsChange={handleHashtagsChange}
-              lastGeneratedContent={lastGeneratedContent}
-              onLastGeneratedContentChange={setLastGeneratedContent}
-            />
+            {/* AI Content Generator */}
+            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
           </div>
 
           {/* Right Column - Media Upload, Account Selection, Schedule & Actions */}
@@ -795,7 +806,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
             <div className="space-y-3 pt-4 border-t border-gray-200">
               <button
                 type="submit"
-                disabled={isScheduling || ((!content.trim() && selectedHashtags.length === 0 && media.length === 0 && Object.keys(contentBoxes).length === 0) || selectedAccounts.length === 0 || !scheduledTime || totalPostsToSchedule === 0)}
+                disabled={isScheduling || selectedAccounts.length === 0 || !scheduledTime || totalPostsToSchedule === 0}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isScheduling ? (
@@ -816,16 +827,14 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                 )}
               </button>
               
-              {(content || selectedHashtags.length > 0 || media.length > 0 || selectedAccounts.length > 0 || scheduledTime || Object.keys(contentBoxes).length > 0) && (
-                <button
-                  type="button"
-                  onClick={clearForm}
-                  className="w-full px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
-                >
-                  <X size={16} />
-                  Xóa form
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={clearForm}
+                className="w-full px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                <X size={16} />
+                Xóa form
+              </button>
             </div>
 
             {/* Compact Quick Stats */}
@@ -845,18 +854,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                     <div className="flex justify-between">
                       <span>Media:</span>
                       <span className="font-medium">{media.length}</span>
-                    </div>
-                  )}
-                  {selectedHashtags.length > 0 && (
-                    <div className="flex justify-between">
-                      <span>Hashtags:</span>
-                      <span className="font-medium">{selectedHashtags.length}</span>
-                    </div>
-                  )}
-                  {Object.keys(contentBoxes).length > 0 && (
-                    <div className="flex justify-between">
-                      <span>AI Content:</span>
-                      <span className="font-medium text-purple-600">{Object.keys(contentBoxes).length}</span>
                     </div>
                   )}
                   {scheduledTime && (
@@ -883,6 +880,78 @@ export const PostComposer: React.FC<PostComposerProps> = ({
           </div>
         )}
       </form>
+
+      {/* Expanded Content Modal */}
+      {expandedBox && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <span>{getContentBoxInfo(expandedBox).icon}</span>
+                Chỉnh sửa {getContentBoxInfo(expandedBox).title}
+              </h3>
+              <button
+                onClick={() => setExpandedBox(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 p-6">
+              {expandedBox === 'youtube' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu đề:</label>
+                    <input
+                      type="text"
+                      value={contentBoxes.youtube.title}
+                      onChange={(e) => updateContentBox('youtube', 'title', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Tiêu đề video YouTube..."
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả:</label>
+                    <textarea
+                      value={contentBoxes.youtube.description}
+                      onChange={(e) => updateContentBox('youtube', 'description', e.target.value)}
+                      className="w-full h-80 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder="Mô tả video YouTube..."
+                    />
+                  </div>
+                  {contentBoxes.youtube.tags && contentBoxes.youtube.tags.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tags:</label>
+                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border">
+                        {contentBoxes.youtube.tags.join(', ')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  value={expandedBox === 'short_video' ? contentBoxes.short_video.caption : contentBoxes.long_video.caption}
+                  onChange={(e) => updateContentBox(expandedBox as keyof ContentBoxes, 'caption', e.target.value)}
+                  className="w-full h-full min-h-[400px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder={`Nội dung ${getContentBoxInfo(expandedBox).title}...`}
+                  autoFocus
+                />
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setExpandedBox(null)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Đóng và Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

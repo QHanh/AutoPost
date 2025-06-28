@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Post } from '../types/platform';
+//import { Post } from '../types/platform';
 import { useAuth } from './useAuth';
 
 interface BackendPost {
