@@ -18,6 +18,16 @@ interface PlatformPostTypes {
   [accountId: string]: string[];
 }
 
+interface ContentBoxes {
+  short_video?: { caption: string };
+  long_video?: { caption: string };
+  youtube?: { 
+    description: string;
+    tags: string[];
+    title: string;
+  };
+}
+
 export const PostComposer: React.FC<PostComposerProps> = ({
   accounts,
   getSocialAccountId,
@@ -34,14 +44,11 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   const [schedulingStatus, setSchedulingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   
   // AI generation data for API
-  const [aiGenerationData, setAiGenerationData] = useState<{
-    platform: string;
-    generate_for: string[];
-    platform_specific_data: any;
-    brand_name: string;
-    posting_purpose: string;
-    ai_platform: string;
-  } | null>(null);
+  const [aiGenerationData, setAiGenerationData] = useState<any>(null);
+  
+  // Content boxes from AI generation
+  const [contentBoxes, setContentBoxes] = useState<ContentBoxes>({});
+  const [activeContentTypes, setActiveContentTypes] = useState<Set<string>>(new Set());
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
@@ -114,6 +121,26 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     });
   };
 
+  // Update active content types based on selected accounts and post types
+  useEffect(() => {
+    const newActiveTypes = new Set<string>();
+    
+    selectedAccounts.forEach(account => {
+      const postTypes = platformPostTypes[account.id] || [];
+      postTypes.forEach(postType => {
+        if (postType === 'reel' || postType === 'reels') {
+          newActiveTypes.add('short_video');
+        } else if (postType === 'facebook' || postType === 'photo' || postType === 'carousel') {
+          newActiveTypes.add('long_video');
+        } else if (postType === 'youtube') {
+          newActiveTypes.add('youtube');
+        }
+      });
+    });
+    
+    setActiveContentTypes(newActiveTypes);
+  }, [selectedAccounts, platformPostTypes]);
+
   // Update content display with hashtags
   const getDisplayContent = () => {
     let displayContent = content;
@@ -179,8 +206,8 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     }
   };
 
-  const handleAIContentGenerated = (generatedContent: string, generationData: any) => {
-    setContent(generatedContent);
+  const handleAIContentGenerated = (generatedContent: any, generationData: any) => {
+    setContentBoxes(generatedContent);
     setAiGenerationData(generationData);
   };
 
@@ -220,62 +247,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return date.toISOString();
   };
 
-  // Schedule post to backend API
-  const schedulePostToBackend = async (account: PlatformAccount, finalContent: string, postType: string) => {
-    const socialAccountId = getSocialAccountId(account.id);
-    if (!socialAccountId) {
-      throw new Error(`No social account ID found for ${account.accountName}`);
-    }
-
-    const apiBaseUrl = getApiBaseUrl();
-    const formData = new FormData();
-
-    // Required fields
-    formData.append('prompt', aiGenerationData?.platform_specific_data?.prompt || 'Generated content');
-    formData.append('platform', account.platformId);
-    formData.append('preview_content', finalContent);
-    formData.append('social_account_id', socialAccountId);
-    formData.append('scheduled_at', formatDateTimeForAPI(scheduledTime));
-
-    // Media files
-    media.forEach((mediaFile, index) => {
-      formData.append('media_files', mediaFile.file);
-    });
-
-    // Platform specific data with the correct type
-    const platformSpecificData = {
-      type: postType, // Use the selected post type
-      call_to_action: aiGenerationData?.platform_specific_data?.call_to_action || '',
-      hashtags: aiGenerationData?.platform_specific_data?.hashtags || []
-    };
-    formData.append('platform_specific_data', JSON.stringify(platformSpecificData));
-
-    // Optional fields
-    formData.append('brand_name', aiGenerationData?.brand_name || '');
-    formData.append('posting_purpose', aiGenerationData?.posting_purpose || '');
-
-    const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/schedule-post`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${user?.token}`
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to schedule ${postType} post for ${account.accountName}`);
-    }
-
-    return await response.json();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const finalContent = getDisplayContent();
     
-    if (!finalContent.trim() && media.length === 0) {
+    if (!finalContent.trim() && media.length === 0 && Object.keys(contentBoxes).length === 0) {
       setSchedulingStatus({ type: 'error', message: 'Vui lòng nhập nội dung hoặc thêm media' });
       return;
     }
@@ -343,58 +320,81 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     setSchedulingStatus(null);
 
     try {
-      // Create API calls for each account and each selected post type
-      const apiCalls: Promise<any>[] = [];
-      
-      selectedAccounts.forEach(account => {
-        const postTypes = platformPostTypes[account.id] || [];
-        postTypes.forEach(postType => {
-          // Only add if requirements are met
-          if (canSelectPostType(account.id, postType)) {
-            apiCalls.push(schedulePostToBackend(account, finalContent, postType));
-          }
-        });
+      const apiBaseUrl = getApiBaseUrl();
+      const formData = new FormData();
+
+      // Required fields
+      formData.append('prompt', aiGenerationData?.platform_specific_data?.prompt || 'Generated content');
+      formData.append('scheduled_at', formatDateTimeForAPI(scheduledTime));
+
+      // Preview content - send the entire AI response or fallback content
+      const previewContent = Object.keys(contentBoxes).length > 0 ? JSON.stringify(contentBoxes) : finalContent;
+      formData.append('preview_content', previewContent);
+
+      // Media files
+      media.forEach((mediaFile, index) => {
+        formData.append('media_files', mediaFile.file);
       });
 
-      const results = await Promise.allSettled(apiCalls);
+      // Platform specific data - array of account configurations
+      const platformSpecificData = selectedAccounts.flatMap(account => {
+        const socialAccountId = getSocialAccountId(account.id);
+        if (!socialAccountId) return [];
 
-      const successCount = results.filter(result => result.status === 'fulfilled').length;
-      const failureCount = results.length - successCount;
+        const postTypes = platformPostTypes[account.id] || [];
+        return postTypes.map(postType => ({
+          platform: account.platformId,
+          social_account_id: socialAccountId,
+          ...(account.platformId !== 'youtube' && { type: postType }),
+          call_to_action: aiGenerationData?.platform_specific_data?.call_to_action || ''
+        }));
+      });
 
-      if (successCount > 0) {
-        setSchedulingStatus({ 
-          type: 'success', 
-          message: `Đã lên lịch thành công ${successCount}/${apiCalls.length} bài đăng` 
-        });
+      formData.append('platform_specific_data', JSON.stringify(platformSpecificData));
 
-        // Reset form on success
-        setContent('');
-        setSelectedHashtags([]);
-        setLastGeneratedContent('');
-        setMedia([]);
-        setSelectedAccounts([]);
-        setPlatformPostTypes({});
-        setScheduledTime('');
-        setAiGenerationData(null);
+      // Optional fields
+      formData.append('brand_name', aiGenerationData?.brand_name || '');
+      formData.append('posting_purpose', aiGenerationData?.posting_purpose || '');
 
-        // Notify parent to refresh posts
-        onPostScheduled();
-      } else {
-        setSchedulingStatus({ 
-          type: 'error', 
-          message: `Lên lịch thất bại cho tất cả ${apiCalls.length} bài đăng` 
-        });
+      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/schedule-post`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to schedule posts`);
       }
 
-      if (failureCount > 0) {
-        console.error('Some posts failed to schedule:', results.filter(r => r.status === 'rejected'));
-      }
+      const result = await response.json();
+      
+      setSchedulingStatus({ 
+        type: 'success', 
+        message: `Đã lên lịch thành công ${platformSpecificData.length} bài đăng` 
+      });
+
+      // Reset form on success
+      setContent('');
+      setSelectedHashtags([]);
+      setLastGeneratedContent('');
+      setMedia([]);
+      setSelectedAccounts([]);
+      setPlatformPostTypes({});
+      setScheduledTime('');
+      setAiGenerationData(null);
+      setContentBoxes({});
+
+      // Notify parent to refresh posts
+      onPostScheduled();
 
     } catch (error) {
       console.error('Error scheduling posts:', error);
       setSchedulingStatus({ 
         type: 'error', 
-        message: 'Lỗi khi lên lịch đăng bài. Vui lòng thử lại.' 
+        message: error instanceof Error ? error.message : 'Lỗi khi lên lịch đăng bài. Vui lòng thử lại.' 
       });
     } finally {
       setIsScheduling(false);
@@ -416,6 +416,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     setPlatformPostTypes({});
     setScheduledTime('');
     setAiGenerationData(null);
+    setContentBoxes({});
     setSchedulingStatus(null);
   };
 
@@ -452,6 +453,20 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return total + postTypes.filter(type => canSelectPostType(account.id, type)).length;
   }, 0);
 
+  // Get content box title and icon
+  const getContentBoxInfo = (type: string) => {
+    switch (type) {
+      case 'short_video':
+        return { title: 'Reel', icon: '🎬', color: 'border-purple-200 bg-purple-50' };
+      case 'long_video':
+        return { title: 'Page/Instagram', icon: '📄', color: 'border-blue-200 bg-blue-50' };
+      case 'youtube':
+        return { title: 'YouTube', icon: '📺', color: 'border-red-200 bg-red-50' };
+      default:
+        return { title: type, icon: '📝', color: 'border-gray-200 bg-gray-50' };
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
@@ -481,10 +496,63 @@ export const PostComposer: React.FC<PostComposerProps> = ({
           
           {/* Left Column - Content & AI Generator */}
           <div className="space-y-6">
-            {/* Content with Scrollable Textarea */}
+            {/* AI Content Generator */}
+            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
+
+            {/* Content Boxes from AI */}
+            {Object.keys(contentBoxes).length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                  <CheckCircle size={16} className="text-green-500" />
+                  Nội dung AI đã tạo
+                </h4>
+                
+                {Object.entries(contentBoxes).map(([type, content]) => {
+                  const boxInfo = getContentBoxInfo(type);
+                  const isActive = activeContentTypes.has(type);
+                  
+                  return (
+                    <div 
+                      key={type} 
+                      className={`border-2 rounded-lg p-3 transition-all ${
+                        isActive 
+                          ? `${boxInfo.color} border-opacity-100` 
+                          : 'border-gray-200 bg-gray-50 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={isActive}
+                          readOnly
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span>{boxInfo.icon}</span>
+                        <span className="font-medium text-gray-900">{boxInfo.title}</span>
+                        {isActive && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                            Sẽ đăng
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="text-sm text-gray-700 bg-white rounded p-2 border max-h-20 overflow-y-auto">
+                        {type === 'youtube' && 'description' in content 
+                          ? content.description.substring(0, 150) + '...'
+                          : 'caption' in content 
+                          ? content.caption.substring(0, 150) + '...'
+                          : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Traditional Content Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nội dung bài đăng
+                Nội dung bài đăng (tùy chọn)
               </label>
               <div className="relative">
                 <textarea
@@ -492,7 +560,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                   value={getDisplayContent()}
                   onChange={handleContentChange}
                   placeholder="Chia sẻ suy nghĩ của bạn trên tất cả các nền tảng mạng xã hội..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-48 overflow-y-auto transition-all duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-32 overflow-y-auto transition-all duration-200"
                 />
                 {selectedHashtags.length > 0 && (
                   <div className="absolute bottom-3 right-3 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
@@ -517,9 +585,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
               lastGeneratedContent={lastGeneratedContent}
               onLastGeneratedContentChange={setLastGeneratedContent}
             />
-
-            {/* AI Content Generator */}
-            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
           </div>
 
           {/* Right Column - Media Upload, Account Selection, Schedule & Actions */}
@@ -730,7 +795,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
             <div className="space-y-3 pt-4 border-t border-gray-200">
               <button
                 type="submit"
-                disabled={isScheduling || (!content.trim() && selectedHashtags.length === 0 && media.length === 0) || selectedAccounts.length === 0 || !scheduledTime || totalPostsToSchedule === 0}
+                disabled={isScheduling || ((!content.trim() && selectedHashtags.length === 0 && media.length === 0 && Object.keys(contentBoxes).length === 0) || selectedAccounts.length === 0 || !scheduledTime || totalPostsToSchedule === 0)}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isScheduling ? (
@@ -751,7 +816,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                 )}
               </button>
               
-              {(content || selectedHashtags.length > 0 || media.length > 0 || selectedAccounts.length > 0 || scheduledTime) && (
+              {(content || selectedHashtags.length > 0 || media.length > 0 || selectedAccounts.length > 0 || scheduledTime || Object.keys(contentBoxes).length > 0) && (
                 <button
                   type="button"
                   onClick={clearForm}
@@ -786,6 +851,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                     <div className="flex justify-between">
                       <span>Hashtags:</span>
                       <span className="font-medium">{selectedHashtags.length}</span>
+                    </div>
+                  )}
+                  {Object.keys(contentBoxes).length > 0 && (
+                    <div className="flex justify-between">
+                      <span>AI Content:</span>
+                      <span className="font-medium text-purple-600">{Object.keys(contentBoxes).length}</span>
                     </div>
                   )}
                   {scheduledTime && (

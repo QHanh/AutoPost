@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown } from 'lucide-react';
+import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown, Maximize2, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface AIContentGeneratorProps {
-  onContentGenerated: (content: string, generationData: any) => void;
+  onContentGenerated: (content: any, generationData: any) => void;
 }
 
 interface GenerateRequest {
   prompt: string;
-  platform: 'facebook' | 'instagram' | 'youtube';
+  platform: string;
   generate_for: string[];
   platform_specific_data: {
     call_to_action?: string;
@@ -24,12 +24,21 @@ interface ApiKeys {
   openai_api_key: string;
 }
 
+interface ContentBoxes {
+  short_video?: { caption: string };
+  long_video?: { caption: string };
+  youtube?: { 
+    description: string;
+    tags: string[];
+    title: string;
+  };
+}
+
 export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   onContentGenerated
 }) => {
   const [showPromptInput, setShowPromptInput] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState<'facebook' | 'instagram' | 'youtube'>('facebook');
   const [selectedGenerateFor, setSelectedGenerateFor] = useState<string[]>(['short_video']);
   const [hashtags, setHashtags] = useState('');
   const [brandName, setBrandName] = useState('');
@@ -44,6 +53,10 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     gemini_api_key: '',
     openai_api_key: ''
   });
+
+  // Content boxes state
+  const [contentBoxes, setContentBoxes] = useState<ContentBoxes>({});
+  const [expandedBox, setExpandedBox] = useState<string | null>(null);
 
   const { user } = useAuth();
 
@@ -96,9 +109,9 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   // Generate for options
   const getGenerateForOptions = () => {
     return [
-      { id: 'short_video', name: 'Bài viết ngắn', icon: '📝' },
-      { id: 'long_video', name: 'Bài viết dài', icon: '📄' },
-      { id: 'youtube', name: 'Video YouTube', icon: '📺' }
+      { id: 'short_video', name: 'Reel', icon: '🎬' },
+      { id: 'long_video', name: 'Page/Instagram', icon: '📄' },
+      { id: 'youtube', name: 'YouTube', icon: '📺' }
     ];
   };
 
@@ -144,7 +157,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       // Prepare request body
       const requestBody: GenerateRequest = {
         prompt: prompt.trim(),
-        platform: selectedPlatform,
+        platform: 'facebook', // Fixed platform as requested
         generate_for: selectedGenerateFor,
         platform_specific_data: {
           call_to_action: callToAction.trim() || '',
@@ -174,39 +187,26 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       const data = await response.json();
       
       if (data) {
-        let formattedContent = '';
-
-        // Format content based on response structure
+        // Set content boxes based on response
+        const newContentBoxes: ContentBoxes = {};
+        
         if (data.short_video && selectedGenerateFor.includes('short_video')) {
-          formattedContent += '**📝 Bài viết ngắn:**\n\n';
-          formattedContent += data.short_video.caption || data.short_video;
-          formattedContent += '\n\n';
+          newContentBoxes.short_video = data.short_video;
         }
 
         if (data.long_video && selectedGenerateFor.includes('long_video')) {
-          formattedContent += '**📄 Bài viết dài:**\n\n';
-          formattedContent += data.long_video.caption || data.long_video;
-          formattedContent += '\n\n';
+          newContentBoxes.long_video = data.long_video;
         }
 
         if (data.youtube && selectedGenerateFor.includes('youtube')) {
-          formattedContent += '**📺 Video YouTube:**\n\n';
-          if (typeof data.youtube === 'object') {
-            if (data.youtube.description) {
-              formattedContent += data.youtube.description;
-            }
-            if (data.youtube.tags && data.youtube.tags.length > 0) {
-              formattedContent += `\n\nTags: ${data.youtube.tags.join(', ')}`;
-            }
-          } else {
-            formattedContent += data.youtube;
-          }
-          formattedContent += '\n\n';
+          newContentBoxes.youtube = data.youtube;
         }
 
-        // Pass both content and generation data to parent
-        onContentGenerated(formattedContent.trim(), {
-          platform: selectedPlatform,
+        setContentBoxes(newContentBoxes);
+
+        // Pass the entire response to parent
+        onContentGenerated(data, {
+          platform: 'facebook',
           generate_for: selectedGenerateFor,
           platform_specific_data: {
             prompt: prompt.trim(),
@@ -219,11 +219,6 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
         });
 
         setSuccess('Nội dung đã được tạo thành công!');
-        setPrompt('');
-        setHashtags('');
-        setBrandName('');
-        setCallToAction('');
-        setPostingPurpose('');
         
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
@@ -245,8 +240,65 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     setCallToAction('');
     setPostingPurpose('');
     setSelectedGenerateFor(['short_video']);
+    setContentBoxes({});
     setError('');
     setSuccess('');
+  };
+
+  const updateContentBox = (type: string, content: string) => {
+    setContentBoxes(prev => {
+      const updated = { ...prev };
+      if (type === 'short_video' || type === 'long_video') {
+        updated[type as keyof ContentBoxes] = { caption: content };
+      } else if (type === 'youtube' && updated.youtube) {
+        updated.youtube = { ...updated.youtube, description: content };
+      }
+      return updated;
+    });
+
+    // Update parent component
+    onContentGenerated(contentBoxes, {
+      platform: 'facebook',
+      generate_for: selectedGenerateFor,
+      platform_specific_data: {
+        prompt: prompt.trim(),
+        call_to_action: callToAction.trim(),
+        hashtags: hashtags.trim().split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      },
+      brand_name: brandName.trim(),
+      posting_purpose: postingPurpose.trim(),
+      ai_platform: selectedAiPlatform
+    });
+  };
+
+  const getBoxTitle = (type: string) => {
+    switch (type) {
+      case 'short_video': return 'Reel';
+      case 'long_video': return 'Page/Instagram';
+      case 'youtube': return 'YouTube';
+      default: return type;
+    }
+  };
+
+  const getBoxIcon = (type: string) => {
+    switch (type) {
+      case 'short_video': return '🎬';
+      case 'long_video': return '📄';
+      case 'youtube': return '📺';
+      default: return '📝';
+    }
+  };
+
+  const getBoxContent = (type: string) => {
+    const box = contentBoxes[type as keyof ContentBoxes];
+    if (!box) return '';
+    
+    if (type === 'youtube' && 'description' in box) {
+      return box.description;
+    } else if ('caption' in box) {
+      return box.caption;
+    }
+    return '';
   };
 
   return (
@@ -362,34 +414,6 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
             />
-          </div>
-
-          {/* Platform Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Chọn nền tảng: *
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'facebook', name: 'Facebook', icon: '📘' },
-                { id: 'instagram', name: 'Instagram', icon: '📷' },
-                { id: 'youtube', name: 'YouTube', icon: '📺' }
-              ].map((platform) => (
-                <button
-                  key={platform.id}
-                  type="button"
-                  onClick={() => setSelectedPlatform(platform.id as any)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                    selectedPlatform === platform.id
-                      ? 'border-purple-500 bg-purple-100 text-purple-700'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span>{platform.icon}</span>
-                  {platform.name}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Generate For Selection */}
@@ -525,6 +549,91 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
                   "{example}"
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content Boxes */}
+      {Object.keys(contentBoxes).length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-medium text-gray-900 flex items-center gap-2">
+            <CheckCircle size={16} className="text-green-500" />
+            Nội dung đã tạo
+          </h4>
+          
+          {Object.entries(contentBoxes).map(([type, content]) => (
+            <div key={type} className="border border-gray-200 rounded-lg p-3 bg-white">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span>{getBoxIcon(type)}</span>
+                  <span className="font-medium text-gray-900">{getBoxTitle(type)}</span>
+                </div>
+                <button
+                  onClick={() => setExpandedBox(type)}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm transition-colors"
+                  title="Mở rộng để chỉnh sửa"
+                >
+                  <Maximize2 size={14} />
+                  Mở rộng
+                </button>
+              </div>
+              
+              <textarea
+                value={getBoxContent(type)}
+                onChange={(e) => updateContentBox(type, e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                rows={4}
+                placeholder={`Nội dung ${getBoxTitle(type)}...`}
+              />
+              
+              {type === 'youtube' && contentBoxes.youtube?.tags && (
+                <div className="mt-2">
+                  <div className="text-xs font-medium text-gray-700 mb-1">Tags:</div>
+                  <div className="text-xs text-gray-600">
+                    {contentBoxes.youtube.tags.join(', ')}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded Content Modal */}
+      {expandedBox && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <span>{getBoxIcon(expandedBox)}</span>
+                Chỉnh sửa {getBoxTitle(expandedBox)}
+              </h3>
+              <button
+                onClick={() => setExpandedBox(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 p-6">
+              <textarea
+                value={getBoxContent(expandedBox)}
+                onChange={(e) => updateContentBox(expandedBox, e.target.value)}
+                className="w-full h-full min-h-[400px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder={`Nội dung ${getBoxTitle(expandedBox)}...`}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setExpandedBox(null)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Đóng và Lưu
+              </button>
             </div>
           </div>
         </div>

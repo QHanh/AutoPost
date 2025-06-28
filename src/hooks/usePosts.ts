@@ -39,7 +39,7 @@ export const usePosts = () => {
     const apiBaseUrl = getApiBaseUrl();
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/published`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/published?skip=0&limit=100`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
@@ -72,7 +72,7 @@ export const usePosts = () => {
     const apiBaseUrl = getApiBaseUrl();
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/unpublished`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/unpublished?skip=0&limit=100`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
