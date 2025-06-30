@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, X, Play, Image as ImageIcon, Film, AlertCircle } from 'lucide-react';
+import { Upload, X, Play, Image as ImageIcon, Film } from 'lucide-react';
 import { MediaFile } from '../types/platform';
 import { createMediaFile, formatFileSize, formatDuration } from '../utils/mediaUtils';
 

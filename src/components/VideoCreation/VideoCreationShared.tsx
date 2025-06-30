@@ -12,6 +12,7 @@ export interface VideoProgress {
 export interface CompletedVideo {
   url: string;
   index: number;
+  taskId: string;
 }
 
 // Global video progress manager
@@ -160,7 +161,8 @@ class VideoProgressManager {
 
           downloadedVideos.push({
             url: videoUrl,
-            index: i + 1
+            index: i + 1,
+            taskId: this.currentProgress.taskId
           });
         }
       }
