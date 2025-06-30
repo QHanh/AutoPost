@@ -357,7 +357,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         throw new Error(errorData.message || `Failed to schedule posts`);
       }
 
-      const result = await response.json();
+      // const result = await response.json();
       
       setSchedulingStatus({ 
         type: 'success', 

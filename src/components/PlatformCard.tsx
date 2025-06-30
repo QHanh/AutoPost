@@ -33,7 +33,7 @@ interface PlatformCardProps {
 
 export const PlatformCard: React.FC<PlatformCardProps> = ({
   platform,
-  accounts,
+  //accounts,
   savedAccounts,
   isLoadingAccounts,
   onReloadAccounts
@@ -44,7 +44,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const platformAccounts = accounts.filter(acc => acc.platformId === platform.id);
+  // const platformAccounts = accounts.filter(acc => acc.platformId === platform.id);
 
   // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
@@ -144,6 +144,9 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
 
     try {
       const apiBaseUrl = getApiBaseUrl();
+      if (!user) {
+        throw new Error('User is not authenticated');
+      }
       const response = await fetch(`${apiBaseUrl}/api/v1/facebook/auth/facebook/init`, {
         method: 'GET',
         headers: {
@@ -223,6 +226,9 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
 
     try {
       const apiBaseUrl = getApiBaseUrl();
+      if (!user) {
+        throw new Error('User is not authenticated');
+      }
       const response = await fetch(`${apiBaseUrl}/api/v1/youtube/connect`, {
         method: 'POST',
         headers: {

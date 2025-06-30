@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { Clock, CheckCircle, Zap } from 'lucide-react';
 import { Post } from '../types/platform';
 
 interface SchedulerStatusProps {
