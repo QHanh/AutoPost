@@ -14,6 +14,16 @@ import { usePlatforms } from './hooks/usePlatforms';
 import { usePosts } from './hooks/usePosts';
 import { useAuth } from './hooks/useAuth';
 
+import { AdminRoute } from './components/AdminRoute';
+import { AdminLayout } from './components/AdminLayout';
+import { AdminDashboard } from './pages/admin/AdminDashboard.js';
+import { AdminUsers } from './pages/admin/AdminUsers';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminSettings } from './pages/admin/AdminSettings';
+import { AdminPlatforms } from './pages/admin/AdminPlatforms';
+import { AdminPricing } from './pages/admin/AdminPricing';
+import { AdminUserSubscriptions } from './pages/admin/AdminUserSubscriptions';
+
 function App() {
   const { 
     platforms, 
@@ -67,6 +77,57 @@ function App() {
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        
+        {/* Admin routes */}
+        <Route path="/admin" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminDashboard />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/users" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminUsers />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/analytics" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminAnalytics />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/platforms" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminPlatforms />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/pricing" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminPricing />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/subscriptions" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminUserSubscriptions />
+            </AdminLayout>
+          </AdminRoute>
+        } />
+        <Route path="/admin/settings" element={
+          <AdminRoute>
+            <AdminLayout>
+              <AdminSettings />
+            </AdminLayout>
+          </AdminRoute>
+        } />
         
         {/* Protected routes */}
         <Route 

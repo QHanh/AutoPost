@@ -5,6 +5,7 @@ interface User {
   email: string;
   full_name: string;
   token: string;
+  role: string;
 }
 
 interface AuthState {
@@ -22,7 +23,7 @@ export const useAuth = () => {
 
   // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return import.meta.env.VITE_API_BASE_URL;
   };
 
   // Check for existing auth on mount
@@ -69,6 +70,7 @@ export const useAuth = () => {
           email: email.trim(),
           password: password,
           full_name: full_name.trim()
+          //role: 'user'
         })
       });
 
@@ -124,13 +126,15 @@ export const useAuth = () => {
 
       const data = await response.json();
 
+
       if (response.status === 200) {
         // Create user object with the response data
         const user: User = {
           id: data.user?.id || data.id || 'user_id',
           email: username,
           full_name: data.user?.full_name || data.full_name || 'User',
-          token: data.access_token || data.token || 'auth_token'
+          token: data.access_token || data.token || 'auth_token',
+          role: data.role 
         };
 
         // Store auth data
@@ -138,7 +142,8 @@ export const useAuth = () => {
         localStorage.setItem('user_data', JSON.stringify({
           id: user.id,
           email: user.email,
-          full_name: user.full_name
+          full_name: user.full_name, 
+          role: user.role
         }));
 
         setAuthState({

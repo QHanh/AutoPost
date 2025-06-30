@@ -1,44 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Video, Volume2, Type, Loader2 } from 'lucide-react';
 import { useVideoProgress, VideoProgressDisplay, VideoGallery, ColorPicker, ExpandableTextarea, getApiBaseUrl } from './VideoCreationShared';
-
+import { useApiKeys } from '../../hooks/useApiKeys';
+import { usePersistentState } from '../../hooks/useFormPersistence';
 export const SingleVoiceMode: React.FC = () => {
+  const { savedApiKeys } = useApiKeys();
   // Form state
-  const [videoTopic, setVideoTopic] = useState('');
-  const [scriptLanguage, setScriptLanguage] = useState('Tiếng Việt');
-  const [videoScript, setVideoScript] = useState('');
-  const [videoKeywords, setVideoKeywords] = useState('');
+  const [videoTopic, setVideoTopic] = useState(() => sessionStorage.getItem('videoTopic') || '');
+  const [scriptLanguage, setScriptLanguage] = usePersistentState('scriptLanguage', 'Tiếng Việt');
+  const [videoScript, setVideoScript] = useState(() => sessionStorage.getItem('videoScript') || '');
+  const [videoKeywords, setVideoKeywords] = useState(() => sessionStorage.getItem('videoKeywords') || '');
   
   // Video Settings
-  const [videoSource, setVideoSource] = useState('Pexels');
-  const [concatenationMode, setConcatenationMode] = useState('Nối ngẫu nhiên (Recommend)');
-  const [transitionMode, setTransitionMode] = useState('Không có');
-  const [aspectRatio, setAspectRatio] = useState('Dọc 9:16');
-  const [maxSegmentDuration, setMaxSegmentDuration] = useState(5);
-  const [concurrentVideos, setConcurrentVideos] = useState(1);
+  const [videoSource, setVideoSource] = usePersistentState('videoSource', 'Pexels');
+  const [concatenationMode, setConcatenationMode] = usePersistentState('concatenationMode', 'Nối ngẫu nhiên (Recommend)');
+  const [transitionMode, setTransitionMode] = usePersistentState('transitionMode', 'Không có');
+  const [aspectRatio, setAspectRatio] = usePersistentState('aspectRatio', 'Dọc 9:16');
+  const [maxSegmentDuration, setMaxSegmentDuration] = usePersistentState('maxSegmentDuration', 5);
+  const [concurrentVideos, setConcurrentVideos] = usePersistentState('concurrentVideos', 1);
 
   // Audio Settings
-  const [ttsServer, setTtsServer] = useState('Azure TTS V1');
-  const [ttsVoice, setTtsVoice] = useState('vi-VN-HoaiMyNeural');
-  const [azureRegion, setAzureRegion] = useState('');
-  const [azureApiKey, setAzureApiKey] = useState('');
-  const [voiceVolume, setVoiceVolume] = useState(1.0);
-  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
-  const [backgroundMusic, setBackgroundMusic] = useState('Ngẫu nhiên');
-  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(0.5);
+  const [ttsServer, setTtsServer] = usePersistentState('ttsServer', 'azure_tts_v1');
+  const [ttsVoice, setTtsVoice] = usePersistentState('ttsVoice', 'vi-VN-HoaiMyNeural');
+  // const [geminiApiKey, setGeminiApiKey] = useState('');
+  const geminiApiKey = savedApiKeys.gemini_api_key;
+  const [azureRegion, setAzureRegion] = usePersistentState('azureRegion', '');
+  const [azureApiKey, setAzureApiKey] = usePersistentState('azureApiKey', ''); 
+  const [voiceVolume, setVoiceVolume] = usePersistentState('voiceVolume', 1.0);
+  const [voiceSpeed, setVoiceSpeed] = usePersistentState('voiceSpeed', 1.0);
+  const [backgroundMusic, setBackgroundMusic] = usePersistentState('backgroundMusic', 'Ngẫu nhiên');
+  const [backgroundMusicVolume, setBackgroundMusicVolume] = usePersistentState('backgroundMusicVolume', 0.5);
 
   // Subtitle Settings
-  const [enableSubtitles, setEnableSubtitles] = useState(true);
-  const [subtitleFont, setSubtitleFont] = useState('UTM Kabel KT.ttf');
-  const [subtitlePosition, setSubtitlePosition] = useState('Dưới (Recommend)');
-  const [customSubtitlePosition, setCustomSubtitlePosition] = useState('70');
-  const [subtitleTextColor, setSubtitleTextColor] = useState('#FFFFFF');
-  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [subtitleFontSize, setSubtitleFontSize] = useState(60);
-  const [subtitleBorderColor, setSubtitleBorderColor] = useState('#000000');
-  const [showBorderColorPicker, setShowBorderColorPicker] = useState(false);
-  const [subtitleBorderWidth, setSubtitleBorderWidth] = useState(1.50);
-
+  const [enableSubtitles, setEnableSubtitles] = usePersistentState('enableSubtitles', true);
+  const [subtitleProvider, setSubtitleProvider] = usePersistentState('subtitleProvider', 'edge');
+  // const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const openaiApiKey = savedApiKeys.openai_api_key;
+  const [subtitleFont, setSubtitleFont] = usePersistentState('subtitleFont', 'DancingScript.ttf');
+  const [subtitlePosition, setSubtitlePosition] = usePersistentState('subtitlePosition', 'Dưới (Recommend)');
+  const [customSubtitlePosition, setCustomSubtitlePosition] = usePersistentState('customSubtitlePosition', '0.0');
+  const [subtitleTextColor, setSubtitleTextColor] = usePersistentState('subtitleTextColor', '#FFFFFF');
+  const [showTextColorPicker, setShowTextColorPicker] = usePersistentState('showTextColorPicker', false);
+  const [subtitleFontSize, setSubtitleFontSize] = usePersistentState('subtitleFontSize', 80);
+  const [subtitleBorderColor, setSubtitleBorderColor] = usePersistentState('subtitleBorderColor', '#000000');
+  const [showBorderColorPicker, setShowBorderColorPicker] = usePersistentState('showBorderColorPicker', false);
+  const [subtitleBorderWidth, setSubtitleBorderWidth] = usePersistentState('subtitleBorderWidth', 2);
+  const [subtitleType, setSubtitleType] = usePersistentState('subtitleType', 'normal');
   // Loading states
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
@@ -46,13 +53,19 @@ export const SingleVoiceMode: React.FC = () => {
   // Video progress tracking
   const { videoProgress, completedVideos, startVideoCreation, stopVideoCreation } = useVideoProgress();
 
+  useEffect(() => {
+    sessionStorage.setItem('videoTopic', videoTopic);
+    sessionStorage.setItem('videoScript', videoScript);
+    sessionStorage.setItem('videoKeywords', videoKeywords);
+  }, [videoTopic, videoScript, videoKeywords]);
+
   const getVoiceOptions = () => {
-    if (ttsServer === 'Azure TTS V1') {
+    if (ttsServer === 'azure_tts_v1') {
       return [
         { value: 'vi-VN-HoaiMyNeural', label: 'vi-VN-HoaiMyNeural' },
         { value: 'vi-VN-NamMinhNeural', label: 'vi-VN-NamMinhNeural' },
       ];
-    } else if (ttsServer === 'Azure TTS V2') {
+    } else if (ttsServer === 'azure_tts_v2') {
       return [
         { value: 'en-US-AvaMultilingualNeural-V2', label: 'en-US-AvaMultilingualNeural-V2 (Female)' },
         { value: 'en-US-AndrewMultilingualNeural-V2', label: 'en-US-AndrewMultilingualNeural-V2 (Male)' },
@@ -64,9 +77,38 @@ export const SingleVoiceMode: React.FC = () => {
         { value: 'fr-FR-VivienneMultilingualNeural-V2', label: 'fr-FR-VivienneMultilingualNeural-V2 (Female)' },
         { value: 'zh-CN-XiaoxiaoMultilingualNeural-V2', label: 'zh-CN-XiaoxiaoMultilingualNeural-V2 (Female)' },
       ];
-    } else if (ttsServer === 'Gemini 2.5 Flash TTS') {
+    } else if (ttsServer === 'gemini') {
       return [
-        { value: 'default', label: 'Default Voice' },
+        { value: 'Puck', label: 'Puck - Nam' },
+        { value: 'Charon', label: 'Charon - Nam' },
+        { value: 'Fenrir', label: 'Fenrir - Nam' },
+        { value: 'Orus', label: 'Orus - Nam' },
+        { value: 'Enceladus', label: 'Enceladus - Nam' },
+        { value: 'Iapetus', label: 'Iapetus - Nam' },
+        { value: 'Umbriel', label: 'Umbriel - Nam' },
+        { value: 'Algenib', label: 'Algenib - Nam' },
+        { value: 'Algieba', label: 'Algieba - Nam' },
+        { value: 'Rasalgethi', label: 'Rasalgethi - Nam' },
+        { value: 'Alnilam', label: 'Alnilam - Nam' },
+        { value: 'Schedar', label: 'Schedar - Nam' },
+        { value: 'Pulcherrima', label: 'Pulcherrima - Nam' },
+        { value: 'Achird', label: 'Achird - Nam' },
+        { value: 'Zubenelgenubi', label: 'Zubenelgenubi - Nam' },
+        { value: 'Sadachbia', label: 'Sadachbia - Nam' },
+        { value: 'Sadaltager', label: 'Sadaltager - Nam' },
+        { value: 'Zephyr', label: 'Zephyr - Nữ' },
+        { value: 'Kore', label: 'Kore - Nữ' },
+        { value: 'Leda', label: 'Leda - Nữ' },
+        { value: 'Aoede', label: 'Aoede - Nữ' },
+        { value: 'Callirrhoe', label: 'Callirrhoe - Nữ' },
+        { value: 'Autonoe', label: 'Autonoe - Nữ' },
+        { value: 'Despina', label: 'Despina - Nữ' },
+        { value: 'Erinome', label: 'Erinome - Nữ' },
+        { value: 'Laomedeia', label: 'Laomedeia - Nữ' },
+        { value: 'Achernar', label: 'Achernar - Nữ' },
+        { value: 'Gacrux', label: 'Gacrux - Nữ' },
+        { value: 'Vindemiatrix', label: 'Vindemiatrix - Nữ' },
+        { value: 'Sulafat', label: 'Sulafat - Nữ' },
       ];
     }
     return [];
@@ -230,11 +272,14 @@ export const SingleVoiceMode: React.FC = () => {
         video_language: scriptLanguage === 'Tiếng Việt' ? 'Vietnamese' : 'English',
         voice_name: ttsVoice,
         voice_volume: voiceVolume,
+        tts_server: ttsServer,
         voice_rate: voiceSpeed,
         bgm_type: backgroundMusic === 'Ngẫu nhiên' ? 'random' : backgroundMusic.toLowerCase(),
         bgm_file: "",
         bgm_volume: backgroundMusicVolume,
         subtitle_enabled: enableSubtitles,
+        type_subtitle: subtitleType,
+        subtitle_provider: subtitleProvider,
         subtitle_position: positionMap[subtitlePosition] || 'bottom',
         custom_position: parseFloat(customSubtitlePosition),
         font_name: subtitleFont,
@@ -244,7 +289,11 @@ export const SingleVoiceMode: React.FC = () => {
         stroke_color: subtitleBorderColor,
         stroke_width: subtitleBorderWidth,
         n_threads: 4,
-        paragraph_number: 1
+        paragraph_number: 1,
+        gemini_key: geminiApiKey,
+        openai_key: openaiApiKey,
+        speech_key: azureApiKey,
+        speech_region: azureRegion
       };
 
       const response = await fetch(`${apiBaseUrl}/api/v1/videos`, {
@@ -291,8 +340,8 @@ export const SingleVoiceMode: React.FC = () => {
             </label>
             <textarea
               id="videoTopic"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
-              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+              rows={2}
               placeholder="Nhập chủ đề video của bạn..."
               value={videoTopic}
               onChange={(e) => setVideoTopic(e.target.value)}
@@ -376,11 +425,136 @@ export const SingleVoiceMode: React.FC = () => {
               onChange={setVideoKeywords}
               label="Từ Khóa Video"
               placeholder="Nhập các từ khóa liên quan đến video, cách nhau bởi dấu phẩy..."
-              rows={3}
+              rows={2}
             />
           </div>
         </div>
 
+        {/* Cài đặt video */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-gradient-to-r from-green-100 to-blue-100 w-12 h-12 rounded-xl flex items-center justify-center">
+              <Video className="text-green-600" size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Cài đặt video</h2>
+              <p className="text-gray-600 text-sm">Tùy chỉnh chất lượng và hiệu ứng</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* Nguồn Video */}
+            <div>
+              <label htmlFor="videoSource" className="block text-sm font-medium text-gray-700 mb-2">
+                Nguồn Video
+              </label>
+              <select
+                id="videoSource"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={videoSource}
+                onChange={(e) => setVideoSource(e.target.value)}
+              >
+                <option value="Pexels">Pexels</option>
+                <option value="Pixabay">Pixabay</option>
+                <option value="Tệp cục bộ">Tệp cục bộ</option>
+              </select>
+            </div>
+
+            {/* Chế Độ Nối Video */}
+            <div>
+              <label htmlFor="concatenationMode" className="block text-sm font-medium text-gray-700 mb-2">
+                Chế Độ Nối Video
+              </label>
+              <select
+                id="concatenationMode"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={concatenationMode}
+                onChange={(e) => setConcatenationMode(e.target.value)}
+              >
+                <option value="Nối ngẫu nhiên (Recommend)">Nối ngẫu nhiên (Recommend)</option>
+                <option value="Nối theo thứ tự">Nối theo thứ tự</option>
+              </select>
+            </div>
+
+            {/* Chế Độ Chuyển Đổi Video */}
+            <div>
+              <label htmlFor="transitionMode" className="block text-sm font-medium text-gray-700 mb-2">
+                Chế Độ Chuyển Đổi Video
+              </label>
+              <select
+                id="transitionMode"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={transitionMode}
+                onChange={(e) => setTransitionMode(e.target.value)}
+              >
+                <option value="Không có">Không có</option>
+                <option value="Ngẫu nhiên">Ngẫu nhiên</option>
+                <option value="Fade in">Fade in</option>
+                <option value="Fade out">Fade out</option>
+                <option value="Slide in">Slide in</option>
+                <option value="Slide out">Slide out</option>
+              </select>
+            </div>
+
+            {/* Tỷ Lệ Khung Hình Video */}
+            <div>
+              <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-700 mb-2">
+                Tỷ Lệ Khung Hình Video
+              </label>
+              <select
+                id="aspectRatio"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+              >
+                <option value="Dọc 9:16">Dọc 9:16</option>
+                <option value="Ngang 16:9">Ngang 16:9</option>
+              </select>
+            </div>
+
+            {/* Thời Lượng Tối Đa Của Đoạn Video */}
+            <div>
+              <label htmlFor="maxSegmentDuration" className="block text-sm font-medium text-gray-700 mb-2">
+                Thời Lượng Tối Đa Của Đoạn Video (giây)
+              </label>
+              <select
+                id="maxSegmentDuration"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={maxSegmentDuration}
+                onChange={(e) => setMaxSegmentDuration(Number(e.target.value))}
+              >
+                {[...Array(9)].map((_, i) => (
+                  <option key={i + 2} value={i + 2}>
+                    {i + 2}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Số Video Được Tạo Ra Đồng Thời */}
+            <div>
+              <label htmlFor="concurrentVideos" className="block text-sm font-medium text-gray-700 mb-2">
+                Số Video Được Tạo Ra Đồng Thời
+              </label>
+              <select
+                id="concurrentVideos"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={concurrentVideos}
+                onChange={(e) => setConcurrentVideos(Number(e.target.value))}
+              >
+                {[...Array(5)].map((_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {i + 1}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column */}
+      <div className="space-y-6">
         {/* Cài đặt phụ đề */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -410,6 +584,57 @@ export const SingleVoiceMode: React.FC = () => {
 
             {enableSubtitles && (
               <>
+                {/* Nhà cung cấp phụ đề */}
+                <div>
+                  <label htmlFor="subtitleProvider" className="block text-sm font-medium text-gray-700 mb-2">
+                    Cách tạo phụ đề
+                  </label>
+                  <select
+                    id="subtitleProvider"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    value={subtitleProvider}
+                    onChange={(e) => setSubtitleProvider(e.target.value)}
+                  >
+                    <option value="edge">Dự đoán (Free, Nhanh)</option>
+                    <option value="whisper_api">Open AI API (Mất phí, Nhanh, Cần Api Key)</option>
+                    <option value="whisper_local">Mô hình Local (Free, Chậm)</option>
+                  </select>
+                </div>
+
+                {/*Open AI API Key*/}
+                {/* {subtitleProvider === 'whisper_api' && (
+                  <div>
+                    <label htmlFor="openaiApiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      id="openaiApiKey"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Nhập API Key của bạn"
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    />
+                  </div>
+                )} */}
+
+                {/* Kiểu phụ đề */}
+                <div>
+                  <label htmlFor="subtitleType" className="block text-sm font-medium text-gray-700 mb-2">
+                    Hiệu ứng phụ đề
+                  </label>
+                  <select
+                    id="subtitleType"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    value={subtitleType}
+                    onChange={(e) => setSubtitleType(e.target.value)}
+                  >
+                    <option value="normal">Không có</option>
+                    <option value="typewriter">Gõ chữ</option>
+                    <option value="word2word">Hiển thị từng chữ</option>
+                  </select>
+                </div>
+
                 {/* Phông Chữ Phụ Đề */}
                 <div>
                   <label htmlFor="subtitleFont" className="block text-sm font-medium text-gray-700 mb-2">
@@ -417,16 +642,19 @@ export const SingleVoiceMode: React.FC = () => {
                   </label>
                   <select
                     id="subtitleFont"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     value={subtitleFont}
                     onChange={(e) => setSubtitleFont(e.target.value)}
                   >
+                    <option value="DancingScript.ttf">Dancing Script</option>
                     <option value="UTM Kabel KT.ttf">UTM Kabel KT</option>
-                    <option value="Charm-Bold.ttf">Charm Bold</option>
-                    <option value="Charm-Regular.ttf">Charm Regular</option>
-                    <option value="MicrosoftYaHeiNormal.ttc">Microsoft YaHei Normal</option>
-                    <option value="STHeitiLight.ttc">STHeiti Light</option>
-                    <option value="STHeitiMedium.ttc">STHeiti Medium</option>
+                    <option value="Charm.ttf">Charm</option>
+                    <option value="Bangers.ttf">Bangers</option>
+                    <option value="BungeeSpice.ttf">BungeeSpice</option>
+                    <option value="Lobster.ttf">Lobster</option>
+                    <option value="Neonderthaw.ttf">Neonderthaw</option>
+                    <option value="ComforterBrush.ttf">Comforter Brush</option>
+                    <option value="Charmonman.ttf">Charmonman</option>
                   </select>
                 </div>
 
@@ -437,7 +665,7 @@ export const SingleVoiceMode: React.FC = () => {
                   </label>
                   <select
                     id="subtitlePosition"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     value={subtitlePosition}
                     onChange={(e) => setSubtitlePosition(e.target.value)}
                   >
@@ -461,7 +689,7 @@ export const SingleVoiceMode: React.FC = () => {
                       max="100"
                       value={customSubtitlePosition}
                       onChange={(e) => setCustomSubtitlePosition(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                       placeholder="85"
                     />
                   </div>
@@ -537,131 +765,6 @@ export const SingleVoiceMode: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Right Column */}
-      <div className="space-y-6">
-        {/* Cài đặt video */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gradient-to-r from-green-100 to-blue-100 w-12 h-12 rounded-xl flex items-center justify-center">
-              <Video className="text-green-600" size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Cài đặt video</h2>
-              <p className="text-gray-600 text-sm">Tùy chỉnh chất lượng và hiệu ứng</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {/* Nguồn Video */}
-            <div>
-              <label htmlFor="videoSource" className="block text-sm font-medium text-gray-700 mb-2">
-                Nguồn Video
-              </label>
-              <select
-                id="videoSource"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={videoSource}
-                onChange={(e) => setVideoSource(e.target.value)}
-              >
-                <option value="Pexels">Pexels</option>
-                <option value="Pixabay">Pixabay</option>
-                <option value="Tệp cục bộ">Tệp cục bộ</option>
-              </select>
-            </div>
-
-            {/* Chế Độ Nối Video */}
-            <div>
-              <label htmlFor="concatenationMode" className="block text-sm font-medium text-gray-700 mb-2">
-                Chế Độ Nối Video
-              </label>
-              <select
-                id="concatenationMode"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={concatenationMode}
-                onChange={(e) => setConcatenationMode(e.target.value)}
-              >
-                <option value="Nối ngẫu nhiên (Recommend)">Nối ngẫu nhiên (Recommend)</option>
-                <option value="Nối theo thứ tự">Nối theo thứ tự</option>
-              </select>
-            </div>
-
-            {/* Chế Độ Chuyển Đổi Video */}
-            <div>
-              <label htmlFor="transitionMode" className="block text-sm font-medium text-gray-700 mb-2">
-                Chế Độ Chuyển Đổi Video
-              </label>
-              <select
-                id="transitionMode"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={transitionMode}
-                onChange={(e) => setTransitionMode(e.target.value)}
-              >
-                <option value="Không có">Không có</option>
-                <option value="Ngẫu nhiên">Ngẫu nhiên</option>
-                <option value="Fade in">Fade in</option>
-                <option value="Fade out">Fade out</option>
-                <option value="Slide in">Slide in</option>
-                <option value="Slide out">Slide out</option>
-              </select>
-            </div>
-
-            {/* Tỷ Lệ Khung Hình Video */}
-            <div>
-              <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-700 mb-2">
-                Tỷ Lệ Khung Hình Video
-              </label>
-              <select
-                id="aspectRatio"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={aspectRatio}
-                onChange={(e) => setAspectRatio(e.target.value)}
-              >
-                <option value="Dọc 9:16">Dọc 9:16</option>
-                <option value="Ngang 16:9">Ngang 16:9</option>
-              </select>
-            </div>
-
-            {/* Thời Lượng Tối Đa Của Đoạn Video */}
-            <div>
-              <label htmlFor="maxSegmentDuration" className="block text-sm font-medium text-gray-700 mb-2">
-                Thời Lượng Tối Đa Của Đoạn Video (giây)
-              </label>
-              <select
-                id="maxSegmentDuration"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={maxSegmentDuration}
-                onChange={(e) => setMaxSegmentDuration(Number(e.target.value))}
-              >
-                {[...Array(9)].map((_, i) => (
-                  <option key={i + 2} value={i + 2}>
-                    {i + 2}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Số Video Được Tạo Ra Đồng Thời */}
-            <div>
-              <label htmlFor="concurrentVideos" className="block text-sm font-medium text-gray-700 mb-2">
-                Số Video Được Tạo Ra Đồng Thời
-              </label>
-              <select
-                id="concurrentVideos"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={concurrentVideos}
-                onChange={(e) => setConcurrentVideos(Number(e.target.value))}
-              >
-                {[...Array(5)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
 
         {/* Cài đặt âm thanh */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -683,37 +786,36 @@ export const SingleVoiceMode: React.FC = () => {
               </label>
               <select
                 id="ttsServer"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={ttsServer}
                 onChange={(e) => setTtsServer(e.target.value)}
               >
-                <option value="Azure TTS V1">Azure TTS V1</option>
-                <option value="Azure TTS V2">Azure TTS V2</option>
-                <option value="Gemini 2.5 Flash TTS">Gemini 2.5 Flash TTS</option>
+                <option value="azure_tts_v1">Azure TTS V1 (Nhanh)</option>
+                <option value="azure_tts_v2">Azure TTS V2 (Nhanh, Cần API Key)</option>
+                <option value="gemini">Gemini 2.5 Flash TTS (Nhanh, Cần API Key)</option>
               </select>
             </div>
-
-            {/* Giọng Đọc Văn Bản */}
-            <div>
-              <label htmlFor="ttsVoice" className="block text-sm font-medium text-gray-700 mb-2">
-                Giọng Đọc Văn Bản
-              </label>
-              <select
-                id="ttsVoice"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={ttsVoice}
-                onChange={(e) => setTtsVoice(e.target.value)}
-              >
-                {getVoiceOptions().map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+            
+            {/* Gemini 2.5 Flash TTS specific inputs */}
+            {/* {ttsServer === 'gemini' && (
+              <>
+                <div>
+                  <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                    Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    id="geminiApiKey"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Nhập API Key của bạn"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                  />
+                </div>
+              </>
+            )} */}
             {/* Azure TTS V2 specific inputs */}
-            {ttsServer === 'Azure TTS V2' && (
+            {ttsServer === 'azure_tts_v2' && (
               <>
                 <div>
                   <label htmlFor="azureRegion" className="block text-sm font-medium text-gray-700 mb-2">
@@ -722,7 +824,7 @@ export const SingleVoiceMode: React.FC = () => {
                   <input
                     type="text"
                     id="azureRegion"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="Ví dụ: westus2"
                     value={azureRegion}
                     onChange={(e) => setAzureRegion(e.target.value)}
@@ -735,7 +837,7 @@ export const SingleVoiceMode: React.FC = () => {
                   <input
                     type="password"
                     id="azureApiKey"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="Nhập API Key của bạn"
                     value={azureApiKey}
                     onChange={(e) => setAzureApiKey(e.target.value)}
@@ -744,6 +846,26 @@ export const SingleVoiceMode: React.FC = () => {
               </>
             )}
 
+          
+            {/* Giọng Đọc Văn Bản */}
+            <div>
+              <label htmlFor="ttsVoice" className="block text-sm font-medium text-gray-700 mb-2">
+                Giọng Đọc Văn Bản
+              </label>
+              <select
+                id="ttsVoice"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                value={ttsVoice}
+                onChange={(e) => setTtsVoice(e.target.value)}
+              >
+                {getVoiceOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Âm Lượng Giọng Đọc */}
             <div>
               <label htmlFor="voiceVolume" className="block text-sm font-medium text-gray-700 mb-2">
@@ -751,7 +873,7 @@ export const SingleVoiceMode: React.FC = () => {
               </label>
               <select
                 id="voiceVolume"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={voiceVolume}
                 onChange={(e) => setVoiceVolume(Number(e.target.value))}
               >
@@ -770,7 +892,7 @@ export const SingleVoiceMode: React.FC = () => {
               </label>
               <select
                 id="voiceSpeed"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={voiceSpeed}
                 onChange={(e) => setVoiceSpeed(Number(e.target.value))}
               >
@@ -789,7 +911,7 @@ export const SingleVoiceMode: React.FC = () => {
               </label>
               <select
                 id="backgroundMusic"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={backgroundMusic}
                 onChange={(e) => setBackgroundMusic(e.target.value)}
               >

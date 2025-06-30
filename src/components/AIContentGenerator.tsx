@@ -96,7 +96,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   const getGenerateForOptions = () => {
     return [
       { id: 'short_video', name: 'Reel', icon: '🎬' },
-      { id: 'long_video', name: 'Page/Instagram', icon: '📄' },
+      { id: 'long_video', name: 'Photo/Content', icon: '📄' },
       { id: 'youtube', name: 'YouTube', icon: '📺' }
     ];
   };

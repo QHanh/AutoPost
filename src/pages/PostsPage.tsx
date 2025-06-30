@@ -74,7 +74,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({
 
       {/* Enhanced Features Section */}
       <section className="mb-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Tính năng nâng cao với Backend API</h3>
+        <h3 className="text-2xl font-bold text-gray-900 mb-4">Tính năng nâng cao</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="text-center">
             <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -82,7 +82,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({
             </div>
             <h4 className="font-semibold mb-2">AI Content Generation</h4>
             <p className="text-sm text-gray-600">
-              Tạo nội dung với AI backend, tùy chỉnh theo nền tảng và loại bài đăng
+              Tạo nội dung với AI, tùy chỉnh theo nền tảng và loại bài đăng
             </p>
           </div>
           
@@ -90,9 +90,9 @@ export const PostsPage: React.FC<PostsPageProps> = ({
             <div className="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-2xl">📅</span>
             </div>
-            <h4 className="font-semibold mb-2">Backend Scheduling</h4>
+            <h4 className="font-semibold mb-2">Scheduling</h4>
             <p className="text-sm text-gray-600">
-              Tất cả bài đăng được lên lịch và xử lý tự động bởi backend API
+              Tất cả bài đăng được lên lịch và xử lý tự động
             </p>
           </div>
           
@@ -102,7 +102,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({
             </div>
             <h4 className="font-semibold mb-2">Server Accounts</h4>
             <p className="text-sm text-gray-600">
-              Tài khoản được quản lý tập trung từ database backend
+              Tài khoản được quản lý tập trung từ database
             </p>
           </div>
           

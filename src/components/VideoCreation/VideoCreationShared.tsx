@@ -105,7 +105,7 @@ class VideoProgressManager {
     if (!this.currentProgress.taskId) return;
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const apiBaseUrl = import.meta.env.VITE_API_VIDEO_URL;
       const response = await fetch(`${apiBaseUrl}/api/v1/tasks/${this.currentProgress.taskId}`, {
         method: 'GET',
         headers: {
@@ -139,9 +139,9 @@ class VideoProgressManager {
     }
   }
 
-  private async downloadCompletedVideos(taskData: any) {
+  private async downloadCompletedVideos(taskData: any, taskId: string = this.currentProgress.taskId) {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const apiBaseUrl = import.meta.env.VITE_API_VIDEO_URL;
       const videoSources = taskData.videos || taskData.combined_videos || [];
       const downloadedVideos: CompletedVideo[] = [];
 
@@ -155,8 +155,9 @@ class VideoProgressManager {
 
         if (downloadResponse.ok) {
           const blob = await downloadResponse.blob();
-          const videoUrl = URL.createObjectURL(blob);
-          
+          //const videoUrl = URL.createObjectURL(blob);
+          const videoUrl = `${apiBaseUrl}/api/v1/download/${taskId}/final-1.mp4`;
+
           downloadedVideos.push({
             url: videoUrl,
             index: i + 1
@@ -178,7 +179,7 @@ class VideoProgressManager {
     
     this.intervalId = setInterval(() => {
       this.checkVideoProgress();
-    }, 6000);
+    }, 5000);
     
     console.log('🔄 Started global video progress polling');
   }
@@ -200,7 +201,7 @@ class VideoProgressManager {
       isCreating: true
     };
     
-    this.completedVideos = [];
+    // this.completedVideos = [];
     this.notifyListeners();
     this.notifyVideoListeners();
     this.startPolling();
@@ -210,11 +211,15 @@ class VideoProgressManager {
 
   stopVideoCreation() {
     this.stopPolling();
-    this.currentProgress.isCreating = false;
+    this.currentProgress = {
+      ...this.currentProgress,
+      isCreating: false
+    };
     this.notifyListeners();
-    
+
     console.log('🛑 Video creation stopped by user');
   }
+
 
   resetVideoCreation() {
     this.stopPolling();
@@ -247,7 +252,7 @@ class VideoProgressManager {
 
 // Shared API base URL function
 export const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_BASE_URL;
+  return import.meta.env.VITE_API_VIDEO_URL;
 };
 
 // Hook to use the global video progress manager
@@ -306,10 +311,6 @@ export const VideoProgressDisplay: React.FC<{
   const handleStop = () => {
     if (onStop) {
       onStop();
-      // Force immediate UI update
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
     }
   };
 
@@ -324,7 +325,7 @@ export const VideoProgressDisplay: React.FC<{
         </div>
         
         {/* Stop Button */}
-        {onStop && (
+        {/* {onStop && (
           <button
             onClick={handleStop}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
@@ -333,7 +334,7 @@ export const VideoProgressDisplay: React.FC<{
             <X size={16} />
             Dừng
           </button>
-        )}
+        )} */}
       </div>
       
       <div className="space-y-2">

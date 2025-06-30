@@ -40,7 +40,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           Quản Lý Tài Khoản & API Keys
         </h2>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Kết nối các tài khoản mạng xã hội và cấu hình API keys cho AI content generation.
+          Kết nối các tài khoản mạng xã hội và cấu hình API keys.
         </p>
       </div>
 

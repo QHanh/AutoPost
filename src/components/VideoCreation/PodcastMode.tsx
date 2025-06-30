@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Video, Volume2, Type, Loader2, Users, AlertTriangle, Edit3, Trash2, Maximize2, X } from 'lucide-react';
+import { Video, Volume2, Type, Loader2, Users, Edit3, Trash2, Maximize2, X } from 'lucide-react';
 import { useVideoProgress, VideoProgressDisplay, VideoGallery, ColorPicker, getApiBaseUrl } from './VideoCreationShared';
+import { useApiKeys } from '../../hooks/useApiKeys';
+import { usePersistentState } from '../../hooks/useFormPersistence';
 
 interface DialogueItem {
   speaker: string;
@@ -9,52 +11,60 @@ interface DialogueItem {
 }
 
 export const PodcastMode: React.FC = () => {
+  // Load API keys
+  const { savedApiKeys } = useApiKeys();
   // Form state
-  const [videoTopic, setVideoTopic] = useState('');
-  const [videoContent, setVideoContent] = useState('');
-  const [scriptLanguage, setScriptLanguage] = useState('Vietnamese');
-  const [videoScript, setVideoScript] = useState('');
-  const [videoKeywords, setVideoKeywords] = useState('');
+  const [videoPodcastTopic, setVideoTopic] = useState(() => sessionStorage.getItem('videoPodcastTopic') || '');
+  const [videoContent, setVideoContent] = useState(() => sessionStorage.getItem('videoContent') || '');
+  // Save form state to session storage
+  const [scriptPodcastLanguage, setscriptPodcastLanguage] = usePersistentState('scriptPodcastLanguage', 'Vietnamese');
+  const [videoPodcastScript, setVideoScript] = useState(() => sessionStorage.getItem('videoPodcastScript') || '');
+  const [videoPodcastKeywords, setVideoKeywords] = useState(() => sessionStorage.getItem('videoPodcastKeywords') || '');
   
   // Dialogue state - now using structured format
-  const [dialogueItems, setDialogueItems] = useState<DialogueItem[]>([]);
+  const [dialogueItems, setDialogueItems] = useState<DialogueItem[]>(() => {
+    const saved = sessionStorage.getItem('dialogueItems');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [isDialogueExpanded, setIsDialogueExpanded] = useState(false);
   
   // Podcast specific settings
-  const [host1, setHost1] = useState('Mai');
-  const [host2, setHost2] = useState('Hoàng');
-  const [tone, setTone] = useState('happy');
+  const [host1, setHost1] = usePersistentState('host1', 'Mai');
+  const [host2, setHost2] = usePersistentState('host2', 'Hoàng');
+  const [tone, setTone] = usePersistentState('tone', 'happy');
   
   // Video Settings
-  const [videoSource, setVideoSource] = useState('pexels');
-  const [concatenationMode, setConcatenationMode] = useState('random');
-  const [transitionMode, setTransitionMode] = useState('None');
-  const [aspectRatio, setAspectRatio] = useState('9:16');
-  const [maxSegmentDuration, setMaxSegmentDuration] = useState(5);
-  const [concurrentVideos, setConcurrentVideos] = useState(1);
+  const [videoSource, setVideoSource] = usePersistentState('videoSource', 'pexels');
+  const [concatenationMode, setConcatenationMode] = usePersistentState('concatenationMode', 'random');
+  const [transitionMode, setTransitionMode] = usePersistentState('transitionMode', 'None');
+  const [aspectRatio, setAspectRatio] = usePersistentState('aspectRatio', '9:16');
+  const [maxSegmentDuration, setMaxSegmentDuration] = usePersistentState('maxSegmentDuration', 5);
+  const [concurrentVideos, setConcurrentVideos] = usePersistentState('concurrentVideos', 1);
 
   // Audio Settings
-  const [host1Gender, setHost1Gender] = useState('Nữ');
-  const [voice1, setVoice1] = useState('Zephyr');
-  const [host2Gender, setHost2Gender] = useState('Nam');
-  const [voice2, setVoice2] = useState('Puck');
-  const [voiceVolume, setVoiceVolume] = useState(1.0);
-  const [voiceSpeed, setVoiceSpeed] = useState(1.0);
-  const [backgroundMusic, setBackgroundMusic] = useState('random');
-  const [backgroundMusicVolume, setBackgroundMusicVolume] = useState(0.2);
-
+  const [host1Gender, setHost1Gender] = usePersistentState('host1Gender', 'Nữ');
+  const [voice1, setVoice1] = usePersistentState('voice1', 'Zephyr');
+  const [host2Gender, setHost2Gender] = usePersistentState('host2Gender', 'Nam');
+  const [voice2, setVoice2] = usePersistentState('voice2', 'Puck');
+  const [voiceVolume, setVoiceVolume] = usePersistentState('voiceVolume', 1.0);
+  const [voiceSpeed, setVoiceSpeed] = usePersistentState('voiceSpeed', 1.0);
+  const [backgroundMusic, setBackgroundMusic] = usePersistentState('backgroundMusic', 'random');
+  const [backgroundMusicVolume, setBackgroundMusicVolume] = usePersistentState('backgroundMusicVolume', 0.2);
+  const geminiApiKey = savedApiKeys.gemini_api_key;
   // Subtitle Settings
-  const [enableSubtitles, setEnableSubtitles] = useState(true);
-  const [subtitleFont, setSubtitleFont] = useState('UTM Kabel KT.ttf');
-  const [subtitlePosition, setSubtitlePosition] = useState('bottom');
-  const [customSubtitlePosition, setCustomSubtitlePosition] = useState('70');
-  const [subtitleTextColor, setSubtitleTextColor] = useState('#FFFFFF');
-  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [subtitleFontSize, setSubtitleFontSize] = useState(60);
-  const [subtitleBorderColor, setSubtitleBorderColor] = useState('#000000');
-  const [showBorderColorPicker, setShowBorderColorPicker] = useState(false);
-  const [subtitleBorderWidth, setSubtitleBorderWidth] = useState(1.5);
-
+  const [enableSubtitles, setEnableSubtitles] = usePersistentState('enableSubtitles', true);
+  const [subtitleProvider, setSubtitleProvider] = usePersistentState('subtitleProvider', 'edge');  
+  const [subtitleFont, setSubtitleFont] = usePersistentState('subtitleFont', 'DancingScript.ttf');
+  const [subtitlePosition, setSubtitlePosition] = usePersistentState('subtitlePosition', 'bottom');
+  const [customSubtitlePosition, setCustomSubtitlePosition] = usePersistentState('customSubtitlePosition', '70');
+  const [subtitleTextColor, setSubtitleTextColor] = usePersistentState('subtitleTextColor', '#FFFFFF');
+  const [showTextColorPicker, setShowTextColorPicker] = usePersistentState('showTextColorPicker', false);
+  const [subtitleFontSize, setSubtitleFontSize] = usePersistentState('subtitleFontSize', 80);
+  const [subtitleBorderColor, setSubtitleBorderColor] = usePersistentState('subtitleBorderColor', '#000000');
+  const [showBorderColorPicker, setShowBorderColorPicker] = usePersistentState('showBorderColorPicker', false);
+  const [subtitleBorderWidth, setSubtitleBorderWidth] = usePersistentState('subtitleBorderWidth', 1.5);
+  const openaiApiKey = savedApiKeys.openai_api_key;
+  const [subtitleType, setSubtitleType] = usePersistentState('subtitleType', 'normal');
   // Loading states
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [isGeneratingDialogueKeywords, setIsGeneratingDialogueKeywords] = useState(false);
@@ -72,6 +82,14 @@ export const PodcastMode: React.FC = () => {
     "Zephyr", "Kore", "Leda", "Aoede", "Callirrhoe", "Autonoe", "Despina", 
     "Erinome", "Laomedeia", "Achernar", "Gacrux", "Vindemiatrix", "Sulafat"
   ];
+
+  useEffect(() => {
+    sessionStorage.setItem('videoPodcastTopic', videoPodcastTopic);
+    sessionStorage.setItem('videoContent', videoContent);
+    sessionStorage.setItem('videoPodcastScript', videoPodcastScript);
+    sessionStorage.setItem('videoPodcastKeywords', videoPodcastKeywords);
+    sessionStorage.setItem('dialogueItems', JSON.stringify(dialogueItems));
+  }, [videoPodcastTopic, videoContent, videoPodcastScript, videoPodcastKeywords, dialogueItems]);
 
   // Update voice when gender changes
   useEffect(() => {
@@ -147,7 +165,7 @@ export const PodcastMode: React.FC = () => {
 
   // Button 1: Generate script, dialogue, and keywords from topic and content
   const handleGenerateAll = async () => {
-    if (!videoTopic.trim() || !videoContent.trim()) {
+    if (!videoPodcastTopic.trim() || !videoContent.trim()) {
       alert('Vui lòng nhập chủ đề và nội dung video');
       return;
     }
@@ -164,9 +182,9 @@ export const PodcastMode: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          video_subject: videoTopic,
+          video_subject: videoPodcastTopic,
           video_content: videoContent,
-          video_language: scriptLanguage
+          video_language: scriptPodcastLanguage
         })
       });
 
@@ -187,7 +205,7 @@ export const PodcastMode: React.FC = () => {
         body: JSON.stringify({
           video_content: videoContent,
           video_script: generatedScript,
-          video_language: scriptLanguage,
+          video_language: scriptPodcastLanguage,
           host1: host1,
           host2: host2,
           voice1: voice1,
@@ -211,7 +229,7 @@ export const PodcastMode: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          video_subject: videoTopic,
+          video_subject: videoPodcastTopic,
           video_script: generatedScript,
           amount: 5
         })
@@ -233,7 +251,7 @@ export const PodcastMode: React.FC = () => {
 
   // Button 2: Generate dialogue and keywords from script, content, and topic
   const handleGenerateDialogueAndKeywords = async () => {
-    if (!videoScript.trim() || !videoContent.trim() || !videoTopic.trim()) {
+    if (!videoPodcastScript.trim() || !videoContent.trim() || !videoPodcastTopic.trim()) {
       alert('Vui lòng nhập kịch bản, nội dung và chủ đề video');
       return;
     }
@@ -251,8 +269,8 @@ export const PodcastMode: React.FC = () => {
         },
         body: JSON.stringify({
           video_content: videoContent,
-          video_script: videoScript,
-          video_language: scriptLanguage,
+          video_script: videoPodcastScript,
+          video_language: scriptPodcastLanguage,
           host1: host1,
           host2: host2,
           voice1: voice1,
@@ -276,8 +294,8 @@ export const PodcastMode: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          video_subject: videoTopic,
-          video_script: videoScript,
+          video_subject: videoPodcastTopic,
+          video_script: videoPodcastScript,
           amount: 5
         })
       });
@@ -297,7 +315,7 @@ export const PodcastMode: React.FC = () => {
   };
 
   const handleCreatePodcastVideo = async () => {
-    if (!videoTopic.trim() || !videoScript.trim() || !videoKeywords.trim()) {
+    if (!videoPodcastTopic.trim() || !videoPodcastScript.trim() || !videoPodcastKeywords.trim()) {
       alert('Vui lòng điền đầy đủ thông tin');
       return;
     }
@@ -315,12 +333,12 @@ export const PodcastMode: React.FC = () => {
       const videoDialogueSubtitle = generateSubtitleFormat(dialogueItems);
       
       const requestBody = {
-        video_subject: videoTopic,
+        video_subject: videoPodcastTopic,
         video_content: videoContent,
-        video_script: videoScript,
+        video_script: videoPodcastScript,
         video_dialogue_tts: videoDialogueTts,
         video_dialogue_subtitle: videoDialogueSubtitle,
-        video_terms: videoKeywords,
+        video_terms: videoPodcastKeywords,
         video_aspect: aspectRatio,
         video_concat_mode: concatenationMode,
         video_transition_mode: transitionMode === 'None' ? 'None' : transitionMode,
@@ -332,7 +350,7 @@ export const PodcastMode: React.FC = () => {
           url: "",
           duration: 0
         }],
-        video_language: scriptLanguage,
+        video_language: scriptPodcastLanguage,
         host1: host1,
         host2: host2,
         voice1: voice1,
@@ -344,16 +362,20 @@ export const PodcastMode: React.FC = () => {
         bgm_file: "",
         bgm_volume: backgroundMusicVolume,
         subtitle_enabled: enableSubtitles,
+        subtitle_provider: subtitleProvider,
         subtitle_position: subtitlePosition,
         custom_position: parseFloat(customSubtitlePosition),
         font_name: subtitleFont,
         text_fore_color: subtitleTextColor,
         text_background_color: true,
+        type_subtitle: subtitleType,
         font_size: subtitleFontSize,
         stroke_color: subtitleBorderColor,
         stroke_width: subtitleBorderWidth,
         n_threads: 4,
-        paragraph_number: 1
+        paragraph_number: 1,
+        gemini_key: geminiApiKey,
+        openai_key: openaiApiKey,
       };
 
       const response = await fetch(`${apiBaseUrl}/api/v1/video-podcast`, {
@@ -401,10 +423,10 @@ export const PodcastMode: React.FC = () => {
               </label>
               <textarea
                 id="videoTopic"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
                 rows={2}
                 placeholder="Nhập chủ đề video của bạn..."
-                value={videoTopic}
+                value={videoPodcastTopic}
                 onChange={(e) => setVideoTopic(e.target.value)}
               />
             </div>
@@ -416,7 +438,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <textarea
                 id="videoContent"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
                 rows={8}
                 placeholder="Nhập nội dung chi tiết cho podcast..."
                 value={videoContent}
@@ -434,10 +456,10 @@ export const PodcastMode: React.FC = () => {
                   <input
                     type="radio"
                     className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    name="scriptLanguage"
+                    name="scriptPodcastLanguage"
                     value="Vietnamese"
-                    checked={scriptLanguage === 'Vietnamese'}
-                    onChange={(e) => setScriptLanguage(e.target.value)}
+                    checked={scriptPodcastLanguage === 'Vietnamese'}
+                    onChange={(e) => setscriptPodcastLanguage(e.target.value)}
                   />
                   <span className="ml-2 text-gray-700 font-medium">Tiếng Việt</span>
                 </label>
@@ -445,10 +467,10 @@ export const PodcastMode: React.FC = () => {
                   <input
                     type="radio"
                     className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    name="scriptLanguage"
+                    name="scriptPodcastLanguage"
                     value="English"
-                    checked={scriptLanguage === 'English'}
-                    onChange={(e) => setScriptLanguage(e.target.value)}
+                    checked={scriptPodcastLanguage === 'English'}
+                    onChange={(e) => setscriptPodcastLanguage(e.target.value)}
                   />
                   <span className="ml-2 text-gray-700 font-medium">Tiếng Anh</span>
                 </label>
@@ -458,7 +480,7 @@ export const PodcastMode: React.FC = () => {
               <button 
                 onClick={handleGenerateAll}
                 disabled={isGeneratingAll}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {isGeneratingAll ? (
                   <>
@@ -478,10 +500,10 @@ export const PodcastMode: React.FC = () => {
               </label>
               <textarea
                 id="videoScript"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
                 rows={8}
                 placeholder="Kịch bản video sẽ được tạo ở đây..."
-                value={videoScript}
+                value={videoPodcastScript}
                 onChange={(e) => setVideoScript(e.target.value)}
               />
             </div>
@@ -498,7 +520,7 @@ export const PodcastMode: React.FC = () => {
                 <input
                   type="text"
                   id="host1"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   value={host1}
                   onChange={(e) => setHost1(e.target.value)}
                 />
@@ -510,7 +532,7 @@ export const PodcastMode: React.FC = () => {
                 <input
                   type="text"
                   id="host2"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   value={host2}
                   onChange={(e) => setHost2(e.target.value)}
                 />
@@ -524,7 +546,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="tone"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={tone}
                 onChange={(e) => setTone(e.target.value)}
               >
@@ -540,7 +562,7 @@ export const PodcastMode: React.FC = () => {
               <button 
                 onClick={handleGenerateDialogueAndKeywords}
                 disabled={isGeneratingDialogueKeywords}
-                className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {isGeneratingDialogueKeywords ? (
                   <>
@@ -618,10 +640,10 @@ export const PodcastMode: React.FC = () => {
               </label>
               <textarea
                 id="videoKeywords"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
                 rows={2}
                 placeholder="Nhập các từ khóa liên quan đến video, cách nhau bởi dấu phẩy..."
-                value={videoKeywords}
+                value={videoPodcastKeywords}
                 onChange={(e) => setVideoKeywords(e.target.value)}
               />
             </div>
@@ -668,7 +690,7 @@ export const PodcastMode: React.FC = () => {
                     <textarea
                       value={item.content}
                       onChange={(e) => updateDialogueItem(item.id, e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                       rows={3}
                       placeholder="Nội dung hội thoại..."
                     />
@@ -711,7 +733,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="videoSource"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={videoSource}
                 onChange={(e) => setVideoSource(e.target.value)}
               >
@@ -727,7 +749,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="concatenationMode"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={concatenationMode}
                 onChange={(e) => setConcatenationMode(e.target.value)}
               >
@@ -743,7 +765,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="transitionMode"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={transitionMode}
                 onChange={(e) => setTransitionMode(e.target.value)}
               >
@@ -763,7 +785,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="aspectRatio"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={aspectRatio}
                 onChange={(e) => setAspectRatio(e.target.value)}
               >
@@ -779,7 +801,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="maxSegmentDuration"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={maxSegmentDuration}
                 onChange={(e) => setMaxSegmentDuration(Number(e.target.value))}
               >
@@ -798,7 +820,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="concurrentVideos"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={concurrentVideos}
                 onChange={(e) => setConcurrentVideos(Number(e.target.value))}
               >
@@ -904,7 +926,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="voiceVolume"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={voiceVolume}
                 onChange={(e) => setVoiceVolume(Number(e.target.value))}
               >
@@ -923,7 +945,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="voiceSpeed"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={voiceSpeed}
                 onChange={(e) => setVoiceSpeed(Number(e.target.value))}
               >
@@ -941,7 +963,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="backgroundMusic"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={backgroundMusic}
                 onChange={(e) => setBackgroundMusic(e.target.value)}
               >
@@ -957,7 +979,7 @@ export const PodcastMode: React.FC = () => {
               </label>
               <select
                 id="backgroundMusicVolume"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 value={backgroundMusicVolume}
                 onChange={(e) => setBackgroundMusicVolume(Number(e.target.value))}
               >
@@ -993,12 +1015,46 @@ export const PodcastMode: React.FC = () => {
                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
               />
               <label htmlFor="enableSubtitles" className="ml-2 text-sm font-medium text-gray-700">
-                Bật phụ đề (Đã bật, không chọn, các cài đặt dưới đây sẽ không có hiệu lực)
+                Bật phụ đề
               </label>
             </div>
 
             {enableSubtitles && (
               <>
+                {/* Nhà cung cấp phụ đề */}
+                <div>
+                  <label htmlFor="subtitleProvider" className="block text-sm font-medium text-gray-700 mb-2">
+                    Cách tạo phụ đề
+                  </label>
+                  <select
+                    id="subtitleProvider"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    value={subtitleProvider}
+                    onChange={(e) => setSubtitleProvider(e.target.value)}
+                  >
+                    <option value="edge">Dự đoán (Free, Nhanh)</option>
+                    <option value="whisper_api">Open AI API (Mất phí, Nhanh, Cần Api Key)</option>
+                    <option value="whisper_local">Mô hình Local (Free, Chậm)</option>
+                  </select>
+                </div>
+
+                {/* Kiểu phụ đề */}
+                <div>
+                  <label htmlFor="subtitleType" className="block text-sm font-medium text-gray-700 mb-2">
+                    Hiệu ứng phụ đề
+                  </label>
+                  <select
+                    id="subtitleType"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    value={subtitleType}
+                    onChange={(e) => setSubtitleType(e.target.value)}
+                  >
+                    <option value="normal">Không có</option>
+                    <option value="typewriter">Gõ chữ</option>
+                    <option value="word2word">Hiển thị từng chữ</option>
+                  </select>
+                </div>
+
                 {/* Phông Chữ Phụ Đề */}
                 <div>
                   <label htmlFor="subtitleFont" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1006,16 +1062,19 @@ export const PodcastMode: React.FC = () => {
                   </label>
                   <select
                     id="subtitleFont"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     value={subtitleFont}
                     onChange={(e) => setSubtitleFont(e.target.value)}
                   >
-                    <option value="UTM Kabel KT.ttf">UTM Kabel KT.ttf</option>
-                    <option value="Charm-Bold.ttf">Charm-Bold.ttf</option>
-                    <option value="Charm-Regular.ttf">Charm-Regular.ttf</option>
-                    <option value="MicrosoftYaHeiNormal.ttc">MicrosoftYaHeiNormal.ttc</option>
-                    <option value="STHeitiLight.ttc">STHeitiLight.ttc</option>
-                    <option value="STHeitiMedium.ttc">STHeitiMedium.ttc</option>
+                    <option value="DancingScript.ttf">Dancing Script</option>
+                    <option value="UTM Kabel KT.ttf">UTM Kabel KT</option>
+                    <option value="Charm.ttf">Charm</option>
+                    <option value="Bangers.ttf">Bangers</option>
+                    <option value="BungeeSpice.ttf">BungeeSpice</option>
+                    <option value="Lobster.ttf">Lobster</option>
+                    <option value="Neonderthaw.ttf">Neonderthaw</option>
+                    <option value="ComforterBrush.ttf">Comforter Brush</option>
+                    <option value="Charmonman.ttf">Charmonman</option>
                   </select>
                 </div>
 
@@ -1026,7 +1085,7 @@ export const PodcastMode: React.FC = () => {
                   </label>
                   <select
                     id="subtitlePosition"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     value={subtitlePosition}
                     onChange={(e) => setSubtitlePosition(e.target.value)}
                   >
@@ -1050,7 +1109,7 @@ export const PodcastMode: React.FC = () => {
                       max="100"
                       value={customSubtitlePosition}
                       onChange={(e) => setCustomSubtitlePosition(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                       placeholder="70"
                     />
                   </div>

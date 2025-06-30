@@ -446,7 +446,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       case 'short_video':
         return { title: 'Reel', icon: '🎬', color: 'border-purple-200 bg-purple-50' };
       case 'long_video':
-        return { title: 'Page/Instagram', icon: '📄', color: 'border-blue-200 bg-blue-50' };
+        return { title: 'Photo/Content', icon: '📄', color: 'border-blue-200 bg-blue-50' };
       case 'youtube':
         return { title: 'YouTube', icon: '📺', color: 'border-red-200 bg-red-50' };
       default:
@@ -580,7 +580,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                           isLocked ? 'bg-gray-100 cursor-not-allowed' : ''
                         }`}
                         rows={4}
-                        placeholder={`Nội dung ${boxInfo.title}...`}
+                        placeholder={`Nội dung bài đăng...`}
                       />
                     )}
                     
