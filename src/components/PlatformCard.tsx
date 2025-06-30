@@ -48,7 +48,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
 
   // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return import.meta.env.VITE_API_BASE_URL;
   };
 
   // 🔧 FIXED: Delete account function using correct social_account_id

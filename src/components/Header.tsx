@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo - Clickable to home */}
           <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Social Hub</h1>
-              <p className="text-xs text-gray-500">Unified Social Media Manager</p>
+              <p className="text-xs text-gray-500">Lập lịch đăng bài tự động</p>
             </div>
           </Link>
 
@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
               }`}
             >
               <Home size={16} />
-              Home
+              Trang Chủ
             </Link>
 
             <Link
@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
               }`}
             >
               <Lightbulb size={16} />
-              Solution
+              Giải Pháp
             </Link>
 
             <Link
@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
               }`}
             >
               <DollarSign size={16} />
-              Pricing
+              Bảng Giá
             </Link>
 
             <Link
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
               }`}
             >
               <Video size={16} />
-              Video
+              Tạo Video
             </Link>
             
             {/* Authenticated-only navigation */}
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
                   }`}
                 >
                   <Share2 size={16} />
-                  Posts
+                  Đăng Bài
                 </Link>
                 
                 <Link
@@ -118,12 +118,12 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
                   }`}
                 >
                   <Users size={16} />
-                  Accounts
-                  {connectedCount > 0 && (
+                  Kết Nối
+                  {/* {connectedCount > 0 && (
                     <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
                       {connectedCount}
                     </span>
-                  )}
+                  )} */}
                 </Link>
               </>
             )}
@@ -132,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
           {/* Right side - Stats & Actions */}
           <div className="flex items-center space-x-4">
             {/* Stats - Hidden on mobile, only show when authenticated */}
-            {isAuthenticated && (
+            {/* {isAuthenticated && (
               <div className="hidden lg:flex items-center space-x-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{connectedCount}</div>
@@ -143,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
                   <div className="text-xs text-gray-500">Posts</div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">

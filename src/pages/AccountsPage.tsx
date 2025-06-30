@@ -2,7 +2,7 @@ import React from 'react';
 import { PlatformCard } from '../components/PlatformCard';
 import { ApiKeyManager } from '../components/ApiKeyManager';
 import { Platform, PlatformAccount } from '../types/platform';
-import { Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
 
 interface AccountsPageProps {
   platforms: Platform[];
@@ -40,12 +40,12 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           Quản Lý Tài Khoản & API Keys
         </h2>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Kết nối các tài khoản mạng xã hội và cấu hình API keys.
+          Kết nối các tài khoản mạng xã hội và cấu hình API keys của bạn.
         </p>
       </div>
 
       {/* Stats Overview */}
-      <section className="mb-8">
+      {/* <section className="mb-8">
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center">
@@ -65,7 +65,51 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
+
+      {/* Getting Started Guide */}
+      {totalServerAccounts === 0 && connectedAccounts.length === 0 && (
+        <section className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-8 border border-yellow-200 mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">Bắt Đầu</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <div className="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center">
+                  <span className="text-sm">1</span>
+                </div>
+                Cấu Hình API Keys
+              </h4>
+              <p className="text-sm text-gray-600 mb-2">
+                Cấu hình API Key Gemini và OpenAI để tạo nội dung AI.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <div className="bg-red-100 w-8 h-8 rounded-full flex items-center justify-center">
+                  <span className="text-sm">2</span>
+                </div>
+                Kết Nối Các Nền Tảng
+              </h4>
+              <p className="text-sm text-gray-600 mb-2">
+                Kết nối tài khoản mạng xã hội của bạn.
+              </p>
+            </div>  
+            <div>
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <div className="bg-purple-100 w-8 h-8 rounded-full flex items-center justify-center">
+                  <span className="text-sm">3</span>
+                </div>
+                Bắt Đầu Đăng Bài
+              </h4>
+              <p className="text-sm text-gray-600 mb-2">
+                Sử dụng các công cụ đăng bài và tạo nội dung AI.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
 
       {/* API Key Management */}
       <section className="mb-8">
@@ -141,50 +185,6 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
           </div>
         </div>
       </section>
-
-      {/* Getting Started Guide */}
-      {totalServerAccounts === 0 && connectedAccounts.length === 0 && (
-        <section className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-8 border border-yellow-200">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">Getting Started</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <div className="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center">
-                  <span className="text-sm">1</span>
-                </div>
-                Setup API Keys
-              </h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Configure your Gemini or OpenAI API keys for AI content generation.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <div className="bg-red-100 w-8 h-8 rounded-full flex items-center justify-center">
-                  <span className="text-sm">2</span>
-                </div>
-                Connect Platforms
-              </h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Connect your social media accounts using secure OAuth authentication.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <div className="bg-purple-100 w-8 h-8 rounded-full flex items-center justify-center">
-                  <span className="text-sm">3</span>
-                </div>
-                Start Posting
-              </h4>
-              <p className="text-sm text-gray-600">
-                Create and schedule posts with AI-generated content across all platforms.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Account Management Tips */}
       {(totalServerAccounts > 0 || connectedAccounts.length > 0) && (

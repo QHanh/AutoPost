@@ -110,9 +110,9 @@ export const PostsPage: React.FC<PostsPageProps> = ({
             <div className="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-2xl">⚡</span>
             </div>
-            <h4 className="font-semibold mb-2">Form Data API</h4>
+            <h4 className="font-semibold mb-2">Speed</h4>
             <p className="text-sm text-gray-600">
-              Gửi media files và metadata qua multipart/form-data
+              Tốc độ xử lý nhanh chóng, dễ dàng sử dụng
             </p>
           </div>
         </div>

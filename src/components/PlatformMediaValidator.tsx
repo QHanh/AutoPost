@@ -16,10 +16,12 @@ export const PlatformMediaValidator: React.FC<PlatformMediaValidatorProps> = ({
     return null;
   }
 
+  type PlatformKey = keyof typeof PLATFORM_LIMITS;
+
   const validationResults = selectedPlatforms.map(account => ({
     account,
     errors: validateMediaForPlatform(media, account.platformId),
-    limits: PLATFORM_LIMITS[account.platformId]
+    limits: PLATFORM_LIMITS[account.platformId as PlatformKey]
   }));
 
   const hasErrors = validationResults.some(result => result.errors.length > 0);

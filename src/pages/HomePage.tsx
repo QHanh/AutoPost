@@ -3,53 +3,49 @@ import { Link } from 'react-router-dom';
 import { 
   Share2, 
   Users, 
-  Calendar, 
-  Zap, 
-  CheckCircle, 
+  Calendar,  
   ArrowRight, 
   Play,
   Star,
-  Globe,
-  Smartphone,
   BarChart3,
   Shield,
   Clock,
-  Target,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Video
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const features = [
     {
       icon: <Users className="text-blue-600" size={24} />,
-      title: "Multi-Account Management",
-      description: "Connect unlimited accounts across all major social platforms with custom naming and organization."
+      title: "Quản Lý Đa Nền Tảng",
+      description: "Kết nối không giới hạn tài khoản từ Facebook, Instagram, YouTube và nhiều nền tảng khác."
     },
     {
       icon: <Calendar className="text-purple-600" size={24} />,
-      title: "Smart Scheduling",
-      description: "Schedule posts across all platforms with intelligent timing and automatic posting capabilities."
+      title: "Lên Lịch & Tự Động Đăng Bài",
+      description: "Lên lịch đăng bài thông minh với tính năng tự động đăng bài theo thời gian tối ưu nhất cho từng nền tảng."
+    },
+    {
+      icon: <Video className="text-yellow-600" size={24} />,
+      title: "Tạo Video Thu Hút",
+      description: "Tạo video thu hút với các tính năng tự động."
     },
     {
       icon: <Sparkles className="text-pink-600" size={24} />,
-      title: "AI Content Generation",
-      description: "Generate engaging content using advanced AI with custom prompts and platform optimization."
+      title: "Tao Nội Dung AI Hấp Dẫn",
+      description: "Sử dụng AI để tạo nội dung chất lượng cao, phù hợp với từng nền tảng và đối tượng khán giả."
     },
     {
       icon: <BarChart3 className="text-green-600" size={24} />,
-      title: "Analytics & Insights",
-      description: "Track performance across all platforms with detailed analytics and engagement metrics."
+      title: "Phân Tích & Báo Cáo",
+      description: "Theo dõi hiệu suất của từng nền tảng với các biểu đồ chi tiết."
     },
     {
       icon: <Shield className="text-red-600" size={24} />,
-      title: "Secure & Private",
-      description: "Your data is encrypted and stored locally. We never access your personal information."
-    },
-    {
-      icon: <Zap className="text-yellow-600" size={24} />,
-      title: "Lightning Fast",
-      description: "Optimized for speed with instant posting and real-time synchronization across platforms."
+      title: "Bảo Mật & Riêng Tư",
+      description: "Dữ liệu khách hàng được mã hóa và lưu trữ trên máy chủ cục bộ."
     }
   ];
 
@@ -60,10 +56,10 @@ export const HomePage: React.FC = () => {
   ];
 
   const stats = [
-    { number: "50K+", label: "Posts Created", icon: <Share2 size={20} /> },
-    { number: "1M+", label: "Total Reach", icon: <TrendingUp size={20} /> },
-    { number: "99.9%", label: "Uptime", icon: <Clock size={20} /> },
-    { number: "24/7", label: "Support", icon: <Shield size={20} /> }
+    { number: "50K+", label: "Đăng Bài Đã Tạo", icon: <Share2 size={20} /> },
+    { number: "1M+", label: "Tổng Nhận Được", icon: <TrendingUp size={20} /> },
+    { number: "99.9%", label: "Đang Hoạt Động", icon: <Clock size={20} /> },
+    { number: "24/7", label: "Hỗ Trợ", icon: <Shield size={20} /> } 
   ];
 
   return (
@@ -101,7 +97,7 @@ export const HomePage: React.FC = () => {
                 <div className="bg-white rounded-full p-3 shadow-lg">
                   <Play size={20} className="text-blue-600" />
                 </div>
-                Watch Demo
+                Xem Demo
               </button>
             </div>
 
@@ -149,11 +145,11 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Everything You Need to
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Succeed</span>
+              Mọi Tính Năng Bạn Cần Để
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Thành Công</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Powerful features designed to streamline your social media workflow and maximize your reach across all platforms.
+              Từ quản lý đa nền tảng đến tạo nội dung AI, cung cấp mọi công cụ bạn cần để tối ưu hóa chiến lược truyền thông xã hội của mình.
             </p>
           </div>
 
@@ -192,9 +188,9 @@ export const HomePage: React.FC = () => {
               <div className="bg-gradient-to-r from-blue-500 to-purple-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
                 1
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Connect Accounts</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Kết Nối Các Tài Khoản</h3>
               <p className="text-gray-600 leading-relaxed">
-                Link your social media accounts with secure API tokens. We support all major platforms with unlimited accounts per platform.
+                Kết nối không giới hạn tài khoản từ Facebook, Instagram, YouTube và nhiều nền tảng khác chỉ trong vài cú nhấp chuột.
               </p>
             </div>
 
@@ -202,9 +198,9 @@ export const HomePage: React.FC = () => {
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
                 2
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Create Content</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Tạo Nội Dung</h3>
               <p className="text-gray-600 leading-relaxed">
-                Write posts, upload media, or use our AI content generator to create engaging content optimized for each platform.
+                Sử dụng AI để tạo nội dung chất lượng cao, phù hợp với từng nền tảng và đối tượng khán giả. Chỉnh sửa và tùy chỉnh theo ý muốn.
               </p>
             </div>
 
@@ -212,9 +208,9 @@ export const HomePage: React.FC = () => {
               <div className="bg-gradient-to-r from-pink-500 to-red-500 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
                 3
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Post & Schedule</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Đăng Bài & Lên Lịch</h3>
               <p className="text-gray-600 leading-relaxed">
-                Publish immediately or schedule posts for optimal timing. Our auto-scheduler handles everything automatically.
+                Lên lịch đăng bài thông minh với tính năng tự động đăng bài theo thời gian tối ưu nhất cho từng nền tảng.
               </p>
             </div>
           </div>
@@ -222,12 +218,12 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-50 to-purple-50">
+      {/* <section className="py-20 bg-gradient-to-r from-blue-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Loved by
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Content Creators</span>
+              Những Người Dùng Yêu Thích
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Join thousands of creators, businesses, and influencers who trust Social Hub for their social media management.
@@ -280,17 +276,17 @@ export const HomePage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your
-            <br />Social Media Strategy?
+            Săn Sàng Để Nâng Cấp
+            <br />Chiến Lược Sử Dụng Mạng Xã Hội?
           </h2>
           <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-            Join thousands of creators and businesses who have already streamlined their social media workflow with Social Hub.
+            Tham gia cùng hàng nghìn người dùng khác và trải nghiệm sức mạnh của Social Hub. Tạo nội dung AI, quản lý đa nền tảng, và tối ưu hóa chiến lược truyền thông xã hội của bạn ngay hôm nay!
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -298,7 +294,7 @@ export const HomePage: React.FC = () => {
               to="/posts"
               className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2"
             >
-              Start Free Today
+              Bắt Đầu Miễn Phí
               <ArrowRight size={20} />
             </Link>
             
@@ -306,12 +302,12 @@ export const HomePage: React.FC = () => {
               to="/pricing"
               className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all duration-300"
             >
-              View Pricing
+              Bảng Giá
             </Link>
           </div>
           
           <p className="text-blue-100 text-sm mt-6">
-            No credit card required • Free forever plan available • Cancel anytime
+            Không cần thẻ tín dụng. Hủy bất cứ lúc nào.
           </p>
         </div>
       </section>

@@ -13,7 +13,7 @@ export const LoginPage: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { login } = useAuth();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

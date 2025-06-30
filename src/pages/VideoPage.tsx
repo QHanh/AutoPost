@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Video, Users } from 'lucide-react';
+import { Podcast, Speech } from 'lucide-react';
 import { SingleVoiceMode } from '../components/VideoCreation/SingleVoiceMode';
 import { PodcastMode } from '../components/VideoCreation/PodcastMode';
 import { useAuth } from '../hooks/useAuth';
@@ -49,7 +49,7 @@ export const VideoPage: React.FC = () => {
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
-              <Video size={20} />
+              <Speech size={20} />
               Chế độ 1 giọng
             </button>
             <button
@@ -60,7 +60,7 @@ export const VideoPage: React.FC = () => {
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
-              <Users size={20} />
+              <Podcast size={20} />
               Chế độ Podcast
             </button>
           </div>

@@ -129,7 +129,7 @@ export const ApiKeyManager: React.FC = () => {
           {isLoadingKeys ? (
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
           ) : <RefreshCw size={16} />}
-          Reload
+          Tải lại
         </button>
       </div>
 
@@ -148,7 +148,7 @@ export const ApiKeyManager: React.FC = () => {
         {['gemini', 'openai'].map((platform) => (
           <div key={platform}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {platform === 'gemini' ? '🤖 Gemini API Key' : '🧠 OpenAI API Key'}
+              {platform === 'gemini' ? '✨ Gemini API Key' : '🧠 OpenAI API Key'}
             </label>
             <div className="relative">
               <input
@@ -197,15 +197,15 @@ export const ApiKeyManager: React.FC = () => {
           {/* Trạng thái cấu hình */}
           <div className="bg-gray-50 rounded-lg p-4 sm:w-1/2">
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-700">🐱 Gemini:</span>
+              <div className="flex items-center gap-7">
+                <span className="text-sm text-gray-700">✨ Gemini:</span>
                 <span className={`text-sm font-medium ${
                   savedApiKeys.gemini_api_key ? 'text-green-600' : 'text-gray-400'
                 }`}>
                   {savedApiKeys.gemini_api_key ? '✓ Đã cấu hình' : '○ Chưa cấu hình'}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-7">
                 <span className="text-sm text-gray-700">🧠 OpenAI:</span>
                 <span className={`text-sm font-medium ${
                   savedApiKeys.openai_api_key ? 'text-green-600' : 'text-gray-400'
@@ -220,7 +220,7 @@ export const ApiKeyManager: React.FC = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 w-full sm:flex-1">
             <div className="space-y-2 text-sm text-blue-800">
               <div>
-                <strong>🐱 Gemini API:</strong> Truy cập{' '}
+                <strong>✨ Gemini API:</strong> Truy cập{' '}
                 <a
                   href="https://makersuite.google.com/app/apikey"
                   target="_blank"

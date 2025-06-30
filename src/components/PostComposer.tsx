@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlatformAccount, MediaFile } from '../types/platform';
 import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, Maximize2 } from 'lucide-react';
 import { MediaUploader } from './MediaUploader';
@@ -59,7 +59,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
   // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
-    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return import.meta.env.VITE_API_BASE_URL;
   };
 
   // Get available post types for a platform
@@ -483,6 +483,9 @@ export const PostComposer: React.FC<PostComposerProps> = ({
           
           {/* Left Column - Content Boxes & AI Generator */}
           <div className="space-y-6">
+            {/* AI Content Generator */}
+            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
+
             {/* Content Boxes - Always Present */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Nội dung bài đăng</h3>
@@ -593,9 +596,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                 );
               })}
             </div>
-
-            {/* AI Content Generator */}
-            <AIContentGenerator onContentGenerated={handleAIContentGenerated} />
           </div>
 
           {/* Right Column - Media Upload, Account Selection, Schedule & Actions */}
