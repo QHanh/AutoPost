@@ -47,6 +47,8 @@ export interface MediaFile {
   duration?: number;
   size: number;
   name: string;
+  width?: number;
+  height?: number;
 }
 
 export interface Post {

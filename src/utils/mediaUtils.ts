@@ -88,6 +88,8 @@ export const createMediaFile = (file: File): Promise<MediaFile> => {
 
       const onSeeked = () => {
         setTimeout(() => {
+          mediaFile.width = video.videoWidth;
+          mediaFile.height = video.videoHeight;
           const canvas = document.createElement('canvas');
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
@@ -125,7 +127,17 @@ export const createMediaFile = (file: File): Promise<MediaFile> => {
       video.addEventListener('error', onError);
 
     } else {
-      resolve(mediaFile);
+      const img = new Image();
+      img.onload = () => {
+        mediaFile.width = img.width;
+        mediaFile.height = img.height;
+        resolve(mediaFile);
+      };
+      img.onerror = () => {
+        // Fail gracefully without dimensions
+        resolve(mediaFile);
+      };
+      img.src = mediaFile.url;
     }
   });
 };

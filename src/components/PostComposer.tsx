@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlatformAccount, MediaFile } from '../types/platform';
 import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, FileText, Type, Tag } from 'lucide-react';
 import { MediaUploader } from './MediaUploader';
@@ -67,6 +67,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   const [activeAiCard, setActiveAiCard] = useState<string | null>(null);
   const [editedAiContent, setEditedAiContent] = useState<any>({});
   const [postTypeConfirmation, setPostTypeConfirmation] = useState<{accountId: string; postType: string} | null>(null);
+  const [instaAspectRatioWarning, setInstaAspectRatioWarning] = useState<string | null>(null);
   
   const { user } = useAuth();
 
@@ -87,6 +88,31 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
     return Array.from(confirmed);
   }, [selectedAccounts, platformPostTypes, aiResults]);
+
+  useEffect(() => {
+    const isInstagramFeedSelected = selectedAccounts.some(account => 
+        account.platformId === 'instagram' && 
+        (platformPostTypes[account.id] || []).includes('feed')
+    );
+
+    if (isInstagramFeedSelected) {
+        const hasLandscapeImage = media.some(m => 
+            m.type === 'image' && 
+            m.width && m.height && 
+            m.width > m.height
+        );
+
+        if (hasLandscapeImage) {
+            setInstaAspectRatioWarning(
+                'Instagram Feed không cho up ảnh ngang. Xin bạn hãy chọn ảnh có tỉ lệ dọc.'
+            );
+        } else {
+            setInstaAspectRatioWarning(null);
+        }
+    } else {
+        setInstaAspectRatioWarning(null);
+    }
+  }, [media, selectedAccounts, platformPostTypes]);
 
   const connectedAccounts = accounts.filter(acc => acc.connected);
 
@@ -865,6 +891,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                                 </div>
                               );
                             })}
+                            {instaAspectRatioWarning && platformId === 'instagram' && (
+                                <div className="mt-2 flex items-center gap-2 text-orange-700 bg-orange-50 p-2 rounded-md text-xs border border-orange-200">
+                                    <AlertTriangle size={14} />
+                                    <span>{instaAspectRatioWarning}</span>
+                                </div>
+                            )}
                         </div>
                       )}
                     </div>
