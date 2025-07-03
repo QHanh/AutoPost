@@ -65,6 +65,7 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
   onRefreshPosts
 }) => {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'unpublished' | 'published'>('unpublished');
 
   // Find account name by social_account_id
   const getAccountNameBySocialId = (socialAccountId: string, platform: string): string => {
@@ -184,168 +185,152 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
           isOverdue(post) ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white'
         }`}
       >
-        {/* Header Row */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <span className="text-lg">{getPlatformIcon(post.platform)}</span>
-            <div>
-              <div className="flex items-center gap-2">
-                {getStatusIcon(post.status)}
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(post.status)}`}>
-                  {getStatusText(post.status)}
-                </span>
-                {isOverdue(post) && (
-                  <span className="px-2 py-1 rounded-full text-xs font-medium text-orange-600 bg-orange-100 border border-orange-200 flex items-center gap-1">
-                    <AlertTriangle size={12} />
-                    Quá hạn
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
+        <div className="flex gap-4">
+          {/* Left Column: Post Details */}
+          <div className="flex-grow">
+            {/* Header Row */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{getPlatformIcon(post.platform)}</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(post.status)}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(post.status)}`}>
+                      {getStatusText(post.status)}
+                    </span>
+                    {isOverdue(post) && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium text-orange-600 bg-orange-100 border border-orange-200 flex items-center gap-1">
+                        <AlertTriangle size={12} />
+                        Quá hạn
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Account Name Section */}
-        <div className="mb-3 p-2 bg-gray-50 border border-gray-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <User size={14} className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Tài khoản:</span>
-            <span className="text-sm text-gray-900 font-semibold">{accountName}</span>
-          </div>
-        </div>
-
-        {/* Media Assets */}
-        {post.media_assets && post.media_assets.length > 0 && (
-          <div className="mb-3">
-            <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-              <ImageIcon size={14} />
-              Media Files ({post.media_assets.length})
-            </h5>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {post.media_assets.map((asset, index) => (
-                <div key={asset.id} className="relative group">
-                  {asset.file_type === 'image' ? (
-                    <img
-                      src={asset.url[0]}
-                      alt={asset.file_name}
-                      className="w-full h-20 object-cover rounded-lg border border-gray-200"
-                    />
-                  ) : (
-                    <div className="relative w-full h-20 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                      <video
-                        src={asset.url[0]}
-                        className="w-full h-full object-cover rounded-lg"
-                        muted
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
-                        <Play className="text-white" size={16} />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* File Info Overlay */}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-end rounded-lg">
-                    <div className="w-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <div className="text-xs font-medium truncate">{asset.file_name}</div>
-                      <div className="text-xs flex items-center gap-1">
-                        {asset.file_type === 'image' ? <ImageIcon size={10} /> : <Film size={10} />}
-                        {asset.file_type.toUpperCase()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* YouTube Metadata */}
-        {post.youtube_metadata && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <h5 className="text-sm font-medium text-red-800 mb-2 flex items-center gap-1">
-              📺 YouTube Video Details
-            </h5>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium text-red-700">Title:</span>
-                <span className="ml-2 text-red-800">{post.youtube_metadata.title}</span>
+            {/* Account Name + Post URL Section */}
+            <div className="mb-3 flex items-center gap-4">
+              <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg w-fit flex items-center gap-2">
+                <User size={14} className="text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Tài khoản:</span>
+                <span className="text-sm text-gray-900 font-semibold">{accountName}</span>
               </div>
-              {post.youtube_metadata.description && (
-                <div>
-                  <span className="font-medium text-red-700">Description:</span>
-                  <div className="ml-2 text-red-800 text-xs mt-1 bg-white p-2 rounded border">
-                    {truncateContent(post.youtube_metadata.description, 150)}
-                  </div>
-                </div>
-              )}
-              {post.youtube_metadata.tags && post.youtube_metadata.tags.length > 0 && (
-                <div>
-                  <span className="font-medium text-red-700">Tags:</span>
-                  <div className="ml-2 text-xs text-red-700 mt-1">
-                    {post.youtube_metadata.tags.join(', ')}
-                  </div>
-                </div>
+
+              {showPostUrl && post.post_url && (
+                <a
+                  href={post.post_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline text-xs font-medium px-2 py-1 bg-green-50 border border-green-200 rounded-md"
+                >
+                  <ExternalLink size={12} />
+                  Xem bài
+                </a>
               )}
             </div>
-          </div>
-        )}
 
-        {/* Content */}
-        {post.generated_content && (
-          <div className="mb-3">
-            <div className="text-gray-900 text-sm leading-relaxed">
-              {isExpanded ? post.generated_content : truncateContent(post.generated_content)}
-            </div>
-            {shouldShowExpandButton && (
-              <button
-                onClick={() => toggleContentExpansion(post.id)}
-                className="mt-2 flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp size={14} />
-                    Thu gọn
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown size={14} />
-                    Xem thêm
-                  </>
+            {/* Content */}
+            {post.generated_content && (
+              <div className="mb-3">
+                <div className="text-gray-900 text-sm leading-relaxed">
+                  {isExpanded ? post.generated_content : truncateContent(post.generated_content)}
+                </div>
+                {shouldShowExpandButton && (
+                  <button
+                    onClick={() => toggleContentExpansion(post.id)}
+                    className="mt-2 flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp size={14} />
+                        Thu gọn
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={14} />
+                        Xem thêm
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Post URL */}
-        {showPostUrl && post.post_url && (
-          <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <ExternalLink size={14} className="text-green-600" />
-              <a
-                href={post.post_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-green-600 hover:text-green-700 hover:underline text-sm font-medium"
-              >
-                Xem bài đăng
-              </a>
+            {/* Post URL */}
+            {/* {showPostUrl && post.post_url && (
+              <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-md w-fit">
+                <a
+                  href={post.post_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline text-xs font-medium"
+                >
+                  <ExternalLink size={12} />
+                  Xem bài
+                </a>
+              </div>
+            )} */}
+
+            {/* Footer - Timestamps */}
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+              <div>
+                Tạo: {formatDateTime(post.created_at)}
+              </div>
+              <div className={isOverdue(post) ? 'text-orange-600 font-medium' : ''}>
+                {post.status.toLowerCase() === 'published' ? 'Đã đăng: ' : 'Lên lịch: '}
+                {formatDateTime(post.scheduled_at)}
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Footer - Timestamps */}
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
-          <div>
-            Tạo: {formatDateTime(post.created_at)}
-          </div>
-          <div className={isOverdue(post) ? 'text-orange-600 font-medium' : ''}>
-            {post.status.toLowerCase() === 'published' ? 'Đã đăng: ' : 'Lên lịch: '}
-            {formatDateTime(post.scheduled_at)}
-          </div>
+          {/* Right Column: Media Assets */}
+          {post.media_assets && post.media_assets.length > 0 && (
+            <div className="flex-shrink-0 w-48">
+              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                <ImageIcon size={14} />
+                Media Files ({post.media_assets.length})
+              </h5>
+              <div className="space-y-2">
+                {post.media_assets.map((asset) => (
+                  <div key={asset.id} className="relative group">
+                    {asset.file_type === 'image' ? (
+                      <img
+                        src={asset.url[0]}
+                        alt={asset.file_name}
+                        className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                      />
+                    ) : (
+                      <div className="relative w-full h-48 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                        <video
+                          src={asset.url[0]}
+                          className="w-full h-full object-cover rounded-lg"
+                          muted
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
+                          <Play className="text-white" size={20} />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* File Info Overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-end rounded-lg">
+                      <div className="w-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="text-xs font-medium truncate">{asset.file_name}</div>
+                        <div className="text-xs flex items-center gap-1">
+                          {asset.file_type === 'image' ? <ImageIcon size={10} /> : <Film size={10} />}
+                          {asset.file_type.toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -375,18 +360,37 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-        
-        {/* Left Column - Unpublished Posts */}
-        <div className="p-6 border-r border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Clock className="text-blue-500" size={18} />
-              Đang chờ đăng ({unpublishedPosts.length})
-            </h3>
-          </div>
+      {/* Tab Selector */}
+      <div className="px-6 pt-4 border-b border-gray-200">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('unpublished')}
+            className={`flex items-center gap-2 pb-3 font-medium transition-colors ${
+              activeTab === 'unpublished'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Clock size={16} />
+            Đang chờ đăng ({unpublishedPosts.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('published')}
+            className={`flex items-center gap-2 pb-3 font-medium transition-colors ${
+              activeTab === 'published'
+                ? 'border-b-2 border-green-600 text-green-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <CheckCircle size={16} />
+            Đã đăng ({publishedPosts.length})
+          </button>
+        </div>
+      </div>
 
+      {/* Single Column Layout for content */}
+      <div className="p-6">
+        {activeTab === 'unpublished' && (
           <div className="max-h-[600px] overflow-y-auto space-y-4">
             {isLoadingUnpublished ? (
               <div className="text-center py-8">
@@ -405,17 +409,9 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
               ))
             )}
           </div>
-        </div>
+        )}
 
-        {/* Right Column - Published Posts */}
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <CheckCircle className="text-green-500" size={18} />
-              Đã đăng ({publishedPosts.length})
-            </h3>
-          </div>
-
+        {activeTab === 'published' && (
           <div className="max-h-[600px] overflow-y-auto space-y-4">
             {isLoadingPublished ? (
               <div className="text-center py-8">
@@ -434,7 +430,7 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
               ))
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

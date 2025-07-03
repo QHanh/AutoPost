@@ -27,7 +27,7 @@ interface PlatformSelection {
 }
 
 export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenerate, isGenerating, mainContent }) => {
-  const [showPromptInput, setShowPromptInput] = useState(false);
+  const [showPromptInput, setShowPromptInput] = useState(true);
   const [hashtags, setHashtags] = useState('');
   const [brandName, setBrandName] = useState('');
   const [callToAction, setCallToAction] = useState('');
