@@ -280,7 +280,7 @@ export const HomePage: React.FC = () => {
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Săn Sàng Để Nâng Cấp
+            Sẵn Sàng Để Nâng Cấp
             <br />Chiến Lược Sử Dụng Mạng Xã Hội?
           </h2>
           <p className="text-xl text-blue-100 mb-8 leading-relaxed">

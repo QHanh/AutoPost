@@ -1,3 +1,5 @@
+import { MediaFile } from '../types/platform';
+
 export const PLATFORM_LIMITS = {
   facebook: {
     maxImages: 10,
@@ -81,26 +83,46 @@ export const createMediaFile = (file: File): Promise<MediaFile> => {
     if (mediaFile.type === 'video') {
       const video = document.createElement('video');
       video.preload = 'metadata';
-      
-      video.onloadedmetadata = () => {
-        mediaFile.duration = video.duration;
-        
-        // Create thumbnail
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        
-        video.currentTime = 1; // Get frame at 1 second
-        video.onseeked = () => {
-          ctx?.drawImage(video, 0, 0);
-          mediaFile.thumbnail = canvas.toDataURL();
-          resolve(mediaFile);
-        };
-      };
-      
-      video.onerror = () => reject(new Error('Failed to load video'));
       video.src = mediaFile.url;
+      video.crossOrigin = 'anonymous';
+
+      const onSeeked = () => {
+        setTimeout(() => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            mediaFile.thumbnail = canvas.toDataURL('image/jpeg');
+          }
+          
+          video.removeEventListener('seeked', onSeeked);
+          video.removeEventListener('loadeddata', onLoadedData);
+          video.removeEventListener('error', onError);
+          URL.revokeObjectURL(video.src);
+          resolve(mediaFile);
+        }, 100);
+      };
+
+      const onLoadedData = () => {
+        mediaFile.duration = video.duration;
+        video.currentTime = 1;
+      };
+
+      const onError = (e: Event) => {
+        video.removeEventListener('seeked', onSeeked);
+        video.removeEventListener('loadeddata', onLoadedData);
+        video.removeEventListener('error', onError);
+        URL.revokeObjectURL(video.src);
+        reject(new Error('Failed to load video for thumbnail generation'));
+      };
+
+      video.addEventListener('loadeddata', onLoadedData);
+      video.addEventListener('seeked', onSeeked);
+      video.addEventListener('error', onError);
+
     } else {
       resolve(mediaFile);
     }
@@ -108,7 +130,7 @@ export const createMediaFile = (file: File): Promise<MediaFile> => {
 };
 
 export const validateMediaForPlatform = (media: MediaFile[], platformId: string): string[] => {
-  const limits = PLATFORM_LIMITS[platformId];
+  const limits = PLATFORM_LIMITS[platformId as keyof typeof PLATFORM_LIMITS];
   const errors: string[] = [];
 
   if (!limits) return errors;

@@ -69,7 +69,8 @@ export const useAuth = () => {
         body: JSON.stringify({
           email: email.trim(),
           password: password,
-          full_name: full_name.trim()
+          full_name: full_name.trim(),
+          subscription_id: "48049a8a-d3be-47c6-a800-07b7ddb0c97c"
           //role: 'user'
         })
       });

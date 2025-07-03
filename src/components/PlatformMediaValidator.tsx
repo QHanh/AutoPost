@@ -49,9 +49,6 @@ export const PlatformMediaValidator: React.FC<PlatformMediaValidatorProps> = ({
                   {account.platformId === 'facebook' && '📘'}
                   {account.platformId === 'instagram' && '📷'}
                   {account.platformId === 'youtube' && '📺'}
-                  {account.platformId === 'twitter' && '🐦'}
-                  {account.platformId === 'linkedin' && '💼'}
-                  {account.platformId === 'tiktok' && '🎵'}
                 </span>
                 <div>
                   <span className="font-medium text-gray-900">{account.accountName}</span>

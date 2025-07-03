@@ -3,45 +3,48 @@ import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown } from 'l
 import { useAuth } from '../hooks/useAuth';
 
 interface AIContentGeneratorProps {
-  onContentGenerated: (content: any, generationData: any) => void;
-}
-
-interface GenerateRequest {
-  prompt: string;
-  platform: string;
-  generate_for: string[];
-  platform_specific_data: {
-    call_to_action?: string;
-    hashtags?: string[];
-  };
-  brand_name?: string;
-  posting_purpose?: string;
-  ai_platform: 'gemini' | 'openai';
+  onGenerate: (data: any) => void;
+  isGenerating: boolean;
+  mainContent: string;
 }
 
 interface ApiKeys {
   gemini_api_key: string;
   openai_api_key: string;
+  youtube: boolean;
 }
 
-export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
-  onContentGenerated
-}) => {
+interface PlatformSelection {
+  facebook: {
+    page: boolean;
+    reels: boolean;
+  };
+  instagram: {
+    feed: boolean;
+    reels: boolean;
+  };
+  youtube: boolean;
+}
+
+export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenerate, isGenerating, mainContent }) => {
   const [showPromptInput, setShowPromptInput] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [selectedGenerateFor, setSelectedGenerateFor] = useState<string[]>(['short_video']);
   const [hashtags, setHashtags] = useState('');
   const [brandName, setBrandName] = useState('');
   const [callToAction, setCallToAction] = useState('');
   const [postingPurpose, setPostingPurpose] = useState('');
-  const [selectedAiPlatform, setSelectedAiPlatform] = useState<'gemini' | 'openai'>('gemini');
+  const [selectedAiPlatform, setSelectedAiPlatform] = useState<'gemini' | 'openai'>('openai');
   const [showAiPlatformSelector, setShowAiPlatformSelector] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [apiKeys, setApiKeys] = useState<ApiKeys>({
     gemini_api_key: '',
-    openai_api_key: ''
+    openai_api_key: '',
+    youtube: false
+  });
+  const [platformSelection, setPlatformSelection] = useState<PlatformSelection>({
+    facebook: { page: false, reels: false },
+    instagram: { feed: false, reels: false },
+    youtube: false
   });
 
   const { user } = useAuth();
@@ -92,26 +95,22 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
 
   const availableAiPlatforms = getAvailableAiPlatforms();
 
-  // Generate for options
-  const getGenerateForOptions = () => {
-    return [
-      { id: 'short_video', name: 'Reel', icon: '🎬' },
-      { id: 'long_video', name: 'Photo/Content', icon: '📄' },
-      { id: 'youtube', name: 'YouTube', icon: '📺' }
-    ];
-  };
-
-  const handleGenerateForToggle = (optionId: string) => {
-    setSelectedGenerateFor(prev => 
-      prev.includes(optionId)
-        ? prev.filter(id => id !== optionId)
-        : [...prev, optionId]
-    );
-  };
-
   const handleGenerateContent = async () => {
-    if (!prompt.trim()) {
-      setError('Vui lòng nhập prompt');
+    if (!mainContent.trim()) {
+      setError('Vui lòng nhập nội dung ở ô bên trên để AI có thể viết lại.');
+      return;
+    }
+
+    // Check if at least one platform is selected
+    const hasSelectedPlatform = 
+      platformSelection.facebook.page || 
+      platformSelection.facebook.reels || 
+      platformSelection.instagram.feed || 
+      platformSelection.instagram.reels || 
+      platformSelection.youtube;
+
+    if (!hasSelectedPlatform) {
+      setError('Vui lòng chọn ít nhất một nền tảng');
       return;
     }
 
@@ -125,92 +124,90 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       return;
     }
 
-    if (selectedGenerateFor.length === 0) {
-      setError('Vui lòng chọn ít nhất một loại nội dung');
-      return;
-    }
+    // Chuẩn bị dữ liệu gửi đi
+    const selectedPlatforms: string[] = [];
+    if (platformSelection.facebook.page) selectedPlatforms.push('facebook-page');
+    if (platformSelection.facebook.reels) selectedPlatforms.push('facebook-reels');
+    if (platformSelection.instagram.feed) selectedPlatforms.push('instagram-feed');
+    if (platformSelection.instagram.reels) selectedPlatforms.push('instagram-reels');
+    if (platformSelection.youtube) selectedPlatforms.push('youtube');
 
-    setIsGenerating(true);
-    setError('');
-    setSuccess('');
+    const hashtagArray = hashtags.trim()
+      ? hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      : [];
 
-    try {
-      // Parse hashtags from string to array
-      const hashtagArray = hashtags.trim() 
-        ? hashtags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-        : [];
+    const body = {
+      prompt: mainContent.trim(),
+      platform_type: selectedPlatforms,
+      hashtags: hashtagArray,
+      brand_name: brandName.trim(),
+      call_to_action: callToAction.trim(),
+      posting_purpose: postingPurpose.trim(),
+      ai_platform: selectedAiPlatform
+    };
 
-      // Prepare request body
-      const requestBody: GenerateRequest = {
-        prompt: prompt.trim(),
-        platform: 'facebook', // Fixed platform as requested
-        generate_for: selectedGenerateFor,
-        platform_specific_data: {
-          call_to_action: callToAction.trim() || '',
-          hashtags: hashtagArray
-        },
-        brand_name: brandName.trim() || '',
-        posting_purpose: postingPurpose.trim() || '',
-        ai_platform: selectedAiPlatform
-      };
-
-      const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/generate-preview`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`,
-          'accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data) {
-        // Pass the entire response to parent
-        onContentGenerated(data, {
-          platform: 'facebook',
-          generate_for: selectedGenerateFor,
-          platform_specific_data: {
-            prompt: prompt.trim(),
-            call_to_action: callToAction.trim(),
-            hashtags: hashtagArray
-          },
-          brand_name: brandName.trim(),
-          posting_purpose: postingPurpose.trim(),
-          ai_platform: selectedAiPlatform
-        });
-
-        setSuccess('Nội dung đã được tạo thành công!');
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError('Không nhận được nội dung từ AI');
-      }
-    } catch (error) {
-      console.error('AI generation error:', error);
-      setError(error instanceof Error ? error.message : 'Lỗi khi tạo nội dung');
-    } finally {
-      setIsGenerating(false);
-    }
+    onGenerate(body);
+    // Component này không còn tự gọi API hay quản lý kết quả nữa
   };
 
   const clearForm = () => {
-    setPrompt('');
     setHashtags('');
     setBrandName('');
     setCallToAction('');
     setPostingPurpose('');
-    setSelectedGenerateFor(['short_video']);
     setError('');
     setSuccess('');
+    setPlatformSelection({
+      facebook: { page: false, reels: false },
+      instagram: { feed: false, reels: false },
+      youtube: false
+    });
+  };
+
+  // Platform selection handlers
+  const handleFacebookSelection = (type: 'page' | 'reels') => {
+    setPlatformSelection(prev => ({
+      ...prev,
+      facebook: {
+        ...prev.facebook,
+        [type]: !prev.facebook[type]
+      }
+    }));
+  };
+
+  const handleInstagramSelection = (type: 'feed' | 'reels') => {
+    setPlatformSelection(prev => ({
+      ...prev,
+      instagram: {
+        ...prev.instagram,
+        [type]: !prev.instagram[type]
+      }
+    }));
+  };
+
+  const handleYoutubeSelection = () => {
+    setPlatformSelection(prev => ({
+      ...prev,
+      youtube: !prev.youtube
+    }));
+  };
+
+  // Thứ tự các nền tảng
+  const platformOrder = [
+    'facebook-page',
+    'facebook-reels',
+    'instagram-feed',
+    'instagram-reels',
+    'youtube'
+  ];
+
+  // Map tên hiển thị
+  const platformDisplay: Record<string, string> = {
+    'facebook-page': 'Facebook Page',
+    'facebook-reels': 'Facebook Reels',
+    'instagram-feed': 'Instagram Feed',
+    'instagram-reels': 'Instagram Reels',
+    'youtube': 'YouTube'
   };
 
   return (
@@ -223,7 +220,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm font-medium"
         >
           <Sparkles size={16} />
-          Tạo nội dung bằng AI
+          Viết lại nội dung thủ công của bạn bằng AI
         </button>
 
         {/* AI Platform Selector */}
@@ -311,47 +308,129 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
             </button>
           </div>
 
-          {/* Prompt Input */}
+          {/* Platform Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mô tả nội dung bạn muốn tạo: *
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Chọn nền tảng để viết lại nội dung: *
             </label>
-            <textarea
-              value={prompt}
-              onChange={(e) => {
-                setPrompt(e.target.value);
-                setError('');
-              }}
-              placeholder="VD: 'Viết bài quảng bá sản phẩm nước hoa mới dành cho giới trẻ', 'Tạo video giới thiệu khóa học online'..."
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
-            />
-          </div>
-
-          {/* Generate For Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Loại nội dung: * (có thể chọn nhiều)
-            </label>
-            <div className="grid grid-cols-1 gap-2">
-              {getGenerateForOptions().map((option) => (
+            <div className="flex flex-row justify-center gap-8">
+              {/* Facebook */}
+              <div className="flex flex-col items-center">
                 <button
-                  key={option.id}
                   type="button"
-                  onClick={() => handleGenerateForToggle(option.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                    selectedGenerateFor.includes(option.id)
-                      ? 'border-purple-500 bg-purple-100 text-purple-700'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-blue-500 bg-white text-blue-700 ${
+                    (platformSelection.facebook.page || platformSelection.facebook.reels)
+                      ? 'shadow-md' : ''
                   }`}
+                  style={{ minWidth: 120 }}
+                  tabIndex={-1}
+                  disabled
                 >
-                  <span>{option.icon}</span>
-                  {option.name}
-                  {selectedGenerateFor.includes(option.id) && (
-                    <CheckCircle size={14} className="ml-auto text-purple-600" />
+                  <span className="text-blue-600">📘</span>
+                  Facebook
+                  {(platformSelection.facebook.page || platformSelection.facebook.reels) && (
+                    <CheckCircle size={14} className="text-blue-600" />
                   )}
                 </button>
-              ))}
+                <div className="flex flex-row gap-2 mt-2 w-full justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleFacebookSelection('page')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
+                      platformSelection.facebook.page
+                        ? 'border-blue-500 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>📄</span>
+                    Page
+                    {platformSelection.facebook.page && (
+                      <CheckCircle size={12} className="text-blue-600" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFacebookSelection('reels')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
+                      platformSelection.facebook.reels
+                        ? 'border-blue-500 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>🎬</span>
+                    Reels
+                    {platformSelection.facebook.reels && (
+                      <CheckCircle size={12} className="text-blue-600" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Instagram */}
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-pink-500 bg-white text-pink-700 ${
+                    (platformSelection.instagram.feed || platformSelection.instagram.reels)
+                      ? 'shadow-md' : ''
+                  }`}
+                  style={{ minWidth: 120 }}
+                  tabIndex={-1}
+                  disabled
+                >
+                  <span className="text-pink-600">📷</span>
+                  Instagram
+                  {(platformSelection.instagram.feed || platformSelection.instagram.reels) && (
+                    <CheckCircle size={14} className="text-pink-600" />
+                  )}
+                </button>
+                <div className="flex flex-row gap-2 mt-2 w-full justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleInstagramSelection('feed')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
+                      platformSelection.instagram.feed
+                        ? 'border-pink-500 bg-pink-100 text-pink-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>📱</span>
+                    Feed
+                    {platformSelection.instagram.feed && (
+                      <CheckCircle size={12} className="text-pink-600" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleInstagramSelection('reels')}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
+                      platformSelection.instagram.reels
+                        ? 'border-pink-500 bg-pink-100 text-pink-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>🎬</span>
+                    Reels
+                    {platformSelection.instagram.reels && (
+                      <CheckCircle size={12} className="text-pink-600" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* YouTube */}
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={handleYoutubeSelection}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-red-500 bg-white text-red-700 ${
+                    platformSelection.youtube ? 'shadow-md' : ''
+                  }`}
+                  style={{ minWidth: 120 }}
+                >
+                  <span className="text-red-600">📺</span>
+                  YouTube
+                  {platformSelection.youtube && (
+                    <CheckCircle size={14} className="text-red-600" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -419,7 +498,16 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleGenerateContent}
-              disabled={isGenerating || !prompt.trim() || selectedGenerateFor.length === 0 || availableAiPlatforms.length === 0}
+              disabled={
+                isGenerating || 
+                !mainContent.trim() || 
+                availableAiPlatforms.length === 0 ||
+                !(platformSelection.facebook.page || 
+                  platformSelection.facebook.reels || 
+                  platformSelection.instagram.feed || 
+                  platformSelection.instagram.reels || 
+                  platformSelection.youtube)
+              }
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
             >
               {isGenerating ? (
@@ -441,27 +529,6 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
             >
               Xóa form
             </button>
-          </div>
-
-          {/* Example Prompts */}
-          <div className="border-t border-purple-200 pt-3">
-            <p className="text-xs font-medium text-gray-700 mb-2">Ví dụ prompt:</p>
-            <div className="space-y-1">
-              {[
-                "Viết bài quảng bá sản phẩm nước hoa mới dành cho giới trẻ",
-                "Tạo video giới thiệu khóa học online về marketing",
-                "Chia sẻ 5 mẹo tiết kiệm tiền cho sinh viên",
-                "Cảm ơn khách hàng đã ủng hộ trong năm qua"
-              ].map((example, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPrompt(example)}
-                  className="block text-xs text-purple-600 hover:text-purple-700 hover:underline text-left"
-                >
-                  "{example}"
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}

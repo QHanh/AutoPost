@@ -140,39 +140,34 @@ class VideoProgressManager {
     }
   }
 
-  private async downloadCompletedVideos(taskData: any, taskId: string = this.currentProgress.taskId) {
+  private async downloadCompletedVideos(taskData: any) {
     try {
       const apiBaseUrl = import.meta.env.VITE_API_VIDEO_URL;
+      // Lấy mảng videos từ API để biết cần tạo bao nhiêu thẻ <video>
       const videoSources = taskData.videos || taskData.combined_videos || [];
       const downloadedVideos: CompletedVideo[] = [];
-
+  
+      // Giả sử API luôn trả về 1 video trong mảng videoSources khi thành công
       for (let i = 0; i < videoSources.length; i++) {
-        // Use a fixed filename for downloads
-        const filename = 'final-1.mp4';
-        
-        const downloadResponse = await fetch(`${apiBaseUrl}/api/v1/download/${this.currentProgress.taskId}/${filename}`, {
-          method: 'GET'
+        // Dòng này đã xây dựng đường dẫn chính xác bằng cách
+        // kết hợp taskId động và tên file tĩnh.
+        const filePath = `${this.currentProgress.taskId}/final-1.mp4`;
+        const videoUrl = `${apiBaseUrl}/stream/${filePath}`;
+  
+        downloadedVideos.push({
+          url: videoUrl,
+          index: i + 1,
+          taskId: this.currentProgress.taskId
         });
-
-        if (downloadResponse.ok) {
-          const blob = await downloadResponse.blob();
-          //const videoUrl = URL.createObjectURL(blob);
-          const videoUrl = `${apiBaseUrl}/api/v1/download/${taskId}/final-1.mp4`;
-
-          downloadedVideos.push({
-            url: videoUrl,
-            index: i + 1,
-            taskId: this.currentProgress.taskId
-          });
-        }
       }
-
+  
       this.completedVideos = downloadedVideos;
       this.notifyVideoListeners();
     } catch (error) {
-      console.error('Error downloading videos:', error);
+      console.error('Error setting up video streams:', error);
     }
   }
+  
 
   private startPolling() {
     if (this.intervalId) {
@@ -203,7 +198,7 @@ class VideoProgressManager {
       isCreating: true
     };
     
-    // this.completedVideos = [];
+    // this.completedVideos = []; // Optionally clear old videos
     this.notifyListeners();
     this.notifyVideoListeners();
     this.startPolling();

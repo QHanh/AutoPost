@@ -288,7 +288,7 @@ export const SingleVoiceMode: React.FC = () => {
         font_size: subtitleFontSize,
         stroke_color: subtitleBorderColor,
         stroke_width: subtitleBorderWidth,
-        n_threads: 4,
+        n_threads: 6,
         paragraph_number: 1,
         gemini_key: geminiApiKey,
         openai_key: openaiApiKey,
