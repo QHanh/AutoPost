@@ -193,22 +193,22 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
   };
 
   // Thứ tự các nền tảng
-  const platformOrder = [
-    'facebook-page',
-    'facebook-reels',
-    'instagram-feed',
-    'instagram-reels',
-    'youtube'
-  ];
+  // const platformOrder = [
+  //   'facebook-page',
+  //   'facebook-reels',
+  //   'instagram-feed',
+  //   'instagram-reels',
+  //   'youtube'
+  // ];
 
   // Map tên hiển thị
-  const platformDisplay: Record<string, string> = {
-    'facebook-page': 'Facebook Page',
-    'facebook-reels': 'Facebook Reels',
-    'instagram-feed': 'Instagram Feed',
-    'instagram-reels': 'Instagram Reels',
-    'youtube': 'YouTube'
-  };
+  // const platformDisplay: Record<string, string> = {
+  //   'facebook-page': 'Facebook Page',
+  //   'facebook-reels': 'Facebook Reels',
+  //   'instagram-feed': 'Instagram Feed',
+  //   'instagram-reels': 'Instagram Reels',
+  //   'youtube': 'YouTube'
+  // };
 
   return (
     <div className="space-y-3">

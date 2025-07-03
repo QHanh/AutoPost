@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PlatformAccount, MediaFile } from '../types/platform';
-import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, FileText, Type, Film, Youtube, Tag } from 'lucide-react';
+import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, FileText, Type, Tag } from 'lucide-react';
 import { MediaUploader } from './MediaUploader';
 import { PlatformMediaValidator } from './PlatformMediaValidator';
 import { AIContentGenerator } from './AIContentGenerator';
@@ -53,10 +53,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   
   // AI generation data for API
   const [aiGenerationData, setAiGenerationData] = useState<any>(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizationStatus, setOptimizationStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [optimizedContent, setOptimizedContent] = useState<any | null>(null);
-  const [viewingPlatform, setViewingPlatform] = useState<string | null>(null);
   
   // --- THAY ĐỔI 2: Sử dụng state `postContent` mới ---
   const [postContent, setPostContent] = useState<PostContent>({
@@ -65,18 +61,15 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     tags: ''
   });
   
-  // State `expandedBox` không còn cần thiết với một ô nội dung duy nhất
-  // const [expandedBox, setExpandedBox] = useState<string | null>(null);
-  
   // State mới cho việc tạo nội dung bằng AI
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [aiResults, setAiResults] = useState<any>(null);
   const [activeAiCard, setActiveAiCard] = useState<string | null>(null);
   const [editedAiContent, setEditedAiContent] = useState<any>({});
+  const [postTypeConfirmation, setPostTypeConfirmation] = useState<{accountId: string; postType: string} | null>(null);
   
   const { user } = useAuth();
 
-  // Derived state to track which AI platforms are confirmed by post-type selection
   const confirmedAiPlatforms = React.useMemo(() => {
     if (!aiResults) return [];
     
@@ -151,14 +144,14 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return !!typeConfig?.requiresVideo;
   };
 
-  const postTypeRequiresImage = (accountId: string, postType: string): boolean => {
-    const account = selectedAccounts.find(acc => acc.id === accountId);
-    if (!account) return false;
+  // const postTypeRequiresImage = (accountId: string, postType: string): boolean => {
+  //   const account = selectedAccounts.find(acc => acc.id === accountId);
+  //   if (!account) return false;
     
-    const postTypes = getPostTypesForPlatform(account.platformId);
-    const typeConfig = postTypes.find(type => type.id === postType);
-    return !!typeConfig?.requiresImage;
-  };
+  //   const postTypes = getPostTypesForPlatform(account.platformId);
+  //   const typeConfig = postTypes.find(type => type.id === postType);
+  //   return !!typeConfig?.requiresImage;
+  // };
 
   const canSelectPostType = (accountId: string, postType: string): boolean => {
     const account = selectedAccounts.find(acc => acc.id === accountId);
@@ -177,9 +170,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return true; // e.g. Facebook Page post can be text-only
   };
 
-  // --- BỎ: useEffect và các state liên quan đến việc kích hoạt/khóa các ô nội dung cũ ---
-  // (activeContentTypes, lockedContentTypes đã bị xóa)
-
   const handlePostTypeToggle = (accountId: string, postType: string) => {
     if (!canSelectPostType(accountId, postType)) {
       return;
@@ -187,16 +177,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
 
-    // If AI content exists, all post selections must have corresponding AI content.
-    if (aiResults) {
-      const isSelecting = !(platformPostTypes[accountId] || []).includes(postType);
-      const aiKey = getAiResultKey(account.platformId, postType);
+    const isSelecting = !(platformPostTypes[accountId] || []).includes(postType);
 
-      if (isSelecting && (!aiKey || !aiResults[aiKey])) {
-        setSchedulingStatus({
-          type: 'error',
-          message: `Bạn chưa có nội dung do AI tạo cho loại bài đăng này. Vui lòng tạo nội dung trước.`
-        });
+    if (isSelecting && aiResults) {
+      const aiKey = getAiResultKey(account.platformId, postType);
+      if (!aiKey || !aiResults[aiKey]) {
+        setPostTypeConfirmation({ accountId, postType });
         return;
       }
     }
@@ -259,65 +245,9 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     }
   };
 
-  // --- THAY ĐỔI 3: Cập nhật hàm xử lý nội dung từ AI ---
-  const handleAIContentGenerated = (draft: { title: string; text: string; tags: string }, generationData: any) => {
-    setPostContent(draft);
-    setAiGenerationData(generationData);
-    setOptimizationStatus(null); // Reset optimization status when new draft is generated
-    setOptimizedContent(null); // Reset optimized content
-    setViewingPlatform(null); // Reset viewing platform
-  };
-
   // --- THAY ĐỔI 4: Hàm cập nhật nội dung mới ---
   const updatePostContent = (field: keyof PostContent, value: string) => {
     setPostContent(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleOptimizeContent = async () => {
-    if (!aiGenerationData) return;
-
-    setIsOptimizing(true);
-    setOptimizationStatus(null);
-    console.log('Optimizing content:', postContent);
-    console.log('Using generation data:', aiGenerationData);
-
-    // NOTE: The user will implement the real backend call here.
-    // This will take the edited `postContent` and generate platform-specific versions.
-    // For now, we just simulate a success state.
-    setTimeout(() => {
-      const mockOptimizedContent = {
-        short_video: {
-          name: "Reel/Short",
-          icon: Film,
-          content: {
-            caption: `Đây là caption đã được tối ưu cho Reels/Short Video.\n\n${postContent.text}`
-          }
-        },
-        long_video: {
-          name: "Facebook/Post",
-          icon: FileText,
-          content: {
-            caption: `Đây là nội dung dài tối ưu cho Facebook Post.\n\n${postContent.text}`
-          }
-        },
-        youtube: {
-          name: "YouTube",
-          icon: Youtube,
-          content: {
-            title: `[Tối ưu] ${postContent.title}`,
-            description: `Mô tả YouTube đã được tối ưu hóa:\n\n${postContent.text}`
-          }
-        }
-      };
-      setOptimizedContent(mockOptimizedContent);
-      setViewingPlatform('short_video'); // Default to showing first platform
-
-      setOptimizationStatus({
-        type: 'success',
-        message: 'Nội dung đã được tối ưu cho các nền tảng!'
-      });
-      setIsOptimizing(false);
-    }, 1500);
   };
 
   const formatDateTimeForAPI = (dateTimeLocal: string): string => {
@@ -389,11 +319,19 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         );
         if (!proceed) return;
       }
-
+      
     setIsScheduling(true);
     setSchedulingStatus(null);
 
     try {
+      const postTypesToSchedule = selectedAccounts.flatMap(account => 
+        (platformPostTypes[account.id] || []).map(postType => ({
+            account,
+            postType,
+            aiKey: getAiResultKey(account.platformId, postType),
+        }))
+      );
+
       const apiBaseUrl = getApiBaseUrl();
       const formData = new FormData();
 
@@ -407,56 +345,42 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       formData.append('brand_name', aiGenerationData?.brand_name || '');
       formData.append('posting_purpose', aiGenerationData?.posting_purpose || '');
       formData.append('scheduled_at', formatDateTimeForAPI(scheduledTime));
-      
+
       // Construct and append preview_content
       const contentToSubmit: any = {};
-      const selectedAiKeys = new Set<string>();
 
-      selectedAccounts.forEach(account => {
-        const postTypes = platformPostTypes[account.id] || [];
-        postTypes.forEach(postType => {
-            const aiKey = getAiResultKey(account.platformId, postType);
-            if (aiKey) selectedAiKeys.add(aiKey);
-        });
-      });
-
-      if (aiResults) {
-        selectedAiKeys.forEach(key => {
-          if (editedAiContent[key]) {
-            contentToSubmit[key] = editedAiContent[key];
+      postTypesToSchedule.forEach(p => {
+        if (p.aiKey && aiResults?.[p.aiKey]) {
+          // Use AI content if it exists
+          contentToSubmit[p.aiKey] = editedAiContent[p.aiKey];
+        } else if (p.aiKey) {
+          // Fallback to manual content if AI content is missing
+          if (p.aiKey === 'youtube') {
+            contentToSubmit[p.aiKey] = {
+              content: {
+                title: postContent.title,
+                description: postContent.text,
+                tags: postContent.tags ? postContent.tags.split(',').map(t => t.trim()) : [],
+              },
+            };
+          } else {
+            contentToSubmit[p.aiKey] = { content: postContent.text };
           }
-        });
-      } else {
-        // Fallback for manual content posting
-        contentToSubmit['default'] = { content: postContent.text };
-        const isYouTubeManuallySelected = Array.from(selectedAiKeys).includes('youtube');
-        if (isYouTubeManuallySelected) {
-          contentToSubmit['youtube'] = {
-            content: {
-              title: postContent.title,
-              description: postContent.text,
-              tags: postContent.tags ? postContent.tags.split(',').map(t => t.trim()) : []
-            }
-          };
         }
-      }
+      });
       formData.append('preview_content', JSON.stringify(contentToSubmit));
 
       // Construct and append platform_specific_data
-      const platformSpecificData = selectedAccounts.flatMap(account => {
-        const socialAccountId = getSocialAccountId(account.id);
-        if (!socialAccountId) return [];
-
-        const postTypes = platformPostTypes[account.id] || [];
-        return postTypes.map(postType => {
-          const platformTypeKey = getAiResultKey(account.platformId, postType);
-          return {
-            platform_type: platformTypeKey,
-            social_account_id: socialAccountId,
-            call_to_action: aiGenerationData?.call_to_action || ''
-          };
-        });
-      });
+      const platformSpecificData = postTypesToSchedule.map(p => {
+        const socialAccountId = getSocialAccountId(p.account.id);
+        if (!socialAccountId) return null;
+        
+        return {
+          platform_type: p.aiKey,
+          social_account_id: socialAccountId,
+          call_to_action: aiGenerationData?.call_to_action || ''
+        };
+      }).filter(Boolean);
 
       formData.append('platform_specific_data', JSON.stringify(platformSpecificData));
 
@@ -1012,7 +936,41 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         )}
       </form>
       
-      {/* Modal không còn cần thiết vì không có các ô nội dung riêng biệt để mở rộng */}
+      {postTypeConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 animate-fade-in">
+            <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-md w-full">
+                <h3 className="text-lg font-semibold text-gray-900">Xác nhận</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Nội dung nền tảng này chưa được bạn tạo bằng AI. Bạn có muốn sử dụng nội dung ở ô nội dung thủ công để đăng không?
+                </p>
+                <div className="mt-5 flex justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setPostTypeConfirmation(null)}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm"
+                    >
+                        Không
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                          if (postTypeConfirmation) {
+                            const { accountId, postType } = postTypeConfirmation;
+                            setPlatformPostTypes(prev => ({
+                              ...prev,
+                              [accountId]: [...(prev[accountId] || []), postType]
+                            }));
+                            setPostTypeConfirmation(null);
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                    >
+                        Có
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

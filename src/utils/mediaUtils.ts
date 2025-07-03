@@ -117,6 +117,7 @@ export const createMediaFile = (file: File): Promise<MediaFile> => {
         video.removeEventListener('error', onError);
         URL.revokeObjectURL(video.src);
         reject(new Error('Failed to load video for thumbnail generation'));
+        console.error('Failed to load video for thumbnail generation', e);
       };
 
       video.addEventListener('loadeddata', onLoadedData);
