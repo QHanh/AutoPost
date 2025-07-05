@@ -1,6 +1,7 @@
 import React from 'react';
 import { PlatformCard } from '../components/PlatformCard';
 import { ApiKeyManager } from '../components/ApiKeyManager';
+import { PromptManager } from '../components/PromptManager';
 import { Platform, PlatformAccount } from '../types/platform';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -70,39 +71,43 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
       {/* Getting Started Guide */}
       {totalServerAccounts === 0 && connectedAccounts.length === 0 && (
         <section className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-8 border border-yellow-200 mb-8">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">Bắt Đầu</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">Bắt Đầu</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {/* Step 1 */}
+            <div className="flex flex-col h-full p-4 bg-white rounded-lg shadow-sm border border-yellow-100">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <div className="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center">
                   <span className="text-sm">1</span>
                 </div>
                 Cấu Hình API Keys
               </h4>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600">
                 Cấu hình API Key Gemini và OpenAI để tạo nội dung AI.
               </p>
             </div>
-            
-            <div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col h-full p-4 bg-white rounded-lg shadow-sm border border-yellow-100">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <div className="bg-red-100 w-8 h-8 rounded-full flex items-center justify-center">
                   <span className="text-sm">2</span>
                 </div>
                 Kết Nối Các Nền Tảng
               </h4>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600">
                 Kết nối tài khoản mạng xã hội của bạn.
               </p>
-            </div>  
-            <div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col h-full p-4 bg-white rounded-lg shadow-sm border border-yellow-100">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <div className="bg-purple-100 w-8 h-8 rounded-full flex items-center justify-center">
                   <span className="text-sm">3</span>
                 </div>
                 Bắt Đầu Đăng Bài
               </h4>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600">
                 Sử dụng các công cụ đăng bài và tạo nội dung AI.
               </p>
             </div>
@@ -110,6 +115,10 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         </section>
       )}
 
+      {/* Prompt Management */}
+      <section className="mb-8">
+        <PromptManager />
+      </section>
 
       {/* API Key Management */}
       <section className="mb-8">

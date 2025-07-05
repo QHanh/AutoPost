@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, CheckCircle, XCircle, Calendar, ExternalLink, Image as ImageIcon, Film, Play, AlertTriangle, RefreshCw, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Calendar, ExternalLink, Image as ImageIcon, Film, Play, AlertTriangle, RefreshCw, User, ChevronDown, ChevronUp, Edit, Trash2, Loader2 } from 'lucide-react';
 import { PlatformAccount } from '../types/platform';
 
 interface MediaAsset {
@@ -32,9 +32,9 @@ interface YouTubeMetadata {
 
 interface BackendPost {
   id: string;
-  post_id: string;
   social_account_id: string;
   platform: string;
+  platform_type?: string;
   status: string;
   scheduled_at: string;
   generated_content: string | null;
@@ -53,6 +53,8 @@ interface PostHistoryProps {
   accounts: PlatformAccount[];
   getSocialAccountId: (platformAccountId: string) => string | null;
   onRefreshPosts: () => void;
+  onUpdatePost: (postId: string, data: { preview_content: string; scheduled_at: string }) => Promise<any>;
+  onDeletePost: (postId: string) => Promise<void>;
 }
 
 export const PostHistory: React.FC<PostHistoryProps> = ({
@@ -62,10 +64,30 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
   isLoadingUnpublished,
   accounts,
   getSocialAccountId,
-  onRefreshPosts
+  onRefreshPosts,
+  onUpdatePost,
+  onDeletePost
 }) => {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'unpublished' | 'published'>('unpublished');
+  const [editingPost, setEditingPost] = useState<BackendPost | null>(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedScheduledAt, setEditedScheduledAt] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  const getPostTypeDisplayName = (platformType?: string): string | null => {
+    if (!platformType) return null;
+    const displayNames: Record<string, string> = {
+      'facebook-page': 'Page',
+      'facebook-reels': 'Reel',
+      'instagram-feed': 'Feed',
+      'instagram-reels': 'Reel',
+      'youtube': 'Video',
+    };
+    return displayNames[platformType] || platformType;
+  };
 
   // Find account name by social_account_id
   const getAccountNameBySocialId = (socialAccountId: string, platform: string): string => {
@@ -174,10 +196,80 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
     return content.substring(0, maxLength) + '...';
   };
 
+  const handleEditClick = (post: BackendPost) => {
+    setEditingPost(post);
+    if (post.platform === 'youtube' && post.youtube_metadata) {
+        setEditedTitle(post.youtube_metadata.title);
+        setEditedContent(post.youtube_metadata.description);
+    } else {
+        setEditedContent(post.generated_content || '');
+    }
+    const scheduleDate = new Date(post.scheduled_at);
+    const formattedDate = new Date(scheduleDate.getTime() - (scheduleDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    setEditedScheduledAt(formattedDate);
+    setModalError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPost(null);
+  };
+
+  const handleUpdatePost = async () => {
+    if (!editingPost) return;
+
+    setIsUpdating(true);
+    setModalError(null);
+
+    try {
+        let previewContent;
+        if (editingPost.platform === 'youtube' && editingPost.platform_type) {
+            const content = {
+                title: editedTitle,
+                description: editedContent,
+                tags: editingPost.youtube_metadata?.tags || []
+            };
+            previewContent = { [editingPost.platform_type]: { content } };
+        } else if (editingPost.platform_type) {
+            previewContent = { [editingPost.platform_type]: { content: editedContent } };
+        }
+
+        if (!previewContent) {
+            throw new Error("Could not construct preview content. Platform type is missing.");
+        }
+
+        const scheduledAtISO = new Date(editedScheduledAt).toISOString();
+
+        await onUpdatePost(editingPost.id, {
+            preview_content: JSON.stringify(previewContent),
+            scheduled_at: scheduledAtISO
+        });
+
+        setEditingPost(null);
+        onRefreshPosts();
+
+    } catch (error) {
+        setModalError(error instanceof Error ? error.message : 'An unknown error occurred.');
+    } finally {
+        setIsUpdating(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (window.confirm('Bạn có chắc muốn xóa bài đăng đã lên lịch này không?')) {
+        try {
+            await onDeletePost(postId);
+            onRefreshPosts();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Failed to delete post.');
+        }
+    }
+  };
+
   const PostCard: React.FC<{ post: BackendPost; showPostUrl?: boolean }> = ({ post, showPostUrl = false }) => {
     const accountName = getAccountNameBySocialId(post.social_account_id, post.platform);
     const isExpanded = expandedPosts.has(post.id);
     const shouldShowExpandButton = post.generated_content && post.generated_content.length > 200;
+    const postTypeDisplayName = getPostTypeDisplayName(post.platform_type);
     
     return (
       <div
@@ -207,6 +299,7 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
+                    {postTypeDisplayName && ` • ${postTypeDisplayName}`}
                   </div>
                 </div>
               </div>
@@ -216,8 +309,8 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
             <div className="mb-3 flex items-center gap-4">
               <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg w-fit flex items-center gap-2">
                 <User size={14} className="text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Tài khoản:</span>
-                <span className="text-sm text-gray-900 font-semibold">{accountName}</span>
+                <span className="text-sm font-medium text-gray-600">Tài khoản:</span>
+                <span className="text-sm text-gray-800 font-semibold">{accountName}</span>
               </div>
 
               {showPostUrl && post.post_url && (
@@ -260,21 +353,6 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
               </div>
             )}
 
-            {/* Post URL */}
-            {/* {showPostUrl && post.post_url && (
-              <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded-md w-fit">
-                <a
-                  href={post.post_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline text-xs font-medium"
-                >
-                  <ExternalLink size={12} />
-                  Xem bài
-                </a>
-              </div>
-            )} */}
-
             {/* Footer - Timestamps */}
             <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
               <div>
@@ -285,6 +363,24 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
                 {formatDateTime(post.scheduled_at)}
               </div>
             </div>
+
+            {/* Action Buttons for Unpublished Posts */}
+            {!showPostUrl && !isOverdue(post) && (
+              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-200">
+                <button 
+                  onClick={() => handleEditClick(post)} 
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors border border-blue-200"
+                >
+                  <Edit size={14} /> Chỉnh sửa
+                </button>
+                <button 
+                  onClick={() => handleDeletePost(post.id)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors border border-red-200"
+                >
+                  <Trash2 size={14} /> Xóa
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Media Assets */}
@@ -432,6 +528,83 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl relative">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Chỉnh sửa bài đăng</h3>
+            
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {editingPost.platform === 'youtube' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề</label>
+                    <input
+                      type="text"
+                      value={editedTitle}
+                      onChange={e => setEditedTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
+                    <textarea
+                      value={editedContent}
+                      onChange={e => setEditedContent(e.target.value)}
+                      rows={10}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
+                  <textarea
+                    value={editedContent}
+                    onChange={e => setEditedContent(e.target.value)}
+                    rows={15}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian đăng bài</label>
+                <input
+                  type="datetime-local"
+                  value={editedScheduledAt}
+                  onChange={e => setEditedScheduledAt(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {modalError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {modalError}
+              </div>
+            )}
+
+            <div className="flex justify-end items-center mt-6 gap-3">
+              <button
+                onClick={handleCancelEdit}
+                className="px-5 py-2 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleUpdatePost}
+                disabled={isUpdating}
+                className="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

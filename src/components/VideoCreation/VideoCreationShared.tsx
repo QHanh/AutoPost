@@ -142,31 +142,41 @@ class VideoProgressManager {
 
   private async downloadCompletedVideos(taskData: any) {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_VIDEO_URL;
-      // Lấy mảng videos từ API để biết cần tạo bao nhiêu thẻ <video>
-      const videoSources = taskData.videos || taskData.combined_videos || [];
-      const downloadedVideos: CompletedVideo[] = [];
+      const apiBaseUrl = import.meta.env.VITE_API_VIDEO_URL; 
+      const videoSources: any[] = taskData.videos || taskData.combined_videos || [];
+      const taskId = this.currentProgress.taskId;
+
+      // --- CHANGE: Load existing videos to append to the list ---
+      const existingVideos = [...this.completedVideos];
+      const newlyDownloadedVideos: CompletedVideo[] = [];
+
+      // Determine the starting index for new videos to avoid overwriting
+      const lastIndex = existingVideos.length > 0 ? Math.max(...existingVideos.map(v => v.index)) : 0;
   
-      // Giả sử API luôn trả về 1 video trong mảng videoSources khi thành công
+      if (videoSources.length === 0) {
+        console.warn("API returned no video sources in task data.", taskData);
+        return;
+      }
+  
       for (let i = 0; i < videoSources.length; i++) {
-        // Dòng này đã xây dựng đường dẫn chính xác bằng cách
-        // kết hợp taskId động và tên file tĩnh.
-        const filePath = `${this.currentProgress.taskId}/final-1.mp4`;
-        const videoUrl = `${apiBaseUrl}/stream/${filePath}`;
-  
-        downloadedVideos.push({
-          url: videoUrl,
-          index: i + 1,
-          taskId: this.currentProgress.taskId
+        const streamUrl = `${apiBaseUrl}/api/v1/stream/${taskId}/final-${i + 1}.mp4`;
+        
+        newlyDownloadedVideos.push({
+          url: streamUrl,
+          // --- CHANGE: Index continues from the last video ---
+          index: lastIndex + i + 1,
+          taskId: taskId,
         });
       }
   
-      this.completedVideos = downloadedVideos;
+      // --- CHANGE: Combine old and new video lists ---
+      this.completedVideos = [...existingVideos, ...newlyDownloadedVideos];
       this.notifyVideoListeners();
     } catch (error) {
       console.error('Error setting up video streams:', error);
     }
   }
+  
   
 
   private startPolling() {
@@ -322,7 +332,7 @@ export const VideoProgressDisplay: React.FC<{
         </div>
         
         {/* Stop Button */}
-        {/* {onStop && (
+        {onStop && (
           <button
             onClick={handleStop}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
@@ -331,7 +341,7 @@ export const VideoProgressDisplay: React.FC<{
             <X size={16} />
             Dừng
           </button>
-        )} */}
+        )}
       </div>
       
       <div className="space-y-2">
@@ -373,28 +383,31 @@ export const VideoGallery: React.FC<{ videos: CompletedVideo[] }> = ({ videos })
     <div className="mt-8">
       <h3 className="text-xl font-bold text-gray-900 mb-4">Video đã tạo thành công:</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {videos.map((video) => (
-          <div key={video.index} className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-            <video
-              src={video.url}
-              controls
-              className="w-full max-h-[80vh] object-contain bg-black"
-              preload="metadata"
-            >
-              Trình duyệt của bạn không hỗ trợ video.
-            </video>
-            <div className="p-4">
-              <h4 className="font-medium text-gray-900 mb-2">Video {video.index}</h4>
-              <a
-                href={video.url}
-                download={`video-${video.index}.mp4`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+        {videos.map((video) => {
+          const downloadUrl = video.url.replace('/stream/', '/download/');
+          return (
+            <div key={video.index} className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+              <video
+                src={video.url}
+                controls
+                className="w-full max-h-[80vh] object-contain bg-black"
+                preload="metadata"
               >
-                Tải xuống
-              </a>
+                Trình duyệt của bạn không hỗ trợ video.
+              </video>
+              <div className="p-4">
+                <h4 className="font-medium text-gray-900 mb-2">Video {video.index}</h4>
+                <a
+                  href={downloadUrl}
+                  download={`video-${video.index}.mp4`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Tải xuống
+                </a>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

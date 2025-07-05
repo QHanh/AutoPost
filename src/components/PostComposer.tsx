@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { PlatformAccount, MediaFile } from '../types/platform';
-import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, FileText, Type, Tag } from 'lucide-react';
+import { Calendar, X, AlertTriangle, CheckSquare, Square, Clock, CheckCircle, FileText, Type, Tag, Trash2, Send } from 'lucide-react';
 import { MediaUploader } from './MediaUploader';
 import { PlatformMediaValidator } from './PlatformMediaValidator';
 import { AIContentGenerator } from './AIContentGenerator';
 import { validateMediaForPlatform } from '../utils/mediaUtils';
 import { useAuth } from '../hooks/useAuth';
+import { useSessionState } from '../hooks/useFormPersistence';
 
 const getAiResultKey = (platformId: string, postType: string): string | null => {
   if (platformId === 'facebook') {
@@ -45,17 +46,20 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   onPostScheduled
 }) => {
   const [media, setMedia] = useState<MediaFile[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = useState<PlatformAccount[]>([]);
-  const [platformPostTypes, setPlatformPostTypes] = useState<PlatformPostTypes>({});
-  const [scheduledTime, setScheduledTime] = useState('');
+  const [selectedAccounts, setSelectedAccounts] = useSessionState<PlatformAccount[]>('postComposer_selectedAccounts', []);
+  const [platformPostTypes, setPlatformPostTypes] = useSessionState<PlatformPostTypes>('postComposer_platformPostTypes', {});
+  const [scheduledTime, setScheduledTime] = useSessionState('postComposer_scheduledTime', '');
+  const [isPublishingImmediately, setIsPublishingImmediately] = useState(() => !scheduledTime);
   const [isScheduling, setIsScheduling] = useState(false);
   const [schedulingStatus, setSchedulingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [aiGenerationError, setAiGenerationError] = useState<string | null>(null);
   
   // AI generation data for API
-  const [aiGenerationData, setAiGenerationData] = useState<any>(null);
+  const [aiGenerationData, setAiGenerationData] = useSessionState<any>('postComposer_aiGenerationData', null);
   
   // --- THAY ĐỔI 2: Sử dụng state `postContent` mới ---
-  const [postContent, setPostContent] = useState<PostContent>({
+  const [postContent, setPostContent] = useSessionState<PostContent>('postComposer_postContent', {
     text: '',
     title: '',
     tags: ''
@@ -63,9 +67,9 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   
   // State mới cho việc tạo nội dung bằng AI
   const [isAiGenerating, setIsAiGenerating] = useState(false);
-  const [aiResults, setAiResults] = useState<any>(null);
+  const [aiResults, setAiResults] = useSessionState<any>('postComposer_aiResults', null);
   const [activeAiCard, setActiveAiCard] = useState<string | null>(null);
-  const [editedAiContent, setEditedAiContent] = useState<any>({});
+  const [editedAiContent, setEditedAiContent] = useSessionState<any>('postComposer_editedAiContent', {});
   const [postTypeConfirmation, setPostTypeConfirmation] = useState<{accountId: string; postType: string} | null>(null);
   const [instaAspectRatioWarning, setInstaAspectRatioWarning] = useState<string | null>(null);
   
@@ -180,7 +184,8 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   // };
 
   const canSelectPostType = (accountId: string, postType: string): boolean => {
-    const account = selectedAccounts.find(acc => acc.id === accountId);
+    // Find account from the main list, not just selected ones.
+    const account = accounts.find(acc => acc.id === accountId);
     if (!account) return false;
     
     const postTypes = getPostTypesForPlatform(account.platformId);
@@ -196,13 +201,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     return true; // e.g. Facebook Page post can be text-only
   };
 
-  const handlePostTypeToggle = (accountId: string, postType: string) => {
-    if (!canSelectPostType(accountId, postType)) {
+  const handlePostTypeToggle = (account: PlatformAccount, postType: string) => {
+    if (!canSelectPostType(account.id, postType)) {
       return;
     }
-    const account = accounts.find(acc => acc.id === accountId);
-    if (!account) return;
 
+    const accountId = account.id;
     const isSelecting = !(platformPostTypes[accountId] || []).includes(postType);
 
     if (isSelecting && aiResults) {
@@ -213,17 +217,23 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       }
     }
 
-    setPlatformPostTypes(prev => {
-      const currentTypes = prev[accountId] || [];
-      const newTypes = currentTypes.includes(postType)
-        ? currentTypes.filter(type => type !== postType)
-        : [...currentTypes, postType];
-      
-      return {
-        ...prev,
-        [accountId]: newTypes
-      };
-    });
+    const currentTypes = platformPostTypes[accountId] || [];
+    const newTypes = currentTypes.includes(postType)
+      ? currentTypes.filter(type => type !== postType)
+      : [...currentTypes, postType];
+
+    setPlatformPostTypes(prev => ({
+      ...prev,
+      [accountId]: newTypes
+    }));
+
+    // Now, manage the selectedAccounts state based on the post types
+    const isCurrentlySelected = selectedAccounts.some(acc => acc.id === accountId);
+    if (newTypes.length > 0 && !isCurrentlySelected) {
+        setSelectedAccounts(prev => [...prev, account]);
+    } else if (newTypes.length === 0 && isCurrentlySelected) {
+        setSelectedAccounts(prev => prev.filter(acc => acc.id !== accountId));
+    }
   };
 
   const handleAccountToggle = (account: PlatformAccount) => {
@@ -238,14 +248,34 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       });
     } else {
       setSelectedAccounts(prev => [...prev, account]);
-      const defaultTypes = getPostTypesForPlatform(account.platformId);
-      if (defaultTypes.length > 0) {
-        const defaultType = defaultTypes.find(type => !type.requiresVideo) || defaultTypes[0];
-        if (canSelectPostType(account.id, defaultType.id)) {
-          setPlatformPostTypes(prev => ({
-            ...prev,
-            [account.id]: [defaultType.id]
-          }));
+
+      // For YouTube, automatically select the 'video' post type but check for AI confirmation.
+      if (account.platformId === 'youtube') {
+        if (aiResults) {
+          const aiKey = getAiResultKey(account.platformId, 'youtube');
+          if (!aiKey || !aiResults[aiKey]) {
+            // If AI content for YouTube is missing, show confirmation dialog
+            // The account is selected, but the post type is not set yet.
+            setPostTypeConfirmation({ accountId: account.id, postType: 'youtube' });
+            return; 
+          }
+        }
+        // If no AI or AI content exists, set post type directly
+        setPlatformPostTypes(prev => ({
+          ...prev,
+          [account.id]: ['youtube']
+        }));
+      } else {
+        // For other platforms, set a sensible default that the user can change.
+        const defaultTypes = getPostTypesForPlatform(account.platformId);
+        if (defaultTypes.length > 0) {
+          const defaultType = defaultTypes.find(type => !type.requiresVideo) || defaultTypes[0];
+          if (canSelectPostType(account.id, defaultType.id)) {
+            setPlatformPostTypes(prev => ({
+              ...prev,
+              [account.id]: [defaultType.id]
+            }));
+          }
         }
       }
     }
@@ -259,11 +289,18 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       setSelectedAccounts([...connectedAccounts]);
       const newPostTypes: PlatformPostTypes = {};
       connectedAccounts.forEach(account => {
-        const defaultTypes = getPostTypesForPlatform(account.platformId);
-        if (defaultTypes.length > 0) {
-          const defaultType = defaultTypes.find(type => !type.requiresVideo) || defaultTypes[0];
-          if (canSelectPostType(account.id, defaultType.id)) {
-            newPostTypes[account.id] = [defaultType.id];
+        // Automatically select the correct post type for all accounts
+        if (account.platformId === 'youtube') {
+          if (canSelectPostType(account.id, 'youtube')) {
+            newPostTypes[account.id] = ['youtube'];
+          }
+        } else {
+          const defaultTypes = getPostTypesForPlatform(account.platformId);
+          if (defaultTypes.length > 0) {
+            const defaultType = defaultTypes.find(type => !type.requiresVideo) || defaultTypes[0];
+            if (canSelectPostType(account.id, defaultType.id)) {
+              newPostTypes[account.id] = [defaultType.id];
+            }
           }
         }
       });
@@ -283,25 +320,27 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setScheduleError(null);
+    setSchedulingStatus(null);
     
     // --- VALIDATION ---
     if (!aiResults && postContent.text.trim() === '' && media.length === 0) {
-      setSchedulingStatus({ type: 'error', message: 'Vui lòng nhập nội dung hoặc thêm media' });
+      setScheduleError('Vui lòng nhập nội dung hoặc thêm media');
       return;
     }
 
     if (selectedAccounts.length === 0) {
-      setSchedulingStatus({ type: 'error', message: 'Vui lòng chọn ít nhất một tài khoản' });
+      setScheduleError('Vui lòng chọn ít nhất một tài khoản');
       return;
     }
 
-    if (!scheduledTime) {
-      setSchedulingStatus({ type: 'error', message: 'Vui lòng chọn thời gian đăng bài' });
+    if (!isPublishingImmediately && !scheduledTime) {
+      setScheduleError('Vui lòng chọn thời gian đăng bài');
       return;
     }
     
     if (!user?.token) {
-        setSchedulingStatus({ type: 'error', message: 'Vui lòng đăng nhập để lên lịch đăng bài' });
+        setScheduleError('Vui lòng đăng nhập để lên lịch đăng bài');
         return;
       }
   
@@ -311,10 +350,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       });
   
       if (accountsWithoutTypes.length > 0) {
-        setSchedulingStatus({ 
-          type: 'error', 
-          message: `Vui lòng chọn loại đăng bài cho: ${accountsWithoutTypes.map(acc => acc.accountName).join(', ')}` 
-        });
+        setScheduleError(`Vui lòng chọn loại đăng bài cho: ${accountsWithoutTypes.map(acc => acc.accountName).join(', ')}`);
         return;
       }
   
@@ -325,10 +361,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   
       const hasVideo = media.some(m => m.type === 'video');
       if (accountsWithVideoRequirements.length > 0 && !hasVideo) {
-        setSchedulingStatus({ 
-          type: 'error', 
-          message: `Các loại bài đăng đã chọn yêu cầu video: ${accountsWithVideoRequirements.map(acc => acc.accountName).join(', ')}` 
-        });
+        setScheduleError(`Các loại bài đăng đã chọn yêu cầu video: ${accountsWithVideoRequirements.map(acc => acc.accountName).join(', ')}`);
         return;
       }
   
@@ -347,8 +380,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       }
       
     setIsScheduling(true);
-    setSchedulingStatus(null);
-
     try {
       const postTypesToSchedule = selectedAccounts.flatMap(account => 
         (platformPostTypes[account.id] || []).map(postType => ({
@@ -361,16 +392,26 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       const apiBaseUrl = getApiBaseUrl();
       const formData = new FormData();
 
-      // Append media files
-      media.forEach((mediaFile) => {
-        formData.append('media_files', mediaFile.file);
-      });
+      // Append media files only if they exist
+      if (media.length > 0) {
+        media.forEach((mediaFile) => {
+          formData.append('media_files', mediaFile.file);
+        });
+      }
 
       // Append other data
       formData.append('prompt', postContent.text);
       formData.append('brand_name', aiGenerationData?.brand_name || '');
       formData.append('posting_purpose', aiGenerationData?.posting_purpose || '');
-      formData.append('scheduled_at', formatDateTimeForAPI(scheduledTime));
+      
+      formData.append('publish_immediately', String(isPublishingImmediately));
+
+      // Always include scheduled_at. For immediate posts, send current time.
+      const scheduledAtValue = isPublishingImmediately
+        ? new Date().toISOString()
+        : formatDateTimeForAPI(scheduledTime!); // `scheduledTime` is guaranteed to be non-null here by prior validation
+      
+      formData.append('scheduled_at', scheduledAtValue);
 
       // Construct and append preview_content
       const contentToSubmit: any = {};
@@ -434,10 +475,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
     } catch (error) {
       console.error('Error scheduling posts:', error);
-      setSchedulingStatus({ 
-        type: 'error', 
-        message: error instanceof Error ? error.message : 'Lỗi khi lên lịch đăng bài. Vui lòng thử lại.' 
-      });
+      setScheduleError(error instanceof Error ? error.message : 'Lỗi khi lên lịch đăng bài. Vui lòng thử lại.');
     } finally {
       setIsScheduling(false);
     }
@@ -456,8 +494,22 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     setSelectedAccounts([]);
     setPlatformPostTypes({});
     setScheduledTime('');
+    setIsPublishingImmediately(true);
     setAiGenerationData(null);
+    setAiResults(null);
+    setEditedAiContent({});
     setSchedulingStatus(null);
+    setScheduleError(null);
+    setAiGenerationError(null);
+    
+    // Clear session storage as well
+    sessionStorage.removeItem('postComposer_postContent');
+    sessionStorage.removeItem('postComposer_selectedAccounts');
+    sessionStorage.removeItem('postComposer_platformPostTypes');
+    sessionStorage.removeItem('postComposer_scheduledTime');
+    sessionStorage.removeItem('postComposer_aiGenerationData');
+    sessionStorage.removeItem('postComposer_aiResults');
+    sessionStorage.removeItem('postComposer_editedAiContent');
   };
 
   const accountsByPlatform = connectedAccounts.reduce((acc, account) => {
@@ -490,7 +542,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
   const handleAiGenerate = async (generationData: any) => {
     if (!user?.token) {
-      setSchedulingStatus({ type: 'error', message: 'Vui lòng đăng nhập để sử dụng tính năng AI.' });
+      setAiGenerationError('Vui lòng đăng nhập để sử dụng tính năng AI.');
       return;
     }
 
@@ -501,6 +553,8 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     setAiGenerationData(generationData);
     setIsAiGenerating(true);
     setSchedulingStatus(null);
+    setAiGenerationError(null);
+
     try {
       const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/generate-review`, {
@@ -512,7 +566,10 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         body: JSON.stringify(generationData)
       });
 
-      if (!response.ok) { throw new Error('Failed to generate content from AI.'); }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Lỗi khi tạo nội dung AI.');
+      }
 
       const data = await response.json();
       
@@ -527,10 +584,28 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       }));
       
     } catch (error) {
-      setSchedulingStatus({ type: 'error', message: error instanceof Error ? error.message : 'Lỗi khi tạo nội dung AI.' });
+      setAiGenerationError(error instanceof Error ? error.message : 'Lỗi khi tạo nội dung AI.');
     } finally {
       setIsAiGenerating(false);
     }
+  };
+
+  const handleDeleteAiCard = (keyToDelete: string) => {
+    if (activeAiCard === keyToDelete) {
+      setActiveAiCard(null);
+    }
+
+    setAiResults((prev: any) => {
+      const newResults = { ...prev };
+      delete newResults[keyToDelete];
+      return newResults;
+    });
+
+    setEditedAiContent((prev: any) => {
+      const newEdited = { ...prev };
+      delete newEdited[keyToDelete];
+      return newEdited;
+    });
   };
 
   // Map tên hiển thị cho thẻ kết quả AI
@@ -551,6 +626,17 @@ export const PostComposer: React.FC<PostComposerProps> = ({
     'youtube'
   ];
 
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    setScheduledTime(newTime);
+    setIsPublishingImmediately(!newTime);
+  };
+
+  const handleClearTime = () => {
+      setScheduledTime('');
+      setIsPublishingImmediately(true);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
@@ -559,13 +645,9 @@ export const PostComposer: React.FC<PostComposerProps> = ({
       </h2>
 
       <form onSubmit={handleSubmit}>
-        {schedulingStatus && (
-          <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-            schedulingStatus.type === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-700' 
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            {schedulingStatus.type === 'success' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+        {schedulingStatus?.type === 'success' && (
+          <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 bg-green-50 border border-green-200 text-green-700`}>
+            <CheckCircle size={16} />
             {schedulingStatus.message}
           </div>
         )}
@@ -623,31 +705,52 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
               </div>
             </div>
+
+            <AIContentGenerator 
+              onGenerate={handleAiGenerate} 
+              isGenerating={isAiGenerating} 
+              mainContent={postContent.text}
+              apiError={aiGenerationError}
+              onClearApiError={() => setAiGenerationError(null)}
+            />
+            
             {/* --- KHI CÓ KẾT QUẢ AI: HIỂN THỊ CÁC THẺ --- */}
             {aiResults && (
               <div className="space-y-3 pt-4 border-t border-gray-200">
                  <h4 className="font-medium text-gray-900 flex items-center gap-2">Nội dung AI tạo</h4>
-                  <div className="flex flex-wrap gap-2 justify-start">
+                  <div className="flex flex-wrap gap-4 justify-start pt-2">
                   {platformOrder.filter(key => aiResults[key]).map((key) => {
                     const icon = getPlatformIcon(key.split('-')[0]);
                     const isConfirmed = confirmedAiPlatforms.includes(key);
                     return (
-                      <button
-                        key={key}
-                        onClick={() => setActiveAiCard(key)}
-                        type="button"
-                        className={`transition-all duration-200 flex items-center gap-2 border-2 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm hover:shadow-md ${
-                          isConfirmed
-                            ? 'border-green-500 bg-green-50 text-green-800'
-                            : 'bg-white hover:border-blue-500 border-gray-300'
-                        }`}
-                      >
-                        <span className="text-base">{icon}</span>
-                        <span>{platformDisplay[key]}</span>
-                        {isConfirmed && (
-                          <CheckCircle size={14} className="ml-auto text-green-600" />
-                        )}
-                      </button>
+                      <div key={key} className="relative group">
+                        <button
+                          onClick={() => setActiveAiCard(key)}
+                          type="button"
+                          className={`transition-all duration-200 flex items-center gap-2 border-2 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm hover:shadow-md ${
+                            isConfirmed
+                              ? 'border-green-500 bg-green-50 text-green-800'
+                              : 'bg-white hover:border-blue-500 border-gray-300'
+                          }`}
+                        >
+                          <span className="text-base">{icon}</span>
+                          <span>{platformDisplay[key]}</span>
+                          {isConfirmed && (
+                            <CheckCircle size={14} className="ml-auto text-green-600" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAiCard(key);
+                          }}
+                          className="absolute -top-2 -right-2 z-10 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-700 shadow-lg"
+                          aria-label={`Xóa thẻ ${platformDisplay[key]}`}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     );
                   })}
                   </div>
@@ -675,7 +778,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                               />
                               <textarea
                                 className={`w-full border rounded px-3 py-2 text-sm ${isModalConfirmed ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                rows={8}
+                                rows={16}
                                 value={editedAiContent[activeAiCard]?.content?.description || ''}
                                 onChange={e => setEditedAiContent((prev: any) => ({ ...prev, [activeAiCard]: { ...prev[activeAiCard], content: { ...prev[activeAiCard].content, description: e.target.value } } }))}
                                 placeholder="Mô tả video"
@@ -693,7 +796,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                             // Standard content editing
                             <textarea
                               className={`w-full border rounded px-3 py-2 text-sm ${isModalConfirmed ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                              rows={12}
+                              rows={20}
                               value={editedAiContent[activeAiCard]?.content || ''}
                               onChange={e => setEditedAiContent((prev: any) => ({ ...prev, [activeAiCard]: { ...prev[activeAiCard], content: e.target.value } }))}
                               readOnly={isModalConfirmed}
@@ -721,12 +824,6 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                 })()}
               </div>
             )}
-
-            <AIContentGenerator 
-              onGenerate={handleAiGenerate} 
-              isGenerating={isAiGenerating} 
-              mainContent={postContent.text}
-            />
 
           </div>
 
@@ -797,108 +894,79 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {platformAccounts.map((account) => (
-                          <button
-                            key={account.id}
-                            type="button"
-                            onClick={() => handleAccountToggle(account)}
-                            className={`p-2 rounded-lg border-2 transition-all duration-200 text-left hover:shadow-sm ${
-                              selectedAccounts.find(acc => acc.id === account.id)
-                                ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex flex-col items-center text-center space-y-1">
-                              {account.profileInfo?.profilePicture ? (
-                                <img
-                                  src={account.profileInfo.profilePicture}
-                                  alt={account.accountName}
-                                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                  <span className="text-sm">👤</span>
-                                </div>
-                              )}
-                              
-                              <div className="w-full">
-                                <div className="flex items-center justify-center gap-1">
-                                  <div className="font-medium text-xs text-gray-900 truncate max-w-full">
-                                    {account.accountName}
-                                  </div>
-                                </div>
-                                
-                                {account.profileInfo?.username && (
-                                  <div className="text-xs text-gray-500 truncate">
-                                    @{account.profileInfo.username}
-                                  </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        {platformAccounts.map((account) => {
+                          if (account.platformId === 'youtube') {
+                            const hasVideo = media.some(m => m.type === 'video');
+                            const isDisabled = !hasVideo;
+                            const isSelected = selectedAccounts.some(sa => sa.id === account.id);
+                            return (
+                              <button
+                                key={account.id}
+                                type="button"
+                                onClick={() => handleAccountToggle(account)}
+                                disabled={isDisabled}
+                                title={isDisabled ? 'Yêu cầu video để chọn Youtube' : ''}
+                                className={`p-2 rounded-lg border-2 transition-all duration-200 text-left flex items-center gap-2 w-full ${
+                                  isSelected
+                                    ? 'border-blue-500 bg-blue-50 shadow-sm'
+                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                {account.profileInfo?.profilePicture ? (
+                                  <img src={account.profileInfo.profilePicture} alt={account.accountName} className="w-8 h-8 rounded-full object-cover border"/>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm">👤</div>
                                 )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                                <span className="font-semibold text-sm text-gray-800">{account.accountName}</span>
+                                {isSelected && <CheckCircle size={16} className="text-blue-600 ml-auto" />}
+                              </button>
+                            );
+                          }
 
-                      {platformAccounts.some(account => selectedAccounts.find(acc => acc.id === account.id)) && (
-                        <div className="border-t border-gray-200 pt-3">
-                          {platformAccounts
-                            .filter(account => selectedAccounts.find(acc => acc.id === account.id))
-                            .map(account => {
-                              const postTypes = getPostTypesForPlatform(account.platformId);
-                              const selectedTypes = platformPostTypes[account.id] || [];
-                              
-                              return (
-                                <div key={account.id} className="mb-3 last:mb-0">
-                                  <div className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
-                                    <span className="text-sm">{getPlatformIcon(account.platformId)}</span>
-                                    {account.accountName} - Loại đăng bài:
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {postTypes.map(postType => {
-                                      const canSelect = canSelectPostType(account.id, postType.id);
-                                      const isSelected = selectedTypes.includes(postType.id);
-                                      let disabledTitle = '';
-                                      if (!canSelect) {
-                                        if (postType.requiresVideo) {
-                                          disabledTitle = `Yêu cầu video để chọn ${postType.name}`;
-                                        } else if (postType.requiresImage) {
-                                          disabledTitle = `Yêu cầu ảnh để chọn ${postType.name}`;
-                                        }
-                                      }
-                                      
-                                      return (
-                                        <button
-                                          key={postType.id}
-                                          type="button"
-                                          onClick={() => handlePostTypeToggle(account.id, postType.id)}
-                                          disabled={!canSelect}
-                                          className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                                            isSelected
-                                              ? 'bg-green-100 text-green-700 border border-green-300'
-                                              : canSelect
-                                              ? 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                                              : 'bg-red-50 text-red-400 border border-red-200 cursor-not-allowed opacity-50'
-                                          }`}
-                                          title={disabledTitle}
-                                        >
-                                          <span>{postType.icon}</span>
-                                          {postType.name}
-                                        </button>
-                                      );
+                          // Layout for Facebook & Instagram
+                          const isAccountSelected = selectedAccounts.some(sa => sa.id === account.id);
+                          return (
+                            <div key={account.id} className={`border-2 rounded-lg p-2 flex items-center gap-3 transition-all duration-200 relative ${isAccountSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                                <div className="flex items-center gap-2 flex-shrink min-w-0">
+                                    {account.profileInfo?.profilePicture ? (
+                                        <img src={account.profileInfo.profilePicture} alt={account.accountName} className="w-8 h-8 rounded-full object-cover border flex-shrink-0"/>
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm flex-shrink-0">👤</div>
+                                    )}
+                                    <span className="font-semibold text-sm text-gray-800 truncate">{account.accountName}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2 ml-auto">
+                                    {getPostTypesForPlatform(account.platformId).map(postType => {
+                                        const canSelect = canSelectPostType(account.id, postType.id);
+                                        const isSelected = (platformPostTypes[account.id] || []).includes(postType.id);
+                                        
+                                        return (
+                                            <button
+                                                key={postType.id}
+                                                type="button"
+                                                onClick={() => handlePostTypeToggle(account, postType.id)}
+                                                disabled={!canSelect}
+                                                title={!canSelect ? (postType.requiresVideo ? 'Yêu cầu video' : (postType.requiresImage ? 'Yêu cầu ảnh' : '')) : ''}
+                                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all border ${
+                                                    isSelected
+                                                        ? 'bg-green-100 text-green-800 border-green-300 shadow-sm'
+                                                        : canSelect
+                                                        ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                                                }`}
+                                            >
+                                                <span>{postType.icon}</span>
+                                                {postType.name}
+                                            </button>
+                                        );
                                     })}
-                                  </div>
                                 </div>
-                              );
-                            })}
-                            {instaAspectRatioWarning && platformId === 'instagram' && (
-                                <div className="mt-2 flex items-center gap-2 text-orange-700 bg-orange-50 p-2 rounded-md text-xs border border-orange-200">
-                                    <AlertTriangle size={14} />
-                                    <span>{instaAspectRatioWarning}</span>
-                                </div>
-                            )}
-                        </div>
-                      )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -909,34 +977,53 @@ export const PostComposer: React.FC<PostComposerProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                 <Calendar size={16} />
-                Thời gian đăng bài <span className="text-red-500 ml-1">*</span>
+                Thời gian đăng bài {isPublishingImmediately && <span className="text-gray-500 font-normal">(Optional)</span>}
+                {!isPublishingImmediately && <span className="text-red-500 ml-1">*</span>}
               </label>
-              <input
-                type="datetime-local"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                min={getMinDateTime()}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={handleTimeChange}
+                  min={getMinDateTime()}
+                  required={!isPublishingImmediately}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {!isPublishingImmediately && (
+                    <button
+                        type="button"
+                        onClick={handleClearTime}
+                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Xóa thời gian và Đăng ngay"
+                    >
+                        <X size={18} />
+                    </button>
+                )}
+              </div>
             </div>
 
             {/* Submit Buttons */}
             <div className="space-y-3 pt-4 border-t border-gray-200">
+              {scheduleError && (
+                <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 p-3 rounded-md border border-red-200">
+                  <AlertTriangle size={16} />
+                  <span>{scheduleError}</span>
+                </div>
+              )}
               <button
                 type="submit"
-                disabled={isScheduling || selectedAccounts.length === 0 || !scheduledTime || totalPostsToSchedule === 0}
+                disabled={isScheduling || selectedAccounts.length === 0 || totalPostsToSchedule === 0 || (!isPublishingImmediately && !scheduledTime)}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isScheduling ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Đang lên lịch...
+                    Đang xử lý...
                   </>
                 ) : (
                   <>
-                    <Calendar size={16} />
-                    Lên lịch đăng bài
+                    {isPublishingImmediately ? <Send size={16} /> : <Calendar size={16} />}
+                    {isPublishingImmediately ? 'Đăng ngay' : 'Lên lịch đăng bài'}
                     {totalPostsToSchedule > 0 && (
                       <span className="bg-white bg-opacity-20 px-2 py-0.5 rounded-full text-xs">
                         {totalPostsToSchedule}
@@ -988,10 +1075,22 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                         onClick={() => {
                           if (postTypeConfirmation) {
                             const { accountId, postType } = postTypeConfirmation;
-                            setPlatformPostTypes(prev => ({
-                              ...prev,
-                              [accountId]: [...(prev[accountId] || []), postType]
-                            }));
+                            const account = accounts.find(acc => acc.id === accountId);
+                            if(account) {
+                                // Re-using the main toggle function logic here
+                                const currentTypes = platformPostTypes[accountId] || [];
+                                const newTypes = [...currentTypes, postType];
+                                
+                                setPlatformPostTypes(prev => ({
+                                    ...prev,
+                                    [accountId]: newTypes
+                                }));
+
+                                const isCurrentlySelected = selectedAccounts.some(acc => acc.id === accountId);
+                                if (!isCurrentlySelected) {
+                                    setSelectedAccounts(prev => [...prev, account]);
+                                }
+                            }
                             setPostTypeConfirmation(null);
                           }
                         }}

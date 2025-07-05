@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -34,8 +34,8 @@ export const LoginPage: React.FC = () => {
       // Tự động refresh trang và chuyển hướng
       setTimeout(() => {
         // Force refresh để cập nhật header
-        window.location.href = '/posts';
-      }, 1000);
+        window.location.href = '/accounts';
+      }, 300);
     } else {
       setMessage({ type: 'error', text: result.message });
     }

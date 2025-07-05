@@ -70,7 +70,7 @@ export const useAuth = () => {
           email: email.trim(),
           password: password,
           full_name: full_name.trim(),
-          subscription_id: "48049a8a-d3be-47c6-a800-07b7ddb0c97c"
+          subscription_id: "f388dec8-3904-45aa-951c-611636eb4cec"
           //role: 'user'
         })
       });
@@ -108,7 +108,7 @@ export const useAuth = () => {
     } catch (error) {
       return { 
         success: false, 
-        message: `Không thể kết nối đến server tại ${getApiBaseUrl()}. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
       };
     }
   };
@@ -157,12 +157,12 @@ export const useAuth = () => {
       } else if (response.status === 422) {
         return { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' };
       } else {
-        return { success: false, message: 'Có lỗi xảy ra. Vui lòng thử lại.' };
+        return { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' };
       }
     } catch (error) {
       return { 
         success: false, 
-        message: `Không thể kết nối đến server tại ${getApiBaseUrl()}. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
       };
     }
   };

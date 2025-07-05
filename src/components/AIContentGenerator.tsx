@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown } from 'lucide-react';
+import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { usePersistentState } from '../hooks/useFormPersistence';
 
 interface AIContentGeneratorProps {
   onGenerate: (data: any) => void;
   isGenerating: boolean;
   mainContent: string;
+  apiError: string | null;
+  onClearApiError: () => void;
 }
 
 interface ApiKeys {
@@ -26,15 +29,15 @@ interface PlatformSelection {
   youtube: boolean;
 }
 
-export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenerate, isGenerating, mainContent }) => {
+export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenerate, isGenerating, mainContent, apiError, onClearApiError }) => {
   const [showPromptInput, setShowPromptInput] = useState(true);
-  const [hashtags, setHashtags] = useState('');
-  const [brandName, setBrandName] = useState('');
-  const [callToAction, setCallToAction] = useState('');
-  const [postingPurpose, setPostingPurpose] = useState('');
-  const [selectedAiPlatform, setSelectedAiPlatform] = useState<'gemini' | 'openai'>('openai');
+  const [hashtags, setHashtags] = usePersistentState('hashtags', '');
+  const [brandName, setBrandName] = usePersistentState('brandName', '');
+  const [callToAction, setCallToAction] = usePersistentState('callToAction', '');
+  const [postingPurpose, setPostingPurpose] = usePersistentState('postingPurpose', '');
+  const [selectedAiPlatform, setSelectedAiPlatform] = usePersistentState<'gemini' | 'openai'>('selectedAiPlatform', 'openai');
   const [showAiPlatformSelector, setShowAiPlatformSelector] = useState(false);
-  const [error, setError] = useState('');
+  const [validationError, setValidationError] = useState('');
   const [success, setSuccess] = useState('');
   const [apiKeys, setApiKeys] = useState<ApiKeys>({
     gemini_api_key: '',
@@ -53,6 +56,25 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
   const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL;
   };
+
+  // Trong component
+  const isAllSelected =
+    platformSelection.facebook.page &&
+    platformSelection.facebook.reels &&
+    platformSelection.instagram.feed &&
+    platformSelection.instagram.reels &&
+    platformSelection.youtube;
+
+  const isSomeSelected =
+    !isAllSelected &&
+    (
+      platformSelection.facebook.page ||
+      platformSelection.facebook.reels ||
+      platformSelection.instagram.feed ||
+      platformSelection.instagram.reels ||
+      platformSelection.youtube
+    );
+  
 
   // Load API keys on component mount
   useEffect(() => {
@@ -81,8 +103,24 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
     loadApiKeys();
   }, [user?.token]);
 
+  // Hàm xử lý toggle
+  const handleSelectAll = () => {
+    const newState = isAllSelected
+      ? {
+          facebook: { page: false, reels: false },
+          instagram: { feed: false, reels: false },
+          youtube: false,
+        }
+      : {
+          facebook: { page: true, reels: true },
+          instagram: { feed: true, reels: true },
+          youtube: true,
+        };
+    setPlatformSelection(newState);
+  };
+
   // Get available AI platforms based on saved API keys
-  const getAvailableAiPlatforms = () => {
+  const availableAiPlatforms = React.useMemo(() => {
     const platforms = [];
     if (apiKeys.gemini_api_key) {
       platforms.push({ id: 'gemini', name: 'Gemini', icon: '🤖' });
@@ -91,13 +129,38 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
       platforms.push({ id: 'openai', name: 'OpenAI', icon: '🧠' });
     }
     return platforms;
-  };
+  }, [apiKeys]);
 
-  const availableAiPlatforms = getAvailableAiPlatforms();
+  // Automatically select an AI platform based on availability.
+  // If only one is available, it's selected.
+  // If multiple are available, the previously selected one is kept.
+  // If the previously selected one is no longer available, it defaults to the first available.
+  useEffect(() => {
+    const platformIds = availableAiPlatforms.map(p => p.id as 'gemini' | 'openai');
+
+    if (platformIds.length === 0) {
+      return;
+    }
+
+    if (platformIds.length === 1) {
+      // If there's only one platform, it must be selected.
+      if (selectedAiPlatform !== platformIds[0]) {
+        setSelectedAiPlatform(platformIds[0]);
+      }
+    } else { // More than one platform available
+      // If the persisted selection is not valid anymore, default to the first available one.
+      if (!platformIds.includes(selectedAiPlatform)) {
+        setSelectedAiPlatform(platformIds[0]);
+      }
+    }
+  }, [availableAiPlatforms, selectedAiPlatform, setSelectedAiPlatform]);
 
   const handleGenerateContent = async () => {
+    setValidationError('');
+    onClearApiError();
+
     if (!mainContent.trim()) {
-      setError('Vui lòng nhập nội dung ở ô bên trên để AI có thể viết lại.');
+      setValidationError('Vui lòng nhập nội dung ở ô bên trên để AI có thể viết lại.');
       return;
     }
 
@@ -110,17 +173,17 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
       platformSelection.youtube;
 
     if (!hasSelectedPlatform) {
-      setError('Vui lòng chọn ít nhất một nền tảng');
+      setValidationError('Vui lòng chọn ít nhất một nền tảng');
       return;
     }
 
     if (!user?.token) {
-      setError('Vui lòng đăng nhập để sử dụng tính năng AI');
+      setValidationError('Vui lòng đăng nhập để sử dụng tính năng AI');
       return;
     }
 
     if (availableAiPlatforms.length === 0) {
-      setError('Vui lòng cấu hình ít nhất một API key trong trang Accounts');
+      setValidationError('Vui lòng cấu hình ít nhất một API key trong trang Accounts');
       return;
     }
 
@@ -155,7 +218,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
     setBrandName('');
     setCallToAction('');
     setPostingPurpose('');
-    setError('');
+    setValidationError('');
     setSuccess('');
     setPlatformSelection({
       facebook: { page: false, reels: false },
@@ -165,6 +228,28 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
   };
 
   // Platform selection handlers
+  const handleFacebookParentClick = () => {
+    const isFullySelected = platformSelection.facebook.page && platformSelection.facebook.reels;
+    setPlatformSelection(prev => ({
+      ...prev,
+      facebook: {
+        page: !isFullySelected,
+        reels: !isFullySelected,
+      }
+    }));
+  };
+
+  const handleInstagramParentClick = () => {
+    const isFullySelected = platformSelection.instagram.feed && platformSelection.instagram.reels;
+    setPlatformSelection(prev => ({
+      ...prev,
+      instagram: {
+        feed: !isFullySelected,
+        reels: !isFullySelected,
+      }
+    }));
+  };
+
   const handleFacebookSelection = (type: 'page' | 'reels') => {
     setPlatformSelection(prev => ({
       ...prev,
@@ -209,6 +294,9 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
   //   'instagram-reels': 'Instagram Reels',
   //   'youtube': 'YouTube'
   // };
+
+  const isFacebookFullySelected = platformSelection.facebook.page && platformSelection.facebook.reels;
+  const isInstagramFullySelected = platformSelection.instagram.feed && platformSelection.instagram.reels;
 
   return (
     <div className="space-y-3">
@@ -265,7 +353,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
       {availableAiPlatforms.length === 0 && (
         <div className="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg p-2">
           <AlertCircle size={14} />
-          Chưa có API key nào được cấu hình. Vui lòng thêm API key trong trang Accounts.
+          Chưa có API key nào được cấu hình. Vui lòng thêm API key trong trang Kết Nối.
         </div>
       )}
 
@@ -274,13 +362,6 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
         <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 border border-green-200 rounded-lg p-2">
           <CheckCircle size={14} />
           {success}
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-2">
-          <AlertCircle size={14} />
-          {error}
         </div>
       )}
 
@@ -310,36 +391,64 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
 
           {/* Platform Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Chọn nền tảng để viết lại nội dung: *
-            </label>
-            <div className="flex flex-row justify-center gap-8">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-gray-700">
+                Chọn nền tảng để viết lại nội dung: *
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors
+                  ${isAllSelected 
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : isSomeSelected
+                    ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+              >
+                {isAllSelected ? (
+                  <CheckSquare size={12} />
+                ) : isSomeSelected ? (
+                  <div className="w-3 h-3 bg-blue-600 rounded-sm flex items-center justify-center">
+                    <div className="w-1.5 h-0.5 bg-white rounded" />
+                  </div>
+                ) : (
+                  <Square size={12} />
+                )}
+                {isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6 justify-items-center">
               {/* Facebook */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-blue-500 bg-white text-blue-700 ${
-                    (platformSelection.facebook.page || platformSelection.facebook.reels)
-                      ? 'shadow-md' : ''
-                  }`}
+                  onClick={handleFacebookParentClick}
+                  className={`focus:outline-none focus:ring-0 flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                    ${isFacebookFullySelected
+                      ? 'border-blue-500 bg-white text-blue-700 shadow-md'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
                   style={{ minWidth: 120 }}
-                  tabIndex={-1}
-                  disabled
                 >
-                  <span className="text-blue-600">📘</span>
+                  <span className={`${isFacebookFullySelected ? 'text-blue-600' : 'text-gray-400'}`}>📘</span>
                   Facebook
-                  {(platformSelection.facebook.page || platformSelection.facebook.reels) && (
+                  {isFacebookFullySelected && (
                     <CheckCircle size={14} className="text-blue-600" />
                   )}
                 </button>
+
                 <div className="flex flex-row gap-2 mt-2 w-full justify-center">
                   <button
                     type="button"
                     onClick={() => handleFacebookSelection('page')}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
-                      platformSelection.facebook.page
-                        ? 'border-blue-500 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`flex items-center gap-1 px-1.5 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[60px] justify-center
+                      ${platformSelection.facebook.page
+                        ? 'border-blue-500 bg-blue-100 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
                   >
                     <span>📄</span>
                     Page
@@ -347,13 +456,15 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
                       <CheckCircle size={12} className="text-blue-600" />
                     )}
                   </button>
+
                   <button
                     type="button"
                     onClick={() => handleFacebookSelection('reels')}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
-                      platformSelection.facebook.reels
-                        ? 'border-blue-500 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`flex items-center gap-1 px-1.5 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[60px] justify-center
+                      ${platformSelection.facebook.reels
+                        ? 'border-blue-500 bg-blue-100 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
                   >
                     <span>🎬</span>
                     Reels
@@ -368,28 +479,30 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-pink-500 bg-white text-pink-700 ${
-                    (platformSelection.instagram.feed || platformSelection.instagram.reels)
-                      ? 'shadow-md' : ''
-                  }`}
+                  onClick={handleInstagramParentClick}
+                  className={`focus:outline-none focus:ring-0 flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                    ${isInstagramFullySelected
+                      ? 'border-pink-500 bg-white text-pink-700 shadow-md'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
                   style={{ minWidth: 120 }}
-                  tabIndex={-1}
-                  disabled
                 >
-                  <span className="text-pink-600">📷</span>
+                  <span className={`${isInstagramFullySelected ? 'text-pink-600' : 'text-gray-400'}`}>📷</span>
                   Instagram
-                  {(platformSelection.instagram.feed || platformSelection.instagram.reels) && (
+                  {isInstagramFullySelected && (
                     <CheckCircle size={14} className="text-pink-600" />
                   )}
                 </button>
+
                 <div className="flex flex-row gap-2 mt-2 w-full justify-center">
                   <button
                     type="button"
                     onClick={() => handleInstagramSelection('feed')}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
-                      platformSelection.instagram.feed
-                        ? 'border-pink-500 bg-pink-100 text-pink-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`flex items-center gap-1 px-1.5 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[60px] justify-center
+                      ${platformSelection.instagram.feed
+                        ? 'border-pink-500 bg-pink-100 text-pink-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
                   >
                     <span>📱</span>
                     Feed
@@ -397,13 +510,15 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
                       <CheckCircle size={12} className="text-pink-600" />
                     )}
                   </button>
+
                   <button
                     type="button"
                     onClick={() => handleInstagramSelection('reels')}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[80px] justify-center ${
-                      platformSelection.instagram.reels
-                        ? 'border-pink-500 bg-pink-100 text-pink-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`flex items-center gap-1 px-1.5 py-1.5 rounded-md border transition-all duration-200 text-xs min-w-[60px] justify-center
+                      ${platformSelection.instagram.reels
+                        ? 'border-pink-500 bg-pink-100 text-pink-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
                   >
                     <span>🎬</span>
                     Reels
@@ -419,12 +534,14 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
                 <button
                   type="button"
                   onClick={handleYoutubeSelection}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium border-red-500 bg-white text-red-700 ${
-                    platformSelection.youtube ? 'shadow-md' : ''
-                  }`}
+                  className={`focus:outline-none focus:ring-0 flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                    ${platformSelection.youtube
+                      ? 'border-red-500 bg-white text-red-700 shadow-md'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
                   style={{ minWidth: 120 }}
                 >
-                  <span className="text-red-600">📺</span>
+                  <span className={`${platformSelection.youtube ? 'text-red-600' : 'text-gray-400'}`}>📺</span>
                   YouTube
                   {platformSelection.youtube && (
                     <CheckCircle size={14} className="text-red-600" />
@@ -493,6 +610,14 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
               />
             </div>
           </div>
+
+          {/* Error display */}
+          {(apiError || validationError) && (
+              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+                  <AlertCircle size={14} />
+                  <span>{apiError || validationError}</span>
+              </div>
+          )}
 
           {/* Generate Button */}
           <div className="flex gap-2 pt-2">

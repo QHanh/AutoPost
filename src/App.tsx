@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -44,10 +43,12 @@ function App() {
     unpublishedPosts, 
     isLoadingPublished, 
     isLoadingUnpublished, 
-    refreshPosts 
+    refreshPosts,
+    updatePost,
+    deletePost
   } = usePosts();
   
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading } = useAuth();
   
   // Only server accounts now
   const connectedAccounts = accounts.filter(acc => acc.connected);
@@ -142,6 +143,8 @@ function App() {
                 isLoadingUnpublished={isLoadingUnpublished}
                 getSocialAccountId={getSocialAccountId}
                 onRefreshPosts={refreshPosts}
+                onUpdatePost={updatePost}
+                onDeletePost={deletePost}
               />
             </ProtectedRoute>
           } 

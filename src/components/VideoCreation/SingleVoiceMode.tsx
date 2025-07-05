@@ -143,7 +143,9 @@ export const SingleVoiceMode: React.FC = () => {
         body: JSON.stringify({
           video_subject: videoTopic,
           video_language: scriptLanguage === 'Tiếng Việt' ? 'Vietnamese' : 'English',
-          paragraph_number: 1
+          paragraph_number: 1,
+          gemini_key: geminiApiKey,
+          openai_key: openaiApiKey
         })
       });
 
@@ -161,7 +163,9 @@ export const SingleVoiceMode: React.FC = () => {
           body: JSON.stringify({
             video_subject: videoTopic,
             video_script: generatedScript,
-            amount: 5
+            amount: 5,
+            gemini_key: geminiApiKey,
+            openai_key: openaiApiKey
           })
         });
 
@@ -248,10 +252,10 @@ export const SingleVoiceMode: React.FC = () => {
       };
 
       const positionMap: { [key: string]: string } = {
-        'Trên': 'top',
-        'Giữa': 'center',
-        'Dưới (Recommend)': 'bottom',
-        'Tùy chỉnh': 'custom'
+        'top': 'top',
+        'center': 'center',
+        'bottom': 'bottom',
+        'custom': 'custom'
       };
 
       const requestBody = {
@@ -280,7 +284,7 @@ export const SingleVoiceMode: React.FC = () => {
         subtitle_enabled: enableSubtitles,
         type_subtitle: subtitleType,
         subtitle_provider: subtitleProvider,
-        subtitle_position: positionMap[subtitlePosition] || 'bottom',
+        subtitle_position: positionMap[subtitlePosition],
         custom_position: parseFloat(customSubtitlePosition),
         font_name: subtitleFont,
         text_fore_color: subtitleTextColor,
@@ -669,10 +673,10 @@ export const SingleVoiceMode: React.FC = () => {
                     value={subtitlePosition}
                     onChange={(e) => setSubtitlePosition(e.target.value)}
                   >
-                    <option value="Trên">Trên</option>
-                    <option value="Giữa">Giữa</option>
-                    <option value="Dưới (Recommend)">Dưới (Recommend)</option>
-                    <option value="Tùy chỉnh">Tùy chỉnh</option>
+                    <option value="top">Trên</option>
+                    <option value="center">Giữa</option>
+                    <option value="bottom">Dưới (Recommend)</option>
+                    <option value="custom">Tùy chỉnh</option>
                   </select>
                 </div>
 

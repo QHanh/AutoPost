@@ -8,7 +8,7 @@ interface HeaderProps {
   totalPosts: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) => {
+export const Header: React.FC<HeaderProps> = ({ connectedCount }) => {
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
       logout();
       setTimeout(() => {
         window.location.href = '/';
-      }, 100);
+      }, 300);
     }
   };
 
@@ -29,105 +29,107 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount, totalPosts }) =>
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - Clickable to home */}
-          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            <div className="bg-white rounded-lg">
-              <img
-                src="/assets/autopost.png"
-                alt="Hoàng Mai Mobile"
-                className="w-10 h-10 object-cover rounded shadow-md"
-              />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Social Hub</h1>
-              <p className="text-xs text-gray-500">Lập lịch đăng bài tự động</p>
-            </div>
-          </Link>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link
-              to="/"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Home size={16} />
-              Trang Chủ
+          <div className="flex items-center">
+            {/* Logo - Clickable to home */}
+            <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+              <div className="bg-white rounded-lg">
+                <img
+                  src="/assets/autopost.png"
+                  alt="Hoàng Mai Mobile"
+                  className="w-10 h-10 object-cover rounded shadow-md"
+                />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Social Hub</h1>
+                <p className="text-xs text-gray-500">Lập lịch đăng bài tự động</p>
+              </div>
             </Link>
 
-            <Link
-              to="/solution"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/solution') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Lightbulb size={16} />
-              Giải Pháp
-            </Link>
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-4 ml-10">
+              <Link
+                to="/"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                  isActive('/') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Home size={16} />
+                Trang Chủ
+              </Link>
 
-            <Link
-              to="/pricing"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/pricing') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <DollarSign size={16} />
-              Bảng Giá
-            </Link>
+              <Link
+                to="/solution"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                  isActive('/solution') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Lightbulb size={16} />
+                Giải Pháp
+              </Link>
 
-            <Link
-              to="/video"
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive('/video') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Video size={16} />
-              Tạo Video
-            </Link>
-            
-            {/* Authenticated-only navigation */}
-            {isAuthenticated && (
-              <>
-                <Link
-                  to="/posts"
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/posts') 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Share2 size={16} />
-                  Đăng Bài
-                </Link>
-                
-                <Link
-                  to="/accounts"
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/accounts') 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Users size={16} />
-                  Kết Nối
-                  {/* {connectedCount > 0 && (
-                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
-                      {connectedCount}
-                    </span>
-                  )} */}
-                </Link>
-              </>
-            )}
-          </nav>
+              <Link
+                to="/pricing"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                  isActive('/pricing') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <DollarSign size={16} />
+                Bảng Giá
+              </Link>
+
+              <Link
+                to="/video"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                  isActive('/video') 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Video size={16} />
+                Tạo Video
+              </Link>
+              
+              {/* Authenticated-only navigation */}
+              {isAuthenticated && (
+                <>
+                  <Link
+                    to="/posts"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                      isActive('/posts') 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Share2 size={16} />
+                    Đăng Bài
+                  </Link>
+                  
+                  <Link
+                    to="/accounts"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                      isActive('/accounts') 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Users size={16} />
+                    Cấu Hình
+                    {/* {connectedCount > 0 && (
+                      <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        {connectedCount}
+                      </span>
+                    )} */}
+                  </Link>
+                </>
+              )}
+            </nav>
+          </div>
 
           {/* Right side - Stats & Actions */}
           <div className="flex items-center space-x-4">

@@ -184,7 +184,9 @@ export const PodcastMode: React.FC = () => {
         body: JSON.stringify({
           video_subject: videoPodcastTopic,
           video_content: videoContent,
-          video_language: scriptPodcastLanguage
+          video_language: scriptPodcastLanguage,
+          gemini_key: geminiApiKey,
+          openai_key: openaiApiKey
         })
       });
 
@@ -210,7 +212,8 @@ export const PodcastMode: React.FC = () => {
           host2: host2,
           voice1: voice1,
           voice2: voice2,
-          tone: tone
+          tone: tone,
+          gemini_key: geminiApiKey
         })
       });
 
@@ -231,7 +234,9 @@ export const PodcastMode: React.FC = () => {
         body: JSON.stringify({
           video_subject: videoPodcastTopic,
           video_script: generatedScript,
-          amount: 5
+          amount: 5,
+          gemini_key: geminiApiKey,
+          openai_key: openaiApiKey
         })
       });
 
@@ -372,7 +377,7 @@ export const PodcastMode: React.FC = () => {
         font_size: subtitleFontSize,
         stroke_color: subtitleBorderColor,
         stroke_width: subtitleBorderWidth,
-        n_threads: 4,
+        n_threads: 6,
         paragraph_number: 1,
         gemini_key: geminiApiKey,
         openai_key: openaiApiKey,

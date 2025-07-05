@@ -5,9 +5,9 @@ import { PlatformAccount } from '../types/platform';
 
 interface BackendPost {
   id: string;
-  post_id: string;
   social_account_id: string;
   platform: string;
+  platform_type?: string;
   status: string;
   scheduled_at: string;
   generated_content: string | null;
@@ -24,6 +24,8 @@ interface PostsPageProps {
   isLoadingUnpublished: boolean;
   getSocialAccountId: (platformAccountId: string) => string | null;
   onRefreshPosts: () => void;
+  onUpdatePost: (postId: string, data: { preview_content: string; scheduled_at: string }) => Promise<any>;
+  onDeletePost: (postId: string) => Promise<void>;
 }
 
 export const PostsPage: React.FC<PostsPageProps> = ({
@@ -33,7 +35,9 @@ export const PostsPage: React.FC<PostsPageProps> = ({
   isLoadingPublished,
   isLoadingUnpublished,
   getSocialAccountId,
-  onRefreshPosts
+  onRefreshPosts,
+  onUpdatePost,
+  onDeletePost
 }) => {
   const connectedAccounts = accounts.filter(acc => acc.connected);
 
@@ -69,6 +73,8 @@ export const PostsPage: React.FC<PostsPageProps> = ({
           accounts={accounts}
           getSocialAccountId={getSocialAccountId}
           onRefreshPosts={onRefreshPosts}
+          onUpdatePost={onUpdatePost}
+          onDeletePost={onDeletePost}
         />
       </section>
 
