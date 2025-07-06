@@ -9,7 +9,7 @@ interface HeaderProps {
   totalPosts: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ connectedCount }) => {
+export const Header: React.FC<HeaderProps> = () => {
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
 

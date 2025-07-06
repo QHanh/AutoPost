@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, CheckCircle, XCircle, Calendar, ExternalLink, Image as ImageIcon, Film, Play, AlertTriangle, RefreshCw, User, ChevronDown, ChevronUp, Edit, Trash2, Loader2 } from 'lucide-react';
 import { PlatformAccount } from '../types/platform';
+import Swal from 'sweetalert2';
 
 interface MediaAsset {
   id: string;
@@ -255,12 +256,20 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (window.confirm('Bạn có chắc muốn xóa bài đăng đã lên lịch này không?')) {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Xóa bài đăng?',
+      text: 'Bạn có chắc chắn muốn xóa bài đăng đã lên lịch này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+    if (isConfirmed) {
         try {
             await onDeletePost(postId);
             onRefreshPosts();
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Failed to delete post.');
+            alert(error instanceof Error ? error.message : 'Thất bại khi xóa bài đăng.');
         }
     }
   };

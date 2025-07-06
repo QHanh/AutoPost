@@ -3,6 +3,7 @@ import {
   Key, Save, RefreshCw, Trash2, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { useApiKeys, ApiKeys } from '../hooks/useApiKeys';
 import { useAuth } from '../hooks/useAuth';
+import Swal from 'sweetalert2';
 
 export const ApiKeyManager: React.FC = () => {
   const { user } = useAuth();
@@ -64,8 +65,15 @@ export const ApiKeyManager: React.FC = () => {
       setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xóa API keys' });
       return;
     }
-
-    if (!confirm('Bạn có chắc chắn muốn xóa tất cả API keys?')) return;
+    const { isConfirmed } = await Swal.fire({
+      title: 'Xóa API keys?',
+      text: 'Bạn có chắc chắn muốn xóa tất cả API keys?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+    if (!isConfirmed) return;
 
     setIsLoading(true);
     setMessage(null);

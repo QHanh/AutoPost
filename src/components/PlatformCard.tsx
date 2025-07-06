@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Platform, PlatformAccount } from '../types/platform';
 import { CheckCircle, AlertCircle, Zap, Plus, RefreshCw, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import Swal from 'sweetalert2';
 
 interface SavedAccount {
   id: string;
@@ -64,9 +65,17 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
     const socialAccountId = 'channel_name' in account ? account.account_id : account.id;
     const accountName = 'channel_name' in account ? account.channel_name : account.account_name;
 
-    const confirmMessage = `Bạn có chắc chắn muốn gỡ tài khoản "${accountName}"?\n\nHành động này không thể hoàn tác.`;
+    const confirmMessage = `Bạn có chắc chắn muốn gỡ tài khoản "${accountName}"?`;
     
-    if (!confirm(confirmMessage)) {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Gỡ tài khoản?',
+      text: confirmMessage,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Gỡ',
+      cancelButtonText: 'Hủy'
+    });
+    if (!isConfirmed) {
       return;
     }
 
