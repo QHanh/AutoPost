@@ -2,6 +2,7 @@ import React from 'react';
 import { Share2, Users, Home, DollarSign, LogOut, Lightbulb, Video } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Swal from 'sweetalert2';
 
 interface HeaderProps {
   connectedCount: number;
@@ -16,12 +17,19 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount }) => {
     return location.pathname === path;
   };
 
-  const handleLogout = () => {
-    if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+  const handleLogout = async () => {
+    const { isConfirmed } = await Swal.fire({
+      title: 'Đăng xuất?',
+      text: 'Bạn có chắc chắn muốn đăng xuất?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất',
+      cancelButtonText: 'Hủy'
+    });
+  
+    if (isConfirmed) {
       logout();
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 300);
+      setTimeout(() => (window.location.href = '/'), 300);
     }
   };
 
@@ -44,92 +52,104 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount }) => {
                 <p className="text-xs text-gray-500">Lập lịch đăng bài tự động</p>
               </div>
             </Link>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-4 ml-10">
-              <Link
-                to="/"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                  isActive('/') 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Home size={16} />
-                Trang Chủ
-              </Link>
-
-              <Link
-                to="/solution"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                  isActive('/solution') 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Lightbulb size={16} />
-                Giải Pháp
-              </Link>
-
-              <Link
-                to="/pricing"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                  isActive('/pricing') 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <DollarSign size={16} />
-                Bảng Giá
-              </Link>
-
-              <Link
-                to="/video"
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                  isActive('/video') 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Video size={16} />
-                Tạo Video
-              </Link>
-              
-              {/* Authenticated-only navigation */}
-              {isAuthenticated && (
-                <>
-                  <Link
-                    to="/posts"
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                      isActive('/posts') 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Share2 size={16} />
-                    Đăng Bài
-                  </Link>
-                  
-                  <Link
-                    to="/accounts"
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
-                      isActive('/accounts') 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Users size={16} />
-                    Cấu Hình
-                    {/* {connectedCount > 0 && (
-                      <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        {connectedCount}
-                      </span>
-                    )} */}
-                  </Link>
-                </>
-              )}
-            </nav>
           </div>
+
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-4">
+            <Link
+              to="/"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                isActive('/')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Home size={16} />
+              Trang Chủ
+            </Link>
+
+            <Link
+              to="/solution"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                isActive('/solution')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Lightbulb size={16} />
+              Giải Pháp
+            </Link>
+
+            <Link
+              to="/pricing"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                isActive('/pricing')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <DollarSign size={16} />
+              Bảng Giá
+            </Link>
+
+            {/* <Link
+              to="/video"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                isActive('/video')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Video size={16} />
+              Tạo Video
+            </Link> */}
+
+            {/* Authenticated-only navigation */}
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/video"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                    isActive('/video')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Video size={16} />
+                  Tạo Video
+                </Link>
+
+                <Link
+                  to="/posts"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                    isActive('/posts')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Share2 size={16} />
+                  Đăng Bài
+                </Link>
+
+                <Link
+                  to="/accounts"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
+                    isActive('/accounts')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Users size={16} />
+                  Cấu Hình
+                  {/* {connectedCount > 0 && (
+                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {connectedCount}
+                    </span>
+                  )} */}
+                </Link>
+              </>
+            )}
+          </nav>
 
           {/* Right side - Stats & Actions */}
           <div className="flex items-center space-x-4">
@@ -197,85 +217,6 @@ export const Header: React.FC<HeaderProps> = ({ connectedCount }) => {
                 </>
               )}
             </div>
-          </div>
-
-          {/* Mobile Navigation */}
-          <div className="md:hidden flex items-center space-x-2">
-            <Link
-              to="/"
-              className={`p-2 rounded-lg transition-colors ${
-                isActive('/') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Home size={20} />
-            </Link>
-
-            <Link
-              to="/solution"
-              className={`p-2 rounded-lg transition-colors ${
-                isActive('/solution') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Lightbulb size={20} />
-            </Link>
-
-            <Link
-              to="/video"
-              className={`p-2 rounded-lg transition-colors ${
-                isActive('/video') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Video size={20} />
-            </Link>
-
-            <Link
-              to="/pricing"
-              className={`p-2 rounded-lg transition-colors ${
-                isActive('/pricing') 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <DollarSign size={20} />
-            </Link>
-
-            {/* Authenticated-only mobile navigation */}
-            {isAuthenticated && (
-              <>
-                <Link
-                  to="/posts"
-                  className={`p-2 rounded-lg transition-colors ${
-                    isActive('/posts') 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Share2 size={20} />
-                </Link>
-                
-                <Link
-                  to="/accounts"
-                  className={`p-2 rounded-lg transition-colors relative ${
-                    isActive('/accounts') 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <Users size={20} />
-                  {connectedCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                      {connectedCount}
-                    </span>
-                  )}
-                </Link>
-              </>
-            )}
           </div>
         </div>
       </div>
