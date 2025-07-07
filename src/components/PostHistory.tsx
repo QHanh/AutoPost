@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Clock, CheckCircle, XCircle, Calendar, ExternalLink, Image as ImageIcon, Film, Play, AlertTriangle, RefreshCw, User, ChevronDown, ChevronUp, Edit, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Clock, CheckCircle, XCircle, Calendar, ExternalLink, Image as ImageIcon, Film, Play, RefreshCw, User, ChevronDown, ChevronUp, Edit, Trash2, Loader2 } from 'lucide-react';
 import { PlatformAccount } from '../types/platform';
 import Swal from 'sweetalert2';
 
@@ -56,7 +56,298 @@ interface PostHistoryProps {
   onRefreshPosts: () => void;
   onUpdatePost: (postId: string, data: { preview_content: string; scheduled_at: string }) => Promise<any>;
   onDeletePost: (postId: string) => Promise<void>;
+  onRetryPost: (postId: string) => Promise<any>;
 }
+
+// --- Helper Functions ---
+const getPostTypeDisplayName = (platformType?: string): string | null => {
+  if (!platformType) return null;
+  const displayNames: Record<string, string> = {
+    'facebook-page': 'Page',
+    'facebook-reels': 'Reel',
+    'instagram-feed': 'Feed',
+    'instagram-reels': 'Reel',
+    'youtube': 'Video',
+  };
+  return displayNames[platformType] || platformType;
+};
+
+const getPlatformIcon = (platform: string) => {
+  const icons = {
+    facebook: '📘',
+    instagram: '📷',
+    youtube: '📺',
+    twitter: '🐦',
+    linkedin: '💼',
+    tiktok: '🎵'
+  };
+  return icons[platform as keyof typeof icons] || '🌐';
+};
+
+const formatDateTime = (dateString: string) => {
+  return new Date(dateString).toLocaleString('vi-VN');
+};
+
+const truncateContent = (content: string, maxLength: number = 200) => {
+  if (!content) return '';
+  if (content.length <= maxLength) return content;
+  return content.substring(0, maxLength) + '...';
+};
+
+const getStatusIcon = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'published':
+    case 'posted':
+      return <CheckCircle className="text-green-500" size={16} />;
+    case 'ready':
+    case 'scheduled':
+      return <Clock className="text-blue-500" size={16} />;
+    case 'failed':
+    case 'error':
+      return <XCircle className="text-red-500" size={16} />;
+    case 'processing':
+    case 'posting':
+      return <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />;
+    default:
+      return <Calendar className="text-gray-500" size={16} />;
+  }
+};
+
+const getStatusText = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'published':
+    case 'posted':
+      return 'Đã đăng';
+    case 'ready':
+    case 'scheduled':
+      return 'Đang chờ';
+    case 'failed':
+    case 'error':
+      return 'Thất bại';
+    case 'processing':
+    case 'posting':
+      return 'Đang đăng...';
+    default:
+      return status;
+  }
+};
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'published':
+    case 'posted':
+      return 'text-green-600 bg-green-50 border-green-200';
+    case 'ready':
+    case 'scheduled':
+      return 'text-green-600 bg-green-50 border-green-200';
+    case 'failed':
+    case 'error':
+      return 'text-red-600 bg-red-50 border-red-200';
+    case 'processing':
+    case 'posting':
+      return 'text-blue-600 bg-blue-50 border-blue-200';
+    default:
+      return 'text-gray-600 bg-gray-50 border-gray-200';
+  }
+};
+
+// --- PostCard Component ---
+interface PostCardProps {
+  post: BackendPost;
+  accountName: string;
+  isExpanded: boolean;
+  isProcessing: boolean;
+  postTypeDisplayName: string | null;
+  showPostUrl?: boolean;
+  onToggleExpansion: (postId: string) => void;
+  onEdit: (post: BackendPost) => void;
+  onDelete: (postId: string) => void;
+  onRetry: (postId: string) => void;
+}
+
+const PostCard: React.FC<PostCardProps> = React.memo(({
+  post,
+  accountName,
+  isExpanded,
+  isProcessing,
+  postTypeDisplayName,
+  showPostUrl = false,
+  onToggleExpansion,
+  onEdit,
+  onDelete,
+  onRetry
+}) => {
+  const shouldShowExpandButton = post.generated_content && post.generated_content.length > 200;
+  const isFailed = post.status.toLowerCase() === 'failed' || post.status.toLowerCase() === 'error';
+
+  return (
+    <div
+      className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+        isProcessing ? 'border-blue-200 bg-blue-50' : 
+        post.status === 'ready' || post.status === 'scheduled' ? 'border-green-200 bg-green-50' :
+        'border-gray-200 bg-white'
+      }`}
+    >
+      <div className="flex gap-4">
+        {/* Left Column: Post Details */}
+        <div className="flex-grow">
+          {/* Header Row */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">{getPlatformIcon(post.platform)}</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  {isProcessing ? getStatusIcon('posting') : getStatusIcon(post.status)}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${isProcessing ? getStatusColor('posting') : getStatusColor(post.status)}`}>
+                    {isProcessing ? getStatusText('posting') : getStatusText(post.status)}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
+                  {postTypeDisplayName && ` • ${postTypeDisplayName}`}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Account Name + Post URL Section */}
+          <div className="mb-3 flex items-center gap-4">
+            <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg w-fit flex items-center gap-2">
+              <User size={14} className="text-gray-500" />
+              <span className="text-sm font-medium text-gray-600">Tài khoản:</span>
+              <span className="text-sm text-gray-800 font-semibold">{accountName}</span>
+            </div>
+
+            {showPostUrl && post.post_url && (
+              <a
+                href={post.post_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline text-xs font-medium px-2 py-1 bg-green-50 border border-green-200 rounded-md"
+              >
+                <ExternalLink size={12} />
+                Xem bài
+              </a>
+            )}
+          </div>
+
+          {/* Content */}
+          {post.generated_content && (
+            <div className="mb-3">
+              <div className="text-gray-900 text-sm leading-relaxed">
+                {isExpanded ? post.generated_content : truncateContent(post.generated_content)}
+              </div>
+              {shouldShowExpandButton && (
+                <button
+                  onClick={() => onToggleExpansion(post.id)}
+                  className="mt-2 flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp size={14} />
+                      Thu gọn
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={14} />
+                      Xem thêm
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Footer - Timestamps */}
+          <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+            <div>
+              Tạo: {formatDateTime(post.created_at)}
+            </div>
+            <div className={isProcessing ? 'text-blue-600 font-medium' : 'text-green-600'}>
+              {post.status.toLowerCase() === 'published' ? 'Đã đăng: ' : 'Lên lịch: '}
+              {formatDateTime(post.scheduled_at)}
+            </div>
+          </div>
+
+          {/* Action Buttons for Unpublished Posts */}
+          {!showPostUrl && (isFailed || !isProcessing) && (
+            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-200">
+              {!isProcessing && (
+                <button 
+                  onClick={() => onEdit(post)} 
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors border border-blue-200"
+                >
+                  <Edit size={14} /> Chỉnh sửa
+                </button>
+              )}
+              {isFailed && (
+                <button 
+                  onClick={() => onRetry(post.id)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-md transition-colors border border-green-200"
+                >
+                  <RefreshCw size={14} /> Đăng lại
+                </button>
+              )}
+              {!isProcessing && (
+                <button 
+                  onClick={() => onDelete(post.id)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors border border-red-200"
+                >
+                  <Trash2 size={14} /> Xóa
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Media Assets */}
+        {post.media_assets && post.media_assets.length > 0 && (
+          <div className="flex-shrink-0 w-48">
+            <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <ImageIcon size={14} />
+              Media Files ({post.media_assets.length})
+            </h5>
+            <div className="space-y-2">
+              {post.media_assets.map((asset) => (
+                <div key={asset.id} className="relative group">
+                  {asset.file_type === 'image' ? (
+                    <img
+                      src={asset.url[0]}
+                      alt={asset.file_name}
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                  ) : (
+                    <div className="relative w-full h-48 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                      <video
+                        src={asset.url[0]}
+                        className="w-full h-full object-cover rounded-lg"
+                        muted
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
+                        <Play className="text-white" size={20} />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* File Info Overlay */}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-end rounded-lg">
+                    <div className="w-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="text-xs font-medium truncate">{asset.file_name}</div>
+                      <div className="text-xs flex items-center gap-1">
+                        {asset.file_type === 'image' ? <ImageIcon size={10} /> : <Film size={10} />}
+                        {asset.file_type.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export const PostHistory: React.FC<PostHistoryProps> = ({
   publishedPosts,
@@ -67,7 +358,8 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
   getSocialAccountId,
   onRefreshPosts,
   onUpdatePost,
-  onDeletePost
+  onDeletePost,
+  onRetryPost
 }) => {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'unpublished' | 'published'>('unpublished');
@@ -77,21 +369,46 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
   const [editedScheduledAt, setEditedScheduledAt] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  const getPostTypeDisplayName = (platformType?: string): string | null => {
-    if (!platformType) return null;
-    const displayNames: Record<string, string> = {
-      'facebook-page': 'Page',
-      'facebook-reels': 'Reel',
-      'instagram-feed': 'Feed',
-      'instagram-reels': 'Reel',
-      'youtube': 'Video',
+  // Update current time every second to check for overdue posts in real-time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isPostProcessing = useCallback((post: BackendPost) => {
+    const status = post.status.toLowerCase();
+    if (status === 'processing' || status === 'posting') {
+      return true;
+    }
+    if (status === 'ready' && new Date(post.scheduled_at) < currentTime) {
+      return true;
+    }
+    return false;
+  }, [currentTime]);
+
+  useEffect(() => {
+    const hasProcessingPosts = unpublishedPosts.some(isPostProcessing);
+    let intervalId: NodeJS.Timeout | null = null;
+
+    if (hasProcessingPosts) {
+      intervalId = setInterval(() => {
+        console.log('🔄 Auto-refreshing posts due to processing items...');
+        onRefreshPosts();
+      }, 5000); // 5 seconds
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
-    return displayNames[platformType] || platformType;
-  };
+  }, [unpublishedPosts, onRefreshPosts, isPostProcessing]);
 
-  // Find account name by social_account_id
-  const getAccountNameBySocialId = (socialAccountId: string, platform: string): string => {
+  const getAccountNameBySocialId = useCallback((socialAccountId: string, platform: string): string => {
     // Find the platform account that matches this social_account_id
     const matchingAccount = accounts.find(account => {
       const accountSocialId = getSocialAccountId(account.id);
@@ -99,9 +416,9 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
     });
 
     return matchingAccount?.accountName || `${platform} Account`;
-  };
+  }, [accounts, getSocialAccountId]);
 
-  const toggleContentExpansion = (postId: string) => {
+  const toggleContentExpansion = useCallback((postId: string) => {
     setExpandedPosts(prev => {
       const newSet = new Set(prev);
       if (newSet.has(postId)) {
@@ -111,93 +428,9 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'published':
-      case 'posted':
-        return <CheckCircle className="text-green-500" size={16} />;
-      case 'ready':
-      case 'scheduled':
-        return <Clock className="text-blue-500" size={16} />;
-      case 'failed':
-      case 'error':
-        return <XCircle className="text-red-500" size={16} />;
-      case 'processing':
-      case 'posting':
-        return <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />;
-      default:
-        return <Calendar className="text-gray-500" size={16} />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'published':
-      case 'posted':
-        return 'Đã đăng';
-      case 'ready':
-      case 'scheduled':
-        return 'Đang chờ';
-      case 'failed':
-      case 'error':
-        return 'Thất bại';
-      case 'processing':
-      case 'posting':
-        return 'Đang đăng...';
-      default:
-        return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'published':
-      case 'posted':
-        return 'text-green-600 bg-green-50 border-green-200';
-      case 'ready':
-      case 'scheduled':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'failed':
-      case 'error':
-        return 'text-red-600 bg-red-50 border-red-200';
-      case 'processing':
-      case 'posting':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
-      default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
-
-  const isOverdue = (post: BackendPost) => {
-    return post.status.toLowerCase() === 'ready' && 
-           new Date(post.scheduled_at) < new Date();
-  };
-
-  const getPlatformIcon = (platform: string) => {
-    const icons = {
-      facebook: '📘',
-      instagram: '📷',
-      youtube: '📺',
-      twitter: '🐦',
-      linkedin: '💼',
-      tiktok: '🎵'
-    };
-    return icons[platform as keyof typeof icons] || '🌐';
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN');
-  };
-
-  const truncateContent = (content: string, maxLength: number = 200) => {
-    if (!content) return '';
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
-  };
-
-  const handleEditClick = (post: BackendPost) => {
+  const handleEditClick = useCallback((post: BackendPost) => {
     setEditingPost(post);
     if (post.platform === 'youtube' && post.youtube_metadata) {
         setEditedTitle(post.youtube_metadata.title);
@@ -209,7 +442,7 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
     const formattedDate = new Date(scheduleDate.getTime() - (scheduleDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     setEditedScheduledAt(formattedDate);
     setModalError(null);
-  };
+  }, []);
 
   const handleCancelEdit = () => {
     setEditingPost(null);
@@ -255,7 +488,7 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
     }
   };
 
-  const handleDeletePost = async (postId: string) => {
+  const handleDeletePost = useCallback(async (postId: string) => {
     const { isConfirmed } = await Swal.fire({
       title: 'Xóa bài đăng?',
       text: 'Bạn có chắc chắn muốn xóa bài đăng đã lên lịch này?',
@@ -272,174 +505,16 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
             alert(error instanceof Error ? error.message : 'Thất bại khi xóa bài đăng.');
         }
     }
-  };
+  }, [onDeletePost, onRefreshPosts]);
 
-  const PostCard: React.FC<{ post: BackendPost; showPostUrl?: boolean }> = ({ post, showPostUrl = false }) => {
-    const accountName = getAccountNameBySocialId(post.social_account_id, post.platform);
-    const isExpanded = expandedPosts.has(post.id);
-    const shouldShowExpandButton = post.generated_content && post.generated_content.length > 200;
-    const postTypeDisplayName = getPostTypeDisplayName(post.platform_type);
-    
-    return (
-      <div
-        className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
-          isOverdue(post) ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white'
-        }`}
-      >
-        <div className="flex gap-4">
-          {/* Left Column: Post Details */}
-          <div className="flex-grow">
-            {/* Header Row */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{getPlatformIcon(post.platform)}</span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(post.status)}
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(post.status)}`}>
-                      {getStatusText(post.status)}
-                    </span>
-                    {isOverdue(post) && (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium text-orange-600 bg-orange-100 border border-orange-200 flex items-center gap-1">
-                        <AlertTriangle size={12} />
-                        Quá hạn
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
-                    {postTypeDisplayName && ` • ${postTypeDisplayName}`}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Account Name + Post URL Section */}
-            <div className="mb-3 flex items-center gap-4">
-              <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg w-fit flex items-center gap-2">
-                <User size={14} className="text-gray-500" />
-                <span className="text-sm font-medium text-gray-600">Tài khoản:</span>
-                <span className="text-sm text-gray-800 font-semibold">{accountName}</span>
-              </div>
-
-              {showPostUrl && post.post_url && (
-                <a
-                  href={post.post_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline text-xs font-medium px-2 py-1 bg-green-50 border border-green-200 rounded-md"
-                >
-                  <ExternalLink size={12} />
-                  Xem bài
-                </a>
-              )}
-            </div>
-
-            {/* Content */}
-            {post.generated_content && (
-              <div className="mb-3">
-                <div className="text-gray-900 text-sm leading-relaxed">
-                  {isExpanded ? post.generated_content : truncateContent(post.generated_content)}
-                </div>
-                {shouldShowExpandButton && (
-                  <button
-                    onClick={() => toggleContentExpansion(post.id)}
-                    className="mt-2 flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp size={14} />
-                        Thu gọn
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown size={14} />
-                        Xem thêm
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Footer - Timestamps */}
-            <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
-              <div>
-                Tạo: {formatDateTime(post.created_at)}
-              </div>
-              <div className={isOverdue(post) ? 'text-orange-600 font-medium' : ''}>
-                {post.status.toLowerCase() === 'published' ? 'Đã đăng: ' : 'Lên lịch: '}
-                {formatDateTime(post.scheduled_at)}
-              </div>
-            </div>
-
-            {/* Action Buttons for Unpublished Posts */}
-            {!showPostUrl && !isOverdue(post) && (
-              <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-200">
-                <button 
-                  onClick={() => handleEditClick(post)} 
-                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors border border-blue-200"
-                >
-                  <Edit size={14} /> Chỉnh sửa
-                </button>
-                <button 
-                  onClick={() => handleDeletePost(post.id)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors border border-red-200"
-                >
-                  <Trash2 size={14} /> Xóa
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Media Assets */}
-          {post.media_assets && post.media_assets.length > 0 && (
-            <div className="flex-shrink-0 w-48">
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                <ImageIcon size={14} />
-                Media Files ({post.media_assets.length})
-              </h5>
-              <div className="space-y-2">
-                {post.media_assets.map((asset) => (
-                  <div key={asset.id} className="relative group">
-                    {asset.file_type === 'image' ? (
-                      <img
-                        src={asset.url[0]}
-                        alt={asset.file_name}
-                        className="w-full h-48 object-cover rounded-lg border border-gray-200"
-                      />
-                    ) : (
-                      <div className="relative w-full h-48 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                        <video
-                          src={asset.url[0]}
-                          className="w-full h-full object-cover rounded-lg"
-                          muted
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
-                          <Play className="text-white" size={20} />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* File Info Overlay */}
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-end rounded-lg">
-                      <div className="w-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="text-xs font-medium truncate">{asset.file_name}</div>
-                        <div className="text-xs flex items-center gap-1">
-                          {asset.file_type === 'image' ? <ImageIcon size={10} /> : <Film size={10} />}
-                          {asset.file_type.toUpperCase()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const handleRetryPost = useCallback(async (postId: string) => {
+    try {
+      await onRetryPost(postId);
+      onRefreshPosts();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Thất bại khi thử đăng lại.');
+    }
+  }, [onRetryPost, onRefreshPosts]);
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200">
@@ -509,9 +584,27 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
                 <p className="text-sm">Các bài đăng đã lên lịch sẽ xuất hiện ở đây.</p>
               </div>
             ) : (
-              unpublishedPosts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))
+              unpublishedPosts.map((post) => {
+                const accountName = getAccountNameBySocialId(post.social_account_id, post.platform);
+                const isExpanded = expandedPosts.has(post.id);
+                const postTypeDisplayName = getPostTypeDisplayName(post.platform_type);
+                const isProcessing = isPostProcessing(post);
+                return (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    accountName={accountName}
+                    isExpanded={isExpanded}
+                    isProcessing={isProcessing}
+                    postTypeDisplayName={postTypeDisplayName}
+                    showPostUrl={false}
+                    onToggleExpansion={toggleContentExpansion}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeletePost}
+                    onRetry={handleRetryPost}
+                  />
+                );
+              })
             )}
           </div>
         )}
@@ -530,9 +623,27 @@ export const PostHistory: React.FC<PostHistoryProps> = ({
                 <p className="text-sm">Các bài đăng đã xuất bản sẽ xuất hiện ở đây.</p>
               </div>
             ) : (
-              publishedPosts.map((post) => (
-                <PostCard key={post.id} post={post} showPostUrl={true} />
-              ))
+              publishedPosts.map((post) => {
+                 const accountName = getAccountNameBySocialId(post.social_account_id, post.platform);
+                 const isExpanded = expandedPosts.has(post.id);
+                 const postTypeDisplayName = getPostTypeDisplayName(post.platform_type);
+                 const isProcessing = isPostProcessing(post);
+                 return (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    accountName={accountName}
+                    isExpanded={isExpanded}
+                    isProcessing={isProcessing}
+                    postTypeDisplayName={postTypeDisplayName}
+                    showPostUrl={true}
+                    onToggleExpansion={toggleContentExpansion}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeletePost}
+                    onRetry={handleRetryPost}
+                  />
+                );
+              })
             )}
           </div>
         )}

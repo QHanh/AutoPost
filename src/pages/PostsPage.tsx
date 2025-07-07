@@ -26,6 +26,7 @@ interface PostsPageProps {
   onRefreshPosts: () => void;
   onUpdatePost: (postId: string, data: { preview_content: string; scheduled_at: string }) => Promise<any>;
   onDeletePost: (postId: string) => Promise<void>;
+  onRetryPost: (postId: string) => Promise<any>;
 }
 
 export const PostsPage: React.FC<PostsPageProps> = ({
@@ -37,7 +38,8 @@ export const PostsPage: React.FC<PostsPageProps> = ({
   getSocialAccountId,
   onRefreshPosts,
   onUpdatePost,
-  onDeletePost
+  onDeletePost,
+  onRetryPost
 }) => {
   const connectedAccounts = accounts.filter(acc => acc.connected);
 
@@ -75,6 +77,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({
           onRefreshPosts={onRefreshPosts}
           onUpdatePost={onUpdatePost}
           onDeletePost={onDeletePost}
+          onRetryPost={onRetryPost}
         />
       </section>
 

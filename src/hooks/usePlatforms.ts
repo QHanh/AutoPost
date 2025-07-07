@@ -39,17 +39,7 @@ interface SavedAccount {
   account_id: string;
   is_active: boolean;
   created_at: string;
-}
-
-interface YouTubeAccount {
-  account_id: string;
-  channel_id: string;
-  channel_name: string;
-  is_active: boolean;
-  is_token_valid: boolean;
-  token_expires_at: string;
-  connected_at: string;
-  last_updated: string;
+  thumbnail?: string;
 }
 
 // Store social account IDs for API calls
@@ -63,10 +53,8 @@ export const usePlatforms = () => {
   const [platforms] = useState<Platform[]>(initialPlatforms);
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
-  const [youtubeAccounts, setYoutubeAccounts] = useState<YouTubeAccount[]>([]);
   const [accountMappings, setAccountMappings] = useState<AccountMapping[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-  const [isLoadingYoutube, setIsLoadingYoutube] = useState(false);
 
   const { user, isAuthenticated } = useAuth();
 
@@ -86,7 +74,7 @@ export const usePlatforms = () => {
     const syncedAccounts: PlatformAccount[] = [];
     const newMappings: AccountMapping[] = [];
 
-    // Add Facebook & Instagram accounts from server
+    // Add Facebook, Instagram & YouTube accounts from server
     savedAccounts.forEach((savedAccount) => {
       const profileInfo = {
         id: savedAccount.account_id,
@@ -94,10 +82,11 @@ export const usePlatforms = () => {
         username: savedAccount.account_name,
         platform: savedAccount.platform,
         verified: false,
-        followers: 0
+        followers: 0,
+        profilePicture: savedAccount.thumbnail,
       };
 
-      const targetPlatformId = savedAccount.platform === 'facebook' ? 'facebook' : 'instagram';
+      const targetPlatformId = savedAccount.platform;
       const platform = platforms.find(p => p.id === targetPlatformId);
 
       if (platform) {
@@ -119,51 +108,11 @@ export const usePlatforms = () => {
 
         syncedAccounts.push(newAccount);
         
-        // Store mapping for API calls
+        // Store mapping for API calls - use the 'id' field for all platforms
         newMappings.push({
           platformAccountId: platformAccountId,
-          socialAccountId: savedAccount.id, // Use the 'id' field for FB/IG
+          socialAccountId: savedAccount.id,
           platform: targetPlatformId
-        });
-      }
-    });
-
-    // Add YouTube accounts from server
-    youtubeAccounts.forEach((ytAccount) => {
-      const platform = platforms.find(p => p.id === 'youtube');
-      if (platform) {
-        const platformAccountId = `server_yt_${ytAccount.account_id}`;
-        const profileInfo = {
-          id: ytAccount.channel_id,
-          displayName: ytAccount.channel_name,
-          username: ytAccount.channel_name,
-          platform: 'youtube',
-          verified: false,
-          followers: 0
-        };
-
-        const newAccount: PlatformAccount = {
-          id: platformAccountId,
-          platformId: 'youtube',
-          platformName: platform.name,
-          accountName: ytAccount.channel_name,
-          accessToken: 'server_youtube_token',
-          connected: true,
-          profileInfo,
-          createdAt: new Date(ytAccount.connected_at),
-          color: platform.color,
-          gradient: platform.gradient,
-          icon: platform.icon,
-          lastPost: new Date().toISOString()
-        };
-
-        syncedAccounts.push(newAccount);
-        
-        // Store mapping for API calls - use account_id for YouTube
-        newMappings.push({
-          platformAccountId: platformAccountId,
-          socialAccountId: ytAccount.account_id, // Use account_id for YouTube
-          platform: 'youtube'
         });
       }
     });
@@ -172,115 +121,87 @@ export const usePlatforms = () => {
     setAccounts(syncedAccounts);
     setAccountMappings(newMappings);
 
-    console.log(`✅ Synced ${syncedAccounts.length} server accounts (${savedAccounts.length} FB/IG + ${youtubeAccounts.length} YT)`);
+    console.log(`✅ Synced ${syncedAccounts.length} server accounts from 'savedAccounts'`);
     console.log('📋 Account mappings:', newMappings);
   };
 
-  // Load Facebook & Instagram accounts from backend
-  const loadSavedAccounts = async () => {
+  // Load ALL accounts from backend, with optional granular reload
+  const loadSavedAccounts = async (platformToReload?: string) => {
     if (!isAuthenticated || !user?.token) {
       console.log('User not authenticated, skipping account load');
       return;
     }
 
-    setIsLoadingAccounts(true);
+    // Only set global loading state on a full, initial load
+    if (!platformToReload) {
+      setIsLoadingAccounts(true);
+      setSavedAccounts([]);
+    }
+    
     const apiBaseUrl = getApiBaseUrl();
-
+    
     try {
-      // Load Facebook accounts
-      const fbResponse = await fetch(`${apiBaseUrl}/api/v1/facebook/accounts/facebook`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
+        const platformsToFetch = platformToReload ? [platformToReload] : ['facebook', 'instagram', 'youtube'];
+        
+        const fetchPromises = platformsToFetch.map(async (platform) => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/v1/facebook/accounts/${platform}`, {
+                    method: 'GET',
+                    headers: {
+                        'accept': 'application/json',
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const newAccounts: SavedAccount[] = await response.json();
+                    
+                    if (platformToReload) {
+                      // Granular update: remove old accounts for this platform and add the new ones.
+                      setSavedAccounts(prevAccounts => [
+                          ...prevAccounts.filter(acc => acc.platform !== platformToReload), 
+                          ...newAccounts
+                      ]);
+                    } else {
+                      // Full reload: just append new accounts (since state was cleared).
+                      setSavedAccounts(prevAccounts => [...prevAccounts, ...newAccounts]);
+                    }
 
-      // Load Instagram accounts
-      const igResponse = await fetch(`${apiBaseUrl}/api/v1/facebook/accounts/instagram`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
+                    console.log(`✅ Loaded and displayed ${platform} accounts:`, newAccounts);
+                } else {
+                    console.warn(`⚠️ Failed to load ${platform} accounts:`, response.status);
+                }
+            } catch (platformError) {
+                console.error(`❌ Error loading ${platform} accounts:`, platformError);
+            }
+        });
 
-      const allServerAccounts: SavedAccount[] = [];
-
-      if (fbResponse.ok) {
-        const fbAccounts: SavedAccount[] = await fbResponse.json();
-        allServerAccounts.push(...fbAccounts);
-        console.log('✅ Loaded Facebook accounts:', fbAccounts);
-      } else {
-        console.warn('⚠️ Failed to load Facebook accounts:', fbResponse.status);
-      }
-
-      if (igResponse.ok) {
-        const igAccounts: SavedAccount[] = await igResponse.json();
-        allServerAccounts.push(...igAccounts);
-        console.log('✅ Loaded Instagram accounts:', igAccounts);
-      } else {
-        console.warn('⚠️ Failed to load Instagram accounts:', igResponse.status);
-      }
-
-      setSavedAccounts(allServerAccounts);
+        // Đợi tất cả các yêu cầu song song hoàn tất
+        await Promise.all(fetchPromises);
 
     } catch (error) {
       console.error('❌ Error loading saved accounts:', error);
     } finally {
-      setIsLoadingAccounts(false);
-    }
-  };
-
-  // Load YouTube accounts separately
-  const loadYoutubeAccounts = async () => {
-    if (!isAuthenticated || !user?.token) {
-      console.log('User not authenticated, skipping YouTube account load');
-      return;
-    }
-
-    setIsLoadingYoutube(true);
-    const apiBaseUrl = getApiBaseUrl();
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/youtube/accounts`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const accounts = data.data?.accounts || [];
-        setYoutubeAccounts(accounts);
-        console.log('✅ Loaded YouTube accounts:', accounts);
-      } else {
-        console.warn('⚠️ Failed to load YouTube accounts:', response.status);
+      // Only set global loading state on a full, initial load
+      if (!platformToReload) {
+        setIsLoadingAccounts(false);
       }
-    } catch (error) {
-      console.error('❌ Error loading YouTube accounts:', error);
-    } finally {
-      setIsLoadingYoutube(false);
     }
   };
 
-  // Sync accounts whenever savedAccounts or youtubeAccounts change
+  // Sync accounts whenever savedAccounts change
   useEffect(() => {
     syncServerAccounts();
-  }, [savedAccounts, youtubeAccounts]);
+  }, [savedAccounts]);
 
   // Auto-load accounts when user is authenticated
   useEffect(() => {
     if (isAuthenticated && user?.token) {
       loadSavedAccounts();
-      loadYoutubeAccounts();
     } else {
       // Clear accounts when not authenticated
       setAccounts([]);
       setSavedAccounts([]);
-      setYoutubeAccounts([]);
       setAccountMappings([]);
     }
   }, [isAuthenticated, user?.token]);
@@ -290,29 +211,24 @@ export const usePlatforms = () => {
   };
 
   const getSavedAccountsByPlatform = (platformId: string) => {
-    if (platformId === 'youtube') {
-      return youtubeAccounts;
-    }
-    
-    return savedAccounts.filter(account => {
-      if (platformId === 'facebook') {
-        return account.platform === 'facebook';
-      } else if (platformId === 'instagram') {
-        return account.platform === 'instagram';
-      }
-      return false;
-    });
+    return savedAccounts.filter(account => account.platform === platformId);
   };
 
   const getConnectedAccounts = () => {
     return accounts.filter(account => account.connected);
   };
 
+  const removeAccountFromState = (socialAccountId: string) => {
+    setSavedAccounts(prevAccounts => 
+      prevAccounts.filter(account => account.id !== socialAccountId)
+    );
+    console.log(`✅ Optimistically removed account ${socialAccountId} from state.`);
+  };
+
   // Clear all data (useful for debugging)
   const clearAllData = () => {
     setAccounts([]);
     setSavedAccounts([]);
-    setYoutubeAccounts([]);
     setAccountMappings([]);
     console.log('🗑️ Cleared all account data');
   };
@@ -321,16 +237,14 @@ export const usePlatforms = () => {
     platforms,
     accounts,
     savedAccounts,
-    youtubeAccounts,
     accountMappings,
     isLoadingAccounts,
-    isLoadingYoutube,
     getAccountsByPlatform,
     getSavedAccountsByPlatform,
     getConnectedAccounts,
     getSocialAccountId,
     loadSavedAccounts,
-    loadYoutubeAccounts,
+    removeAccountFromState,
     clearAllData
   };
 };

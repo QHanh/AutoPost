@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown, CheckSquare, Square } from 'lucide-react';
+import { Sparkles, AlertCircle, CheckCircle, Loader2, Key, ChevronDown, CheckSquare, Square, Wrench } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePersistentState } from '../hooks/useFormPersistence';
 
@@ -305,10 +305,24 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
         <button
           type="button"
           onClick={() => setShowPromptInput(!showPromptInput)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm font-medium"
+          className="
+            flex items-center gap-2
+            px-4 py-2
+            bg-gray-500/80          
+            text-white
+            rounded-lg
+            hover:bg-gray-600         
+            hover:shadow-md
+            transition-all duration-200
+            text-sm font-medium
+            min-w-[220px]
+          "
         >
-          <Sparkles size={16} />
-          Viết lại nội dung thủ công của bạn bằng AI
+          <Wrench size={16} className="opacity-80 shrink-0" />
+          <span className="mx-1 flex-1 text-center">
+            Thiết lập tùy chọn nội dung
+          </span>
+          <ChevronDown size={16} className="opacity-80 shrink-0" />
         </button>
 
         {/* AI Platform Selector */}
@@ -643,7 +657,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onGenera
               ) : (
                 <>
                   <Sparkles size={14} />
-                  Tạo nội dung
+                  Tạo nội dung bằng AI
                 </>
               )}
             </button>

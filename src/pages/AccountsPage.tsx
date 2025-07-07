@@ -9,29 +9,25 @@ interface AccountsPageProps {
   platforms: Platform[];
   accounts: PlatformAccount[];
   savedAccounts: any[];
-  youtubeAccounts: any[];
   isLoadingAccounts: boolean;
-  isLoadingYoutube: boolean;
   getAccountsByPlatform: (platformId: string) => PlatformAccount[];
   getSavedAccountsByPlatform: (platformId: string) => any[];
-  onReloadAccounts: () => void;
-  onReloadYoutube: () => void;
+  onReloadAccounts: (platformId?: string) => void;
+  onAccountDeleted: (socialAccountId: string) => void;
 }
 
 export const AccountsPage: React.FC<AccountsPageProps> = ({
   platforms,
   accounts,
   savedAccounts,
-  youtubeAccounts,
   isLoadingAccounts,
-  isLoadingYoutube,
   getAccountsByPlatform,
   getSavedAccountsByPlatform,
   onReloadAccounts,
-  onReloadYoutube
+  onAccountDeleted,
 }) => {
   const connectedAccounts = accounts.filter(acc => acc.connected);
-  const totalServerAccounts = savedAccounts.length + youtubeAccounts.length;
+  const totalServerAccounts = savedAccounts.length;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -143,8 +139,9 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
               platform={platform}
               accounts={getAccountsByPlatform(platform.id)}
               savedAccounts={getSavedAccountsByPlatform(platform.id)}
-              isLoadingAccounts={platform.id === 'youtube' ? isLoadingYoutube : isLoadingAccounts}
-              onReloadAccounts={platform.id === 'youtube' ? onReloadYoutube : onReloadAccounts}
+              isLoadingAccounts={isLoadingAccounts}
+              onReloadAccounts={() => onReloadAccounts(platform.id)}
+              onAccountDeleted={onAccountDeleted}
             />
           ))}
         </div>

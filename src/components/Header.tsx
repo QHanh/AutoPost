@@ -147,6 +147,35 @@ export const Header: React.FC<HeaderProps> = () => {
                     </span>
                   )} */}
                 </Link>
+
+                {/* User Profile Section */}
+                <div className="flex items-end gap-1 pl-4">
+                  <div className="flex flex-col items-center">
+                    <div className="relative group">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md cursor-pointer">
+                        {user?.full_name?.charAt(0).toUpperCase()}
+                      </div>
+                      {/* Tooltip with email */}
+                      <div className="absolute top-1/2 -translate-y-1/2 left-full ml-3 hidden group-hover:block w-max bg-gray-800 text-white text-xs rounded py-1 px-2 pointer-events-none">
+                        {user?.email}
+                        {/* Tooltip arrow */}
+                        <div className="absolute top-1/2 -translate-y-1/2 right-full w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-gray-800"></div>
+                      </div>
+                    </div>
+                    <div className="text-xs font-medium text-gray-700 mt-1 max-w-[70px] truncate" title={user?.full_name}>
+                      {user?.full_name}
+                    </div>
+                  </div>
+                  
+                  {/* Logout Button */}
+                  <button 
+                    onClick={handleLogout}
+                    className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+                    title="Đăng xuất"
+                  >
+                    <LogOut size={18} />
+                  </button>
+                </div>
               </>
             )}
           </nav>
@@ -169,37 +198,7 @@ export const Header: React.FC<HeaderProps> = () => {
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">
-              {isAuthenticated ? (
-                <>
-                  {/* User Profile Section */}
-                  <div className="flex items-center gap-3">
-                    {/* User Avatar & Info */}
-                    <div className="hidden sm:flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">{user?.full_name}</div>
-                        <div className="text-xs text-gray-500">{user?.email}</div>
-                      </div>
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                        {user?.full_name?.charAt(0).toUpperCase()}
-                      </div>
-                    </div>
-
-                    {/* Mobile Avatar Only */}
-                    <div className="sm:hidden w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                      {user?.full_name?.charAt(0).toUpperCase()}
-                    </div>
-                    
-                    {/* Logout Button */}
-                    <button 
-                      onClick={handleLogout}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
-                      title="Đăng xuất"
-                    >
-                      <LogOut size={20} />
-                    </button>
-                  </div>
-                </>
-              ) : (
+              {!isAuthenticated && (
                 <>
                   {/* Login/Register buttons for non-authenticated users */}
                   <Link

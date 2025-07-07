@@ -18,98 +18,73 @@ interface BackendPost {
 export const usePosts = () => {
   const [publishedPosts, setPublishedPosts] = useState<BackendPost[]>([]);
   const [unpublishedPosts, setUnpublishedPosts] = useState<BackendPost[]>([]);
-  const [isLoadingPublished, setIsLoadingPublished] = useState(false);
-  const [isLoadingUnpublished, setIsLoadingUnpublished] = useState(false);
+  const [isLoadingPublished, setIsLoadingPublished] = useState(true);
+  const [isLoadingUnpublished, setIsLoadingUnpublished] = useState(true);
 
   const { user, isAuthenticated } = useAuth();
 
-  // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL;
   };
 
-  // Load published posts from backend
-  const loadPublishedPosts = useCallback(async () => {
+  const refreshPosts = useCallback(async () => {
     if (!isAuthenticated || !user?.token) {
-      console.log('User not authenticated, skipping published posts load');
+      console.log('User not authenticated, skipping posts load');
+      setPublishedPosts([]);
+      setUnpublishedPosts([]);
+      setIsLoadingPublished(false);
+      setIsLoadingUnpublished(false);
       return;
     }
 
     setIsLoadingPublished(true);
+    setIsLoadingUnpublished(true);
+
     const apiBaseUrl = getApiBaseUrl();
+    const headers = {
+      'accept': 'application/json',
+      'Authorization': `Bearer ${user.token}`
+    };
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/published?skip=0&limit=100`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
+      const [publishedResponse, unpublishedResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/published?skip=0&limit=100`, { headers }),
+        fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/unpublished?skip=0&limit=100`, { headers })
+      ]);
 
-      if (response.ok) {
-        const posts: BackendPost[] = await response.json();
-        setPublishedPosts(posts);
-        console.log('✅ Loaded published posts raw API response:', posts);
+      let newPublishedPosts: BackendPost[] = [];
+      if (publishedResponse.ok) {
+        newPublishedPosts = await publishedResponse.json();
       } else {
-        console.warn('⚠️ Failed to load published posts:', response.status);
+        console.warn('⚠️ Failed to load published posts:', publishedResponse.status);
       }
+
+      let newUnpublishedPosts: BackendPost[] = [];
+      if (unpublishedResponse.ok) {
+        newUnpublishedPosts = await unpublishedResponse.json();
+      } else {
+        console.warn('⚠️ Failed to load unpublished posts:', unpublishedResponse.status);
+      }
+      
+      const publishedIds = new Set(newPublishedPosts.map(p => p.id));
+      const filteredUnpublishedPosts = newUnpublishedPosts.filter(p => !publishedIds.has(p.id));
+
+      setPublishedPosts(newPublishedPosts);
+      setUnpublishedPosts(filteredUnpublishedPosts);
+
     } catch (error) {
-      console.error('❌ Error loading published posts:', error);
+      console.error('❌ Error refreshing posts:', error);
+      setPublishedPosts([]);
+      setUnpublishedPosts([]);
     } finally {
       setIsLoadingPublished(false);
-    }
-  }, [isAuthenticated, user?.token]);
-
-  // Load unpublished posts from backend
-  const loadUnpublishedPosts = useCallback(async () => {
-    if (!isAuthenticated || !user?.token) {
-      console.log('User not authenticated, skipping unpublished posts load');
-      return;
-    }
-
-    setIsLoadingUnpublished(true);
-    const apiBaseUrl = getApiBaseUrl();
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/unpublished?skip=0&limit=100`, {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
-
-      if (response.ok) {
-        const posts: BackendPost[] = await response.json();
-        setUnpublishedPosts(posts);
-        console.log('✅ Loaded unpublished posts raw API response:', posts);
-      } else {
-        console.warn('⚠️ Failed to load unpublished posts:', response.status);
-      }
-    } catch (error) {
-      console.error('❌ Error loading unpublished posts:', error);
-    } finally {
       setIsLoadingUnpublished(false);
     }
   }, [isAuthenticated, user?.token]);
 
-  // Auto-load posts when user is authenticated
   useEffect(() => {
-    if (isAuthenticated && user?.token) {
-      loadPublishedPosts();
-      loadUnpublishedPosts();
-    } else {
-      // Clear posts when not authenticated
-      setPublishedPosts([]);
-      setUnpublishedPosts([]);
-    }
-  }, [isAuthenticated, user?.token, loadPublishedPosts, loadUnpublishedPosts]);
-
-  // Refresh all posts
-  const refreshPosts = async () => {
-    await Promise.all([loadPublishedPosts(), loadUnpublishedPosts()]);
-  };
+    refreshPosts();
+  }, [refreshPosts]);
 
   const updatePost = async (postId: string, data: { preview_content: string, scheduled_at: string }) => {
     if (!isAuthenticated || !user?.token) {
@@ -151,6 +126,25 @@ export const usePosts = () => {
     }
   };
 
+  const retryPost = async (postId: string) => {
+    if (!isAuthenticated || !user?.token) {
+      throw new Error('User not authenticated.');
+    }
+    const apiBaseUrl = getApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/api/v1/scheduled-videos/platform-posts/${postId}/retry`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${user.token}`,
+        'accept': 'application/json'
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to retry post.');
+    }
+    return response.json();
+  };
+
   return {
     publishedPosts,
     unpublishedPosts,
@@ -158,6 +152,7 @@ export const usePosts = () => {
     isLoadingUnpublished,
     refreshPosts,
     updatePost,
-    deletePost
+    deletePost,
+    retryPost
   };
 };

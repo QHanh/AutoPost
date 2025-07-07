@@ -28,14 +28,12 @@ function App() {
     platforms, 
     accounts, 
     savedAccounts,
-    youtubeAccounts,
     isLoadingAccounts,
-    isLoadingYoutube,
     getAccountsByPlatform,
     getSavedAccountsByPlatform,
     getSocialAccountId,
     loadSavedAccounts,
-    loadYoutubeAccounts
+    removeAccountFromState,
   } = usePlatforms();
   
   const { 
@@ -45,7 +43,8 @@ function App() {
     isLoadingUnpublished, 
     refreshPosts,
     updatePost,
-    deletePost
+    deletePost,
+    retryPost
   } = usePosts();
   
   const { isLoading } = useAuth();
@@ -145,6 +144,7 @@ function App() {
                 onRefreshPosts={refreshPosts}
                 onUpdatePost={updatePost}
                 onDeletePost={deletePost}
+                onRetryPost={retryPost}
               />
             </ProtectedRoute>
           } 
@@ -157,13 +157,11 @@ function App() {
                 platforms={platforms}
                 accounts={accounts}
                 savedAccounts={savedAccounts}
-                youtubeAccounts={youtubeAccounts}
                 isLoadingAccounts={isLoadingAccounts}
-                isLoadingYoutube={isLoadingYoutube}
                 getAccountsByPlatform={getAccountsByPlatform}
                 getSavedAccountsByPlatform={getSavedAccountsByPlatform}
-                onReloadAccounts={loadSavedAccounts}
-                onReloadYoutube={loadYoutubeAccounts}
+                onReloadAccounts={(platformId) => loadSavedAccounts(platformId)}
+                onAccountDeleted={removeAccountFromState}
               />
             </ProtectedRoute>
           } 

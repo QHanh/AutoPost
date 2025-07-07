@@ -11,59 +11,46 @@ interface SavedAccount {
   account_id: string;
   is_active: boolean;
   created_at: string;
-}
-
-interface YouTubeAccount {
-  account_id: string;
-  channel_id: string;
-  channel_name: string;
-  is_active: boolean;
-  is_token_valid: boolean;
-  token_expires_at: string;
-  connected_at: string;
-  last_updated: string;
+  thumbnail?: string;
 }
 
 interface PlatformCardProps {
   platform: Platform;
   accounts: PlatformAccount[];
-  savedAccounts: SavedAccount[] | YouTubeAccount[];
+  savedAccounts: SavedAccount[];
   isLoadingAccounts: boolean;
-  onReloadAccounts: () => void;
+  onReloadAccounts: (platformId: string) => void;
+  onAccountDeleted: (socialAccountId: string) => void;
 }
 
 export const PlatformCard: React.FC<PlatformCardProps> = ({
   platform,
-  //accounts,
   savedAccounts,
   isLoadingAccounts,
-  onReloadAccounts
+  onReloadAccounts,
+  onAccountDeleted
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
   const [validationStatus, setValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
   const [validationMessage, setValidationMessage] = useState('');
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
 
   const { user } = useAuth();
-  // const platformAccounts = accounts.filter(acc => acc.platformId === platform.id);
 
   // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL;
   };
 
-  // 🔧 FIXED: Delete account function using correct social_account_id
-  const handleDeleteAccount = async (account: SavedAccount | YouTubeAccount) => {
+  const handleDeleteAccount = async (account: SavedAccount) => {
     if (!user?.token) {
       alert('Vui lòng đăng nhập để xóa tài khoản');
       return;
     }
 
-    // 🔧 FIX: Use correct social_account_id for all platforms
-    // For Facebook/Instagram: use 'id' field as social_account_id (from database)
-    // For YouTube: use 'account_id' field as social_account_id
-    const socialAccountId = 'channel_name' in account ? account.account_id : account.id;
-    const accountName = 'channel_name' in account ? account.channel_name : account.account_name;
+    const socialAccountId = account.id;
+    const accountName = account.account_name;
 
     const confirmMessage = `Bạn có chắc chắn muốn gỡ tài khoản "${accountName}"?`;
     
@@ -83,9 +70,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
 
     try {
       const apiBaseUrl = getApiBaseUrl();
-      let deleteUrl = '';
-     
-      deleteUrl = `${apiBaseUrl}/api/v1/facebook/${socialAccountId}`;
+      const deleteUrl = `${apiBaseUrl}/api/v1/facebook/${socialAccountId}`;
 
       console.log(`🗑️ Deleting account: ${accountName} (social_account_id: ${socialAccountId})`);
       console.log(`🌐 DELETE URL: ${deleteUrl}`);
@@ -103,8 +88,8 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
         setValidationStatus('valid');
         setValidationMessage(`Đã gỡ tài khoản "${accountName}" thành công!`);
         
-        // Reload accounts after successful deletion
-        await onReloadAccounts();
+        // Optimistically remove account from UI
+        onAccountDeleted(socialAccountId);
         
         // Clear success message after 3 seconds
         setTimeout(() => {
@@ -184,33 +169,46 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
         );
 
         if (authWindow) {
-          setTimeout(() => {
-            const checkClosed = setInterval(async () => {
+          let closeCounter = 0;
+          const checkClosed = setInterval(async () => {
+            try {
+              // If we can access .closed and it's true, the window is closed.
               if (authWindow.closed) {
-                clearInterval(checkClosed);
-                setValidationStatus('validating');
-                setValidationMessage('Đang tải lại danh sách tài khoản...');
-
-                try {
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  await onReloadAccounts();
-                  setValidationStatus('valid');
-                  setValidationMessage('Kết nối Facebook thành công!');
-
-                  setTimeout(() => {
-                    setValidationStatus('idle');
-                    setValidationMessage('');
-                  }, 3000);
-                } catch (error) {
-                  setValidationStatus('invalid');
-                  setValidationMessage('Lỗi khi tải lại danh sách tài khoản.');
-                  console.error('Error reloading accounts:', error);
-                } finally {
-                  setIsConnecting(false);
-                }
+                closeCounter++;
               }
-            }, 1000);
-          }, 3000);
+              // If we can access it but it's not closed, reset the counter.
+              // This can happen if the popup navigates back to our domain for some reason.
+              else {
+                closeCounter = 0;
+              }
+            } catch (e) {
+              // A cross-origin error will be thrown when the popup is on facebook.com.
+              // This is expected. We do nothing and let the interval continue checking.
+              // The counter is not incremented, so the success logic won't run prematurely.
+            }
+
+            // Only proceed if we've confirmed the window is closed for 2 consecutive checks
+            if (closeCounter >= 2) {
+              clearInterval(checkClosed);
+              setIsReloading(true);
+              setValidationStatus('validating');
+              setValidationMessage('Đang đồng bộ tài khoản...');
+
+              await new Promise(resolve => setTimeout(resolve, 2500));
+              await onReloadAccounts(platform.id);
+
+              setValidationStatus('valid');
+              setValidationMessage('Kết nối Facebook thành công!');
+              
+              setTimeout(() => {
+                setValidationStatus('idle');
+                setValidationMessage('');
+              }, 3000);
+
+              setIsConnecting(false);
+              setIsReloading(false);
+            }
+          }, 500);
         } else {
           throw new Error('Không thể mở cửa sổ đăng nhập Facebook. Vui lòng kiểm tra popup blocker.');
         }
@@ -268,14 +266,16 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
 
         if (authWindow) {
           const checkClosed = setInterval(async () => {
-            if (authWindow.closed) {
+            if (!authWindow || authWindow.closed) {
               clearInterval(checkClosed);
+              setIsReloading(true); // Use the reloading state for the card message
               setValidationStatus('validating');
               setValidationMessage('Đang tải lại danh sách kênh YouTube...');
               
               try {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                await onReloadAccounts();
+                // Add a slightly longer delay to ensure backend has time to process the callback
+                await new Promise(resolve => setTimeout(resolve, 2500));
+                await onReloadAccounts(platform.id);
                 setValidationStatus('valid');
                 setValidationMessage('Kết nối YouTube thành công!');
                 
@@ -289,9 +289,10 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
                 console.error('Error reloading YouTube accounts:', error);
               } finally {
                 setIsConnecting(false);
+                setIsReloading(false);
               }
             }
-          }, 1000);
+          }, 500);
         } else {
           throw new Error('Không thể mở cửa sổ đăng nhập Google. Vui lòng kiểm tra popup blocker.');
         }
@@ -309,11 +310,12 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
   };
 
   const handleReloadAccounts = async () => {
+    setIsReloading(true);
     setValidationStatus('validating');
     setValidationMessage(`Đang tải lại danh sách ${platform.name}...`);
     
     try {
-      await onReloadAccounts();
+      await onReloadAccounts(platform.id);
       setValidationStatus('valid');
       setValidationMessage('Tải lại thành công!');
       
@@ -325,6 +327,8 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
       setValidationStatus('invalid');
       setValidationMessage(`Lỗi khi tải lại danh sách ${platform.name}.`);
       console.error('Error reloading accounts:', error);
+    } finally {
+      setIsReloading(false);
     }
   };
 
@@ -344,21 +348,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
   };
 
   // Filter saved accounts for current platform
-  const platformSavedAccounts = savedAccounts.filter(acc => {
-    if (platform.id === 'facebook') {
-      return 'platform' in acc && acc.platform === 'facebook';
-    } else if (platform.id === 'instagram') {
-      return 'platform' in acc && acc.platform === 'instagram';
-    } else if (platform.id === 'youtube') {
-      return 'channel_id' in acc; // YouTube accounts have channel_id
-    }
-    return false;
-  });
-
-  // Check if account is YouTube account
-  const isYouTubeAccount = (acc: any): acc is YouTubeAccount => {
-    return 'channel_id' in acc;
-  };
+  const platformSavedAccounts = savedAccounts.filter(acc => acc.platform === platform.id);
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
@@ -395,11 +385,11 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
             {/* Reload Button */}
             <button
               onClick={handleReloadAccounts}
-              disabled={isLoadingAccounts}
+              disabled={isLoadingAccounts || isReloading}
               className="p-2 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={`Reload ${platform.name} accounts from server`}
             >
-              {isLoadingAccounts ? (
+              {isReloading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
               ) : (
                 <RefreshCw size={16} />
@@ -422,29 +412,26 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
           </div>
         </div>
 
-        {/* Loading State */}
-        {isLoadingAccounts && (
+        {/* Loading State - Show on initial load OR local reload */}
+        {(isLoadingAccounts || isReloading) && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 text-blue-700">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-              <span className="text-sm">Đang tải danh sách {platform.name}...</span>
+              <span className="text-sm">Đang tải danh sách tài khoản {platform.name}...</span>
             </div>
           </div>
         )}
 
         {/* 🔥 ONLY Connected Accounts with Delete Functionality */}
-        {platformSavedAccounts.length > 0 && (
+        {platformSavedAccounts.length > 0 && !isReloading && (
           <div className="space-y-3 mb-4">
             <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <CheckCircle size={14} className="text-green-500" />
               Tài khoản đã kết nối ({platformSavedAccounts.length}):
             </h4>
             {platformSavedAccounts.map((account) => {
-              // 🔧 FIXED: Use correct social_account_id for all platforms
-              // Facebook/Instagram: use 'id' field (from database)
-              // YouTube: use 'account_id' field
-              const socialAccountId = isYouTubeAccount(account) ? account.account_id : account.id;
-              const accountName = isYouTubeAccount(account) ? account.channel_name : account.account_name;
+              const socialAccountId = account.id;
+              const accountName = account.account_name;
               const isDeleting = deletingAccountId === socialAccountId;
               
               return (
@@ -473,7 +460,11 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
                   </button>
 
                   <div className="flex items-start gap-3 pr-8">
-                    <span className="text-2xl">{getPlatformIcon()}</span>
+                    {account.thumbnail ? (
+                      <img src={account.thumbnail} alt={accountName} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow" />
+                    ) : (
+                      <span className="text-2xl">{getPlatformIcon(account.platform)}</span>
+                    )}
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -494,29 +485,15 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
                       
                       <div className="text-xs text-gray-600 space-y-1">
                         
-                        {isYouTubeAccount(account) ? (
+                        {account.platform === 'youtube' ? (
                           <>
-                            <div>Channel ID: {account.channel_id}</div>
-                            <div>Connected: {formatDate(account.connected_at)}</div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                              account.is_token_valid 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                              {account.is_token_valid ? '✓ Token hợp lệ' : '✗ Token hết hạn'}
-                            </div>
+                            <div>Channel ID: {account.account_id}</div>
+                            <div>Connected: {formatDate(account.created_at)}</div>
                           </>
                         ) : (
                           <>
                             <div>Account ID: {account.account_id}</div>
-                            <div>Created: {formatDate(account.created_at)}</div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                              account.is_active 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-gray-100 text-gray-700'
-                            }`}>
-                              {account.is_active ? '✓ Hoạt động' : '○ Không hoạt động'}
-                            </div>
+                            <div>Connected: {formatDate(account.created_at)}</div>
                           </>
                         )}
                       </div>
@@ -546,7 +523,7 @@ export const PlatformCard: React.FC<PlatformCardProps> = ({
         )}
 
         {/* Platform Instructions - Simplified */}
-        {platformSavedAccounts.length === 0 && validationStatus === 'idle' && (
+        {!isReloading && platformSavedAccounts.length === 0 && validationStatus === 'idle' && (
           <div className="mt-4 space-y-3 border-t pt-4">
             <div className={`border-2 rounded-lg p-3 ${
               platform.id === 'facebook' 

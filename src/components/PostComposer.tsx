@@ -282,29 +282,41 @@ export const PostComposer: React.FC<PostComposerProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedAccounts.length === connectedAccounts.length) {
+    // 1. Xác định tất cả các lựa chọn khả dụng dựa trên media hiện tại
+    const allPossiblePostTypes: PlatformPostTypes = {};
+    const possibleAccountIds = new Set<string>();
+
+    connectedAccounts.forEach(account => {
+      const selectableTypes = getPostTypesForPlatform(account.platformId)
+        .filter(postType => canSelectPostType(account.id, postType.id))
+        .map(postType => postType.id);
+
+      if (selectableTypes.length > 0) {
+        allPossiblePostTypes[account.id] = selectableTypes;
+        possibleAccountIds.add(account.id);
+      }
+    });
+
+    const allPossibleAccounts = connectedAccounts.filter(acc => possibleAccountIds.has(acc.id));
+
+    // 2. Xác định xem mọi thứ có thể chọn đã được chọn hay chưa
+    const totalPossiblePostTypesCount = Object.values(allPossiblePostTypes).flat().length;
+    const totalCurrentPostTypesCount = Object.values(platformPostTypes).flat().length;
+
+    const isEverythingSelected =
+      allPossibleAccounts.length > 0 &&
+      selectedAccounts.length === allPossibleAccounts.length &&
+      totalCurrentPostTypesCount === totalPossiblePostTypesCount;
+
+    // 3. Chọn hoặc bỏ chọn
+    if (isEverythingSelected) {
+      // Bỏ chọn tất cả
       setSelectedAccounts([]);
       setPlatformPostTypes({});
     } else {
-      setSelectedAccounts([...connectedAccounts]);
-      const newPostTypes: PlatformPostTypes = {};
-      connectedAccounts.forEach(account => {
-        // Automatically select the correct post type for all accounts
-        if (account.platformId === 'youtube') {
-          if (canSelectPostType(account.id, 'youtube')) {
-            newPostTypes[account.id] = ['youtube'];
-          }
-        } else {
-          const defaultTypes = getPostTypesForPlatform(account.platformId);
-          if (defaultTypes.length > 0) {
-            const defaultType = defaultTypes.find(type => !type.requiresVideo) || defaultTypes[0];
-            if (canSelectPostType(account.id, defaultType.id)) {
-              newPostTypes[account.id] = [defaultType.id];
-            }
-          }
-        }
-      });
-      setPlatformPostTypes(newPostTypes);
+      // Chọn tất cả những gì có thể
+      setSelectedAccounts(allPossibleAccounts);
+      setPlatformPostTypes(allPossiblePostTypes);
     }
   };
 
@@ -839,6 +851,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                 onMediaChange={handleMediaChange}
                 maxFiles={10}
               />
+              {instaAspectRatioWarning && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 p-3 rounded-md border border-yellow-200">
+                  <AlertTriangle size={16} />
+                  <span>{instaAspectRatioWarning}</span>
+                </div>
+              )}
             </div>
 
             {/* Account Selection */}
@@ -911,7 +929,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({
                                   isSelected
                                     ? 'border-blue-500 bg-blue-50 shadow-sm'
                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                } ${isDisabled ? 'cursor-not-allowed' : ''}`}
                               >
                                 {account.profileInfo?.profilePicture ? (
                                   <img src={account.profileInfo.profilePicture} alt={account.accountName} className="w-8 h-8 rounded-full object-cover border"/>
