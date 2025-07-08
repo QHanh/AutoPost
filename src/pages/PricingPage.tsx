@@ -22,6 +22,7 @@ interface UserSubscription {
   id: string;
   user_id: string;
   plan: Plan;
+  subscription_plan: Plan;
   start_date: string;
   end_date: string;
   is_active: boolean;
@@ -205,9 +206,9 @@ export const PricingPage: React.FC = () => {
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Chọn gói phù hợp với nhu cầu của bạn. Tất cả gói đều bao gồm lưu trữ đám mây và hỗ trợ AI viết nội dung.
           </p>
-          {isAuthenticated && currentSub && currentSub.plan && (
+          {isAuthenticated && currentSub && currentSub.subscription_plan && (
             <div className="inline-block bg-green-100 text-green-800 rounded-full px-4 py-2">
-              Gói hiện tại của bạn: <span className="font-bold">{currentSub.plan.name}</span>
+              Gói hiện tại của bạn: <span className="font-bold">{currentSub.subscription_plan.name}</span>
               {currentSub.end_date && (
                 <> (Hết hạn: {new Date(currentSub.end_date).toLocaleDateString('vi-VN')})</>
               )}
