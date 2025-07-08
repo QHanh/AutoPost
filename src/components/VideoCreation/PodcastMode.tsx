@@ -36,10 +36,10 @@ export const PodcastMode: React.FC = () => {
   
   // Video Settings
   const [videoSource, setVideoSource] = usePersistentState('videoSource', 'pexels');
-  const [concatenationMode, setConcatenationMode] = usePersistentState('concatenationMode', 'random');
-  const [transitionMode, setTransitionMode] = usePersistentState('transitionMode', 'None');
-  const [aspectRatio, setAspectRatio] = usePersistentState('aspectRatio', '9:16');
-  const [maxSegmentDuration, setMaxSegmentDuration] = usePersistentState('maxSegmentDuration', 5);
+  const [concatenationModePodcast, setConcatenationModePodcast] = usePersistentState('concatenationModePodcast', 'random');
+  const [transitionModePodcast, setTransitionModePodcast] = usePersistentState('transitionModePodcast', 'None');
+  const [aspectRatioPodcast, setAspectRatioPodcast] = usePersistentState('aspectRatioPodcast', '9:16');
+  const [maxSegmentDurationPodcast, setMaxSegmentDurationPodcast] = usePersistentState('maxSegmentDurationPodcast', 5);
   const [concurrentVideos, setConcurrentVideos] = usePersistentState('concurrentVideos', 1);
 
   // Audio Settings
@@ -54,7 +54,7 @@ export const PodcastMode: React.FC = () => {
   const geminiApiKey = savedApiKeys.gemini_api_key;
   // Subtitle Settings
   const [enableSubtitles, setEnableSubtitles] = usePersistentState('enableSubtitles', true);
-  const [subtitleProvider, setSubtitleProvider] = usePersistentState('subtitleProvider', 'edge');  
+  const [subtitleProvider, setSubtitleProvider] = usePersistentState('subtitleProvider', 'whisper_api');  
   const [subtitleFont, setSubtitleFont] = usePersistentState('subtitleFont', 'DancingScript.ttf');
   const [subtitlePosition, setSubtitlePosition] = usePersistentState('subtitlePosition', 'bottom');
   const [customSubtitlePosition, setCustomSubtitlePosition] = usePersistentState('customSubtitlePosition', '70');
@@ -211,8 +211,6 @@ export const PodcastMode: React.FC = () => {
           video_language: scriptPodcastLanguage,
           host1: host1,
           host2: host2,
-          voice1: voice1,
-          voice2: voice2,
           tone: tone,
           gemini_key: geminiApiKey
         })
@@ -345,10 +343,10 @@ export const PodcastMode: React.FC = () => {
         video_dialogue_tts: videoDialogueTts,
         video_dialogue_subtitle: videoDialogueSubtitle,
         video_terms: videoPodcastKeywords,
-        video_aspect: aspectRatio,
-        video_concat_mode: concatenationMode,
-        video_transition_mode: transitionMode === 'None' ? 'None' : transitionMode,
-        video_clip_duration: maxSegmentDuration,
+        video_aspect: aspectRatioPodcast,
+        video_concat_mode: concatenationModePodcast,
+        video_transition_mode: transitionModePodcast === 'None' ? 'None' : transitionModePodcast,
+        video_clip_duration: maxSegmentDurationPodcast,
         video_count: concurrentVideos,
         video_source: videoSource,
         video_materials: [{
@@ -381,7 +379,7 @@ export const PodcastMode: React.FC = () => {
         n_threads: 6,
         paragraph_number: 1,
         gemini_key: geminiApiKey,
-        openai_key: openaiApiKey,
+        openai_key: openaiApiKey
       };
 
       const response = await fetch(`${apiBaseUrl}/api/v1/video-podcast`, {
@@ -764,8 +762,8 @@ export const PodcastMode: React.FC = () => {
               <select
                 id="concatenationMode"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={concatenationMode}
-                onChange={(e) => setConcatenationMode(e.target.value)}
+                value={concatenationModePodcast}
+                onChange={(e) => setConcatenationModePodcast(e.target.value)}
               >
                 <option value="random">Nối ngẫu nhiên (Khuyến nghị)</option>
                 <option value="sequential">Nối theo thứ tự</option>
@@ -780,8 +778,8 @@ export const PodcastMode: React.FC = () => {
               <select
                 id="transitionMode"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={transitionMode}
-                onChange={(e) => setTransitionMode(e.target.value)}
+                value={transitionModePodcast}
+                onChange={(e) => setTransitionModePodcast(e.target.value)}
               >
                 <option value="None">Không có</option>
                 <option value="Shuffle">Ngẫu nhiên</option>
@@ -800,11 +798,12 @@ export const PodcastMode: React.FC = () => {
               <select
                 id="aspectRatio"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={aspectRatio}
-                onChange={(e) => setAspectRatio(e.target.value)}
+                value={aspectRatioPodcast}
+                onChange={(e) => setAspectRatioPodcast(e.target.value)}
               >
                 <option value="9:16">Dọc 9:16</option>
                 <option value="16:9">Ngang 16:9</option>
+                <option value="1:1">Vuông 1:1</option>
               </select>
             </div>
 
@@ -816,8 +815,8 @@ export const PodcastMode: React.FC = () => {
               <select
                 id="maxSegmentDuration"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                value={maxSegmentDuration}
-                onChange={(e) => setMaxSegmentDuration(Number(e.target.value))}
+                value={maxSegmentDurationPodcast}
+                onChange={(e) => setMaxSegmentDurationPodcast(Number(e.target.value))}
               >
                 {[...Array(9)].map((_, i) => (
                   <option key={i + 2} value={i + 2}>
@@ -1046,8 +1045,8 @@ export const PodcastMode: React.FC = () => {
                     value={subtitleProvider}
                     onChange={(e) => setSubtitleProvider(e.target.value)}
                   >
-                    <option value="edge">Dự đoán (Free, Nhanh)</option>
-                    <option value="whisper_api">Open AI API (Mất phí, Nhanh, Cần Api Key)</option>
+                    <option value="edge">Dự đoán (Free, Nhanh, Độ chính xác thấp với Podcast)</option>
+                    <option value="whisper_api">Open AI API (Khuyến nghị, Cần Api Key)</option>
                     <option value="whisper_local">Mô hình Local (Free, Chậm)</option>
                   </select>
                 </div>

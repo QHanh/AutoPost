@@ -22,6 +22,7 @@ import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminPlatforms } from './pages/admin/AdminPlatforms';
 import { AdminPricing } from './pages/admin/AdminPricing';
 import { AdminUserSubscriptions } from './pages/admin/AdminUserSubscriptions';
+import { ChatBot } from './components/ChatBot';
 
 function App() {
   const { 
@@ -175,6 +176,7 @@ function App() {
           } 
         />
       </Routes>
+      <ChatBot />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Star, Zap, Crown, Rocket } from 'lucide-react';
+import { Check, X, Star, Zap, Crown, Rocket, HandCoins } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 // --- TYPE DEFINITIONS ---
@@ -54,29 +54,48 @@ const api = {
 
 const getPlanUIDetails = (planName: string) => {
   switch (planName) {
+    case "Miễn phí":
+      return {
+        icon: <HandCoins className="text-gray-600/70 drop-shadow-[0_0_2px_rgba(0,0,0,0.25)]" size={24} />,
+        color: "border-gray-300",
+        bgColor: "bg-gray-50",
+        textColor: "text-gray-900",
+        buttonColor: "bg-gray-700 text-white hover:bg-gray-800",
+        popular: false,
+      };
     case "Tiết kiệm":
       return {
         icon: <Crown className="text-purple-600" size={24} />,
-        color: "border-purple-500", bgColor: "bg-purple-50", textColor: "text-purple-900",
-        buttonColor: "bg-purple-600 text-white hover:bg-purple-700", popular: true,
+        color: "border-purple-500",
+        bgColor: "bg-purple-50",
+        textColor: "text-purple-900",
+        buttonColor: "bg-purple-600 text-white hover:bg-purple-700",
+        popular: true,
       };
     case "Chuyên nghiệp":
       return {
         icon: <Rocket className="text-green-600" size={24} />,
-        color: "border-green-500", bgColor: "bg-green-50", textColor: "text-green-900",
-        buttonColor: "bg-green-600 text-white hover:bg-green-700", popular: false,
+        color: "border-green-500",
+        bgColor: "bg-green-50",
+        textColor: "text-green-900",
+        buttonColor: "bg-green-600 text-white hover:bg-green-700",
+        popular: false,
       };
     case "Cơ bản":
     default:
       return {
         icon: <Zap className="text-blue-600" size={24} />,
-        color: "border-blue-200", bgColor: "bg-blue-50", textColor: "text-blue-900",
-        buttonColor: "bg-blue-600 text-white hover:bg-blue-700", popular: false,
+        color: "border-blue-200",
+        bgColor: "bg-blue-50",
+        textColor: "text-blue-900",
+        buttonColor: "bg-blue-600 text-white hover:bg-blue-700",
+        popular: false,
       };
   }
 };
 
 const formatPrice = (price: number) => {
+  if (price === 0) return "0đ";
   return `${(price / 1000).toLocaleString('de-DE')}K`;
 };
 
@@ -111,7 +130,10 @@ export const PricingPage: React.FC = () => {
 
         // Add robust check for plans data
         if (plansResponse && Array.isArray(plansResponse.data)) {
-          setPlans(plansResponse.data.filter((p: Plan) => p.is_active));
+          const sortedPlans = plansResponse.data
+            .filter((p: Plan) => p.is_active)
+            .sort((a: Plan, b: Plan) => a.price - b.price);
+          setPlans(sortedPlans);
         } else {
           setPlans([]); // Default to empty array if data is not an array
         }
@@ -217,7 +239,7 @@ export const PricingPage: React.FC = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {plans.filter((plan): plan is Plan => !!plan && typeof plan === 'object' && typeof plan.name === 'string').map((plan) => {
             const uiDetails = getPlanUIDetails(plan.name);
             return (
@@ -235,9 +257,13 @@ export const PricingPage: React.FC = () => {
                 
                 <div className={`${uiDetails.bgColor} p-8 ${uiDetails.popular ? 'pt-12' : ''}`}>
                   <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      {uiDetails.icon}
-                      <h3 className={`text-2xl font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+                    <div className="h-8 mb-4 flex items-center justify-center">
+                      <div className="relative">
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
+                          {uiDetails.icon}
+                        </div>
+                        <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+                      </div>
                     </div>
                     
                     <div className="mb-4">
@@ -270,7 +296,7 @@ export const PricingPage: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
           {/* Table Header */}
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-            <div className={`grid grid-cols-${plans.length + 1} gap-0`}>
+            <div className="grid grid-cols-5 gap-0">
               <div className="p-6 border-r border-gray-200">
                 <div className="flex items-center gap-2">
                   <Star className="text-gray-600" size={20} />
@@ -293,7 +319,7 @@ export const PricingPage: React.FC = () => {
 
           {/* Features Rows */}
           {featureRows.map((feature, featureIndex) => (
-            <div key={featureIndex} className={`grid grid-cols-${plans.length + 1} gap-0 ${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}>
+            <div key={featureIndex} className={`grid grid-cols-5 gap-0 ${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}>
               <div className="p-4 border-r border-gray-200 flex items-center">
                 <div>
                   <div className="font-semibold text-gray-900 flex items-center gap-2">

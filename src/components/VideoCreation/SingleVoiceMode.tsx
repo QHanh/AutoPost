@@ -249,7 +249,8 @@ export const SingleVoiceMode: React.FC = () => {
       // Map UI values to API values
       const aspectRatioMap: { [key: string]: string } = {
         'Dọc 9:16': '9:16',
-        'Ngang 16:9': '16:9'
+        'Ngang 16:9': '16:9',
+        'Vuông 1:1': '1:1'
       };
 
       const concatModeMap: { [key: string]: string } = {
@@ -566,6 +567,7 @@ export const SingleVoiceMode: React.FC = () => {
               >
                 <option value="Dọc 9:16">Dọc 9:16</option>
                 <option value="Ngang 16:9">Ngang 16:9</option>
+                <option value="Vuông 1:1">Vuông 1:1</option>
               </select>
             </div>
 
