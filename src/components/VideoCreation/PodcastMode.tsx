@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Video, Volume2, Type, Loader2, Users, Edit3, Trash2, Maximize2, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useVideoProgress, VideoProgressDisplay, VideoGallery, ColorPicker, getApiBaseUrl } from './VideoCreationShared';
 import { useApiKeys } from '../../hooks/useApiKeys';
 import { usePersistentState } from '../../hooks/useFormPersistence';
@@ -278,9 +279,8 @@ export const PodcastMode: React.FC = () => {
           video_language: scriptPodcastLanguage,
           host1: host1,
           host2: host2,
-          voice1: voice1,
-          voice2: voice2,
-          tone: tone
+          tone: tone,
+          gemini_key: geminiApiKey
         })
       });
 
@@ -301,7 +301,8 @@ export const PodcastMode: React.FC = () => {
         body: JSON.stringify({
           video_subject: videoPodcastTopic,
           video_script: videoPodcastScript,
-          amount: 5
+          amount: 5,
+          gemini_key: geminiApiKey
         })
       });
 
@@ -418,6 +419,14 @@ export const PodcastMode: React.FC = () => {
           </div>
         </div>
 
+        {!savedApiKeys.gemini_api_key && (
+            <div className="mb-6 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                Chức năng này chỉ sử dụng Gemini API. Bạn cần cấu hình <b>Gemini API Key</b> trong trang
+                <Link to="/accounts" className="font-bold underline ml-1">Cấu hình </Link>
+                để sử dụng.
+            </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left side */}
           <div className="space-y-6">
@@ -484,7 +493,7 @@ export const PodcastMode: React.FC = () => {
               {/* Button 1: Generate all */}
               <button 
                 onClick={handleGenerateAll}
-                disabled={isGeneratingAll}
+                disabled={isGeneratingAll || !geminiApiKey}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {isGeneratingAll ? (
@@ -566,7 +575,7 @@ export const PodcastMode: React.FC = () => {
             <div>
               <button 
                 onClick={handleGenerateDialogueAndKeywords}
-                disabled={isGeneratingDialogueKeywords}
+                disabled={isGeneratingDialogueKeywords || !geminiApiKey}
                 className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {isGeneratingDialogueKeywords ? (

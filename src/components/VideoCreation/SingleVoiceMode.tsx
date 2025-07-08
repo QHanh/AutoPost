@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Video, Volume2, Type, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useVideoProgress, VideoProgressDisplay, VideoGallery, ColorPicker, ExpandableTextarea, getApiBaseUrl } from './VideoCreationShared';
 import { useApiKeys } from '../../hooks/useApiKeys';
 import { usePersistentState } from '../../hooks/useFormPersistence';
 export const SingleVoiceMode: React.FC = () => {
   const { savedApiKeys } = useApiKeys();
+  const [selectedAiProvider, setSelectedAiProvider] = usePersistentState('aiProvider', 'gemini');
+
   // Form state
   const [videoTopic, setVideoTopic] = useState(() => sessionStorage.getItem('videoTopic') || '');
   const [scriptLanguage, setScriptLanguage] = usePersistentState('scriptLanguage', 'Tiếng Việt');
@@ -22,8 +25,8 @@ export const SingleVoiceMode: React.FC = () => {
   // Audio Settings
   const [ttsServer, setTtsServer] = usePersistentState('ttsServer', 'azure_tts_v1');
   const [ttsVoice, setTtsVoice] = usePersistentState('ttsVoice', 'vi-VN-HoaiMyNeural');
-  // const [geminiApiKey, setGeminiApiKey] = useState('');
   const geminiApiKey = savedApiKeys.gemini_api_key;
+  const openaiApiKey = savedApiKeys.openai_api_key;
   const [azureRegion, setAzureRegion] = usePersistentState('azureRegion', '');
   const [azureApiKey, setAzureApiKey] = usePersistentState('azureApiKey', ''); 
   const [voiceVolume, setVoiceVolume] = usePersistentState('voiceVolume', 1.0);
@@ -34,8 +37,6 @@ export const SingleVoiceMode: React.FC = () => {
   // Subtitle Settings
   const [enableSubtitles, setEnableSubtitles] = usePersistentState('enableSubtitles', true);
   const [subtitleProvider, setSubtitleProvider] = usePersistentState('subtitleProvider', 'edge');
-  // const [openaiApiKey, setOpenaiApiKey] = useState('');
-  const openaiApiKey = savedApiKeys.openai_api_key;
   const [subtitleFont, setSubtitleFont] = usePersistentState('subtitleFont', 'DancingScript.ttf');
   const [subtitlePosition, setSubtitlePosition] = usePersistentState('subtitlePosition', 'Dưới (Recommend)');
   const [customSubtitlePosition, setCustomSubtitlePosition] = usePersistentState('customSubtitlePosition', '0.0');
@@ -58,6 +59,15 @@ export const SingleVoiceMode: React.FC = () => {
     sessionStorage.setItem('videoScript', videoScript);
     sessionStorage.setItem('videoKeywords', videoKeywords);
   }, [videoTopic, videoScript, videoKeywords]);
+
+  useEffect(() => {
+    // Set a default AI provider based on available keys
+    if (savedApiKeys.gemini_api_key) {
+      setSelectedAiProvider('gemini');
+    } else if (savedApiKeys.openai_api_key) {
+      setSelectedAiProvider('openai');
+    }
+  }, [savedApiKeys, setSelectedAiProvider]);
 
   const getVoiceOptions = () => {
     if (ttsServer === 'azure_tts_v1') {
@@ -144,8 +154,9 @@ export const SingleVoiceMode: React.FC = () => {
           video_subject: videoTopic,
           video_language: scriptLanguage === 'Tiếng Việt' ? 'Vietnamese' : 'English',
           paragraph_number: 1,
-          gemini_key: geminiApiKey,
-          openai_key: openaiApiKey
+          gemini_key: selectedAiProvider === 'gemini' ? geminiApiKey : null,
+          openai_key: selectedAiProvider === 'openai' ? openaiApiKey : null,
+          llm_provider: selectedAiProvider
         })
       });
 
@@ -164,8 +175,9 @@ export const SingleVoiceMode: React.FC = () => {
             video_subject: videoTopic,
             video_script: generatedScript,
             amount: 5,
-            gemini_key: geminiApiKey,
-            openai_key: openaiApiKey
+            gemini_key: selectedAiProvider === 'gemini' ? geminiApiKey : null,
+            openai_key: selectedAiProvider === 'openai' ? openaiApiKey : null,
+            llm_provider: selectedAiProvider
           })
         });
 
@@ -203,7 +215,10 @@ export const SingleVoiceMode: React.FC = () => {
         body: JSON.stringify({
           video_subject: videoTopic,
           video_script: videoScript,
-          amount: 5
+          amount: 5,
+          gemini_key: selectedAiProvider === 'gemini' ? geminiApiKey : null,
+          openai_key: selectedAiProvider === 'openai' ? openaiApiKey : null,
+          llm_provider: selectedAiProvider
         })
       });
 
@@ -335,6 +350,44 @@ export const SingleVoiceMode: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900">Cài đặt kịch bản video</h2>
               <p className="text-gray-600 text-sm">Tạo nội dung video với AI</p>
             </div>
+          </div>
+
+          {/* AI Provider Switch */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tạo nội dung bằng AI
+            </label>
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => setSelectedAiProvider('gemini')}
+                disabled={!savedApiKeys.gemini_api_key}
+                className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-all duration-300 ${
+                  selectedAiProvider === 'gemini'
+                    ? 'bg-white text-blue-600 shadow'
+                    : 'text-gray-500 hover:bg-gray-200'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                ✨ Gemini
+              </button>
+              <button
+                onClick={() => setSelectedAiProvider('openai')}
+                disabled={!savedApiKeys.openai_api_key}
+                className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-all duration-300 ${
+                  selectedAiProvider === 'openai'
+                    ? 'bg-white text-purple-600 shadow'
+                    : 'text-gray-500 hover:bg-gray-200'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                🧠 OpenAI
+              </button>
+            </div>
+            {!savedApiKeys.gemini_api_key && !savedApiKeys.openai_api_key && (
+              <div className="mt-3 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                Bạn cần cấu hình API Key (Gemini hoặc OpenAI) trong trang
+                <Link to="/accounts" className="font-bold underline ml-1">Cấu hình </Link>
+                 để sử dụng chức năng này.
+              </div>
+            )}
           </div>
 
           {/* Chủ Đề Video */}
@@ -605,22 +658,13 @@ export const SingleVoiceMode: React.FC = () => {
                   </select>
                 </div>
 
-                {/*Open AI API Key*/}
-                {/* {subtitleProvider === 'whisper_api' && (
-                  <div>
-                    <label htmlFor="openaiApiKey" className="block text-sm font-medium text-gray-700 mb-2">
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      id="openaiApiKey"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Nhập API Key của bạn"
-                      value={openaiApiKey}
-                      onChange={(e) => setOpenaiApiKey(e.target.value)}
-                    />
+                {subtitleProvider === 'whisper_api' && !savedApiKeys.openai_api_key && (
+                  <div className="mt-3 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                    Bạn cần cấu hình <b>OpenAI API Key</b> trong trang
+                    <Link to="/accounts" className="font-bold underline ml-1">Cấu hình </Link>
+                     để sử dụng chức năng này.
                   </div>
-                )} */}
+                )}
 
                 {/* Kiểu phụ đề */}
                 <div>
@@ -800,24 +844,14 @@ export const SingleVoiceMode: React.FC = () => {
               </select>
             </div>
             
-            {/* Gemini 2.5 Flash TTS specific inputs */}
-            {/* {ttsServer === 'gemini' && (
-              <>
-                <div>
-                  <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-700 mb-2">
-                    Gemini API Key
-                  </label>
-                  <input
-                    type="password"
-                    id="geminiApiKey"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Nhập API Key của bạn"
-                    value={geminiApiKey}
-                    onChange={(e) => setGeminiApiKey(e.target.value)}
-                  />
-                </div>
-              </>
-            )} */}
+            {ttsServer === 'gemini' && !savedApiKeys.gemini_api_key && (
+              <div className="mt-3 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                Bạn cần cấu hình <b>Gemini API Key</b> trong trang
+                <Link to="/accounts" className="font-bold underline ml-1">Cấu hình </Link>
+                 để sử dụng chức năng này.
+              </div>
+            )}
+
             {/* Azure TTS V2 specific inputs */}
             {ttsServer === 'azure_tts_v2' && (
               <>
