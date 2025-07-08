@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApiKeys } from '../hooks/useApiKeys';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { MessageSquare, X, Send, Bot, User, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User, Loader2, Key } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface Message {
   role: 'user' | 'model';
@@ -13,26 +14,38 @@ export const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { savedApiKeys } = useApiKeys();
+  const { savedApiKeys, reloadApiKeys } = useApiKeys();
   const genAI = useRef<GoogleGenerativeAI | null>(null);
   const chat = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasApiKey = !!savedApiKeys.gemini_api_key;
 
   useEffect(() => {
-    if (savedApiKeys.gemini_api_key) {
+    if (hasApiKey) {
       genAI.current = new GoogleGenerativeAI(savedApiKeys.gemini_api_key);
-      chat.current = genAI.current.getGenerativeModel({ model: "gemini-1.5-flash-latest" }).startChat();
+      chat.current = genAI.current.getGenerativeModel({ model: "gemini-2.0-flash" }).startChat();
     }
-  }, [savedApiKeys.gemini_api_key]);
+  }, [hasApiKey, savedApiKeys.gemini_api_key]);
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const handleApiKeyUpdate = () => {
+      reloadApiKeys();
+    };
+
+    window.addEventListener('apiKeysUpdated', handleApiKeyUpdate);
+
+    return () => {
+      window.removeEventListener('apiKeysUpdated', handleApiKeyUpdate);
+    };
+  }, [reloadApiKeys]);
 
   const handleSend = async () => {
-    if (!input.trim() || !chat.current || isLoading) return;
+    if (!input.trim() || !chat.current || isLoading || !hasApiKey) return;
 
     const userInput: Message = { role: 'user', text: input };
     setMessages(prev => [...prev, userInput]);
@@ -58,15 +71,11 @@ export const ChatBot: React.FC = () => {
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
-    if (!isOpen && messages.length === 0) {
-      // Add initial greeting message
+    // Only add greeting if opening, has API key, and chat is empty
+    if (!isOpen && hasApiKey && messages.length === 0) {
       setMessages([{ role: 'model', text: 'Chào bạn! Tôi có thể giúp gì cho bạn hôm nay?' }]);
     }
   };
-  
-  if (!savedApiKeys.gemini_api_key) {
-    return null; // Don't render chatbot if no API key
-  }
 
   return (
     <>
@@ -93,47 +102,66 @@ export const ChatBot: React.FC = () => {
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                  {msg.role === 'model' && <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0"><Bot size={20} /></div>}
-                  <div className={`px-4 py-2 rounded-2xl max-w-xs break-words ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`}>
-                    {msg.text}
-                  </div>
-                  {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0"><User size={20} /></div>}
+          {!hasApiKey ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gray-50">
+              <Key className="text-yellow-500 mb-4" size={48} />
+              <h4 className="font-bold text-lg text-gray-800 mb-2">Chưa cấu hình API Key</h4>
+              <p className="text-gray-600 mb-6">
+                Bạn cần thiết lập API Key của Gemini để sử dụng chức năng này.
+              </p>
+              <Link 
+                to="/accounts"
+                onClick={() => setIsOpen(false)}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Đi đến trang Cấu hình
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Messages */}
+              <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+                <div className="space-y-4">
+                  {messages.map((msg, index) => (
+                    <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                      {msg.role === 'model' && <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0"><Bot size={20} /></div>}
+                      <div className={`px-4 py-2 rounded-2xl max-w-xs break-words ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`}>
+                        {msg.text}
+                      </div>
+                      {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0"><User size={20} /></div>}
+                    </div>
+                  ))}
+                  {isLoading && (
+                     <div className="flex items-start gap-3">
+                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0"><Bot size={20} /></div>
+                       <div className="px-4 py-2 rounded-2xl bg-white text-gray-800 border rounded-bl-none">
+                         <Loader2 className="animate-spin" size={20} />
+                       </div>
+                     </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              ))}
-              {isLoading && (
-                 <div className="flex items-start gap-3">
-                   <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0"><Bot size={20} /></div>
-                   <div className="px-4 py-2 rounded-2xl bg-white text-gray-800 border rounded-bl-none">
-                     <Loader2 className="animate-spin" size={20} />
-                   </div>
-                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
+              </div>
 
-          {/* Input */}
-          <div className="p-4 border-t bg-white rounded-b-2xl">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Nhập câu hỏi..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                disabled={isLoading}
-              />
-              <button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shrink-0 disabled:opacity-50">
-                <Send size={20} />
-              </button>
-            </div>
-          </div>
+              {/* Input */}
+              <div className="p-4 border-t bg-white rounded-b-2xl">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Nhập câu hỏi..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    disabled={isLoading}
+                  />
+                  <button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shrink-0 disabled:opacity-50">
+                    <Send size={20} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>

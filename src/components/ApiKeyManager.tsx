@@ -48,6 +48,7 @@ export const ApiKeyManager: React.FC = () => {
       if (response.ok) {
         setSavedApiKeys(apiKeys);
         setMessage({ type: 'success', text: 'API keys đã được lưu thành công!' });
+        window.dispatchEvent(new Event('apiKeysUpdated'));
         setTimeout(() => setMessage(null), 1000);
       } else {
         const errorData = await response.json();
@@ -94,6 +95,7 @@ export const ApiKeyManager: React.FC = () => {
         setApiKeys(emptyKeys);
         setSavedApiKeys(emptyKeys);
         setMessage({ type: 'success', text: 'API keys đã được xóa thành công!' });
+        window.dispatchEvent(new Event('apiKeysUpdated'));
         setTimeout(() => setMessage(null), 3000);
       } else {
         const errorData = await response.json();
