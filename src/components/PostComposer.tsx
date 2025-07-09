@@ -473,12 +473,12 @@ export const PostComposer: React.FC<PostComposerProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to schedule posts`);
+        throw new Error(errorData.message || `Lỗi quá thời gian, có thể do File media quá lớn. Bài đăng của bạn vẫn đang được xử lý, xin hãy đợi một chút rồi ấn Reload lại phần Lịch sử bài đăng.`);
       }
 
       setSchedulingStatus({ 
         type: 'success', 
-        message: `Đã lên lịch thành công ${platformSpecificData.length} bài đăng` 
+        message: `Đã lên thành công ${platformSpecificData.length} bài đăng` 
       });
 
       // Reset form on success
