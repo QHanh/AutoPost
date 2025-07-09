@@ -24,7 +24,13 @@ export const ChatBot: React.FC = () => {
   useEffect(() => {
     if (hasApiKey) {
       genAI.current = new GoogleGenerativeAI(savedApiKeys.gemini_api_key);
-      chat.current = genAI.current.getGenerativeModel({ model: "gemini-2.0-flash" }).startChat();
+      const SYSTEM_PROMPT = `
+        Bạn là trợ lý AI nói tiếng Việt thân thiện. 
+        Hãy trả lời ngắn gọn, súc tích, kèm ví dụ khi cần.
+        `;
+      chat.current = genAI.current.getGenerativeModel({ model: "gemini-2.0-flash" }).startChat(
+        {systemInstruction: {role: "system", parts: [{ text: SYSTEM_PROMPT }]}, history: []}
+      );
     }
   }, [hasApiKey, savedApiKeys.gemini_api_key]);
   

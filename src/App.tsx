@@ -23,6 +23,7 @@ import { AdminPlatforms } from './pages/admin/AdminPlatforms';
 import { AdminPricing } from './pages/admin/AdminPricing';
 import { AdminUserSubscriptions } from './pages/admin/AdminUserSubscriptions';
 import { ChatBot } from './components/ChatBot';
+import { ZaloButton } from './components/ZaloButton';
 
 function App() {
   const { 
@@ -176,6 +177,7 @@ function App() {
           } 
         />
       </Routes>
+      <ZaloButton />
       <ChatBot />
     </div>
   );
