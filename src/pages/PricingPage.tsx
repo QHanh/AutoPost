@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Star, Zap, Crown, Rocket, HandCoins } from 'lucide-react';
+import { Check, X, Star, Zap, Crown, Rocket, Gift } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 // --- TYPE DEFINITIONS ---
@@ -54,9 +54,9 @@ const api = {
 
 const getPlanUIDetails = (planName: string) => {
   switch (planName) {
-    case "Miễn phí":
+    case "Dùng thử (Free)":
       return {
-        icon: <HandCoins className="text-gray-600/70 drop-shadow-[0_0_2px_rgba(0,0,0,0.25)]" size={24} />,
+        icon: <Gift className="text-pink-600/70 drop-shadow-[0_0_2px_rgba(0,0,0,0.25)]" size={24} />,
         color: "border-gray-300",
         bgColor: "bg-gray-50",
         textColor: "text-gray-900",

@@ -70,7 +70,7 @@ export const useAuth = () => {
           email: email.trim(),
           password: password,
           full_name: full_name.trim(),
-          subscription_id: "06b38e62-48ee-4122-b618-e27b910693c4"
+          subscription_id: "ec0d1a97-85c6-4954-9948-0d8b1c71ecf3"
           //role: 'user'
         })
       });

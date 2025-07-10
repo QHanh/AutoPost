@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApiKeys } from '../hooks/useApiKeys';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { MessageSquare, X, Send, Bot, User, Loader2, Key, RefreshCw, Users, BrainCircuit } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User as UserIcon, Loader2, Key, RefreshCw, Users, BrainCircuit } from 'lucide-react'; // Renamed User to avoid conflict
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -9,6 +9,8 @@ interface Message {
   role: 'user' | 'model';
   text: string;
 }
+
+// We no longer need a local User interface, as we will bypass the type check.
 
 type ChatMode = 'ai' | 'live';
 
@@ -57,7 +59,7 @@ export const ChatBot: React.FC = () => {
         Bạn là trợ lý AI nói tiếng Việt thân thiện. 
         Hãy trả lời ngắn gọn, súc tích, kèm ví dụ khi cần.
         `;
-      chat.current = genAI.current.getGenerativeModel({ model: "gemini-1.5-flash-latest" }).startChat(
+      chat.current = genAI.current.getGenerativeModel({ model: "gemini-2.0-flash" }).startChat(
         {systemInstruction: {role: "system", parts: [{ text: SYSTEM_PROMPT }]}, history: []}
       );
     }
@@ -104,12 +106,13 @@ export const ChatBot: React.FC = () => {
     } else { // Live chat mode
       setLiveMessages(prev => [...prev, userInput]);
       try {
-        await fetch('https://workflow.doiquanai.vn/webhook-test/autopost', {
+        await fetch('https://workflow.doiquanai.vn/webhook/autopost', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: user?.email || 'Anonymous',
-            message: input
+            email: user?.email || 'Anonymous',
+            message: input,
+            access_token: (user as any)?.token || ''
           })
         });
         // We don't expect a reply from the webhook, so we don't add a model message here.
@@ -164,7 +167,7 @@ export const ChatBot: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {mode === 'ai' && !hasApiKey ? (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gray-50">
                 <Key className="text-yellow-500 mb-4" size={48} />
@@ -182,7 +185,7 @@ export const ChatBot: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="flex-1 p-4 overflow-y-auto bg-gray-50 min-h-0">
+                <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
                   <div className="space-y-4">
                     {messagesToDisplay.map((msg, index) => (
                       <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
@@ -194,7 +197,7 @@ export const ChatBot: React.FC = () => {
                         <div className={`px-4 py-2 rounded-2xl max-w-xs break-words shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`}>
                           {msg.text}
                         </div>
-                        {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0"><User size={20} /></div>}
+                        {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0"><UserIcon size={20} /></div>}
                       </div>
                     ))}
                     {isLoading && (
