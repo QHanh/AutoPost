@@ -39,17 +39,42 @@ const api = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || ''}${url}`, { headers });
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}${url}`, { headers });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(errorData.message || 'An unknown error occurred');
+      throw new Error(errorData.detail || errorData.message || 'An unknown error occurred');
     }
 
     const data = await response.json();
     return { data };
   },
+
+  post: async <T, U>(url: string, body: U, token?: string | null): Promise<{ data: T; status: number }> => {
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}${url}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+    });
+
+    const responseData = await response.json().catch(() => null);
+
+    if (response.status !== 201) {
+        const errorMessage = responseData?.detail || responseData?.message || `Lỗi máy chủ: ${response.statusText}`;
+        throw new Error(errorMessage);
+    }
+    
+    return { data: responseData, status: response.status };
+  },
 };
+
 
 // --- UI HELPER FUNCTIONS ---
 
@@ -101,10 +126,10 @@ const formatPrice = (price: number) => {
 };
 
 const formatDuration = (plan: Plan) => {
-  if (plan.name === 'Chuyên nghiệp') return '/ năm';
-  if (plan.duration_days >= 90) return `/ ${plan.duration_days / 30} tháng`;
-  if (plan.duration_days >= 30) return '/ tháng';
-  return `/ ${plan.duration_days} ngày`;
+  if (plan?.name === 'Chuyên nghiệp') return '/ năm';
+  if (plan?.duration_days >= 90) return `/ ${plan.duration_days / 30} tháng`;
+  if (plan?.duration_days >= 30) return '/ tháng';
+  return `/ ${plan?.duration_days || 0} ngày`;
 };
 
 
@@ -115,9 +140,11 @@ export const PricingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State để quản lý modal QR
+  // State để quản lý modal QR và trạng thái đang đăng ký
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [isSubscribing, setIsSubscribing] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,11 +162,12 @@ export const PricingPage: React.FC = () => {
 
         if (plansResponse && Array.isArray(plansResponse.data)) {
           const sortedPlans = plansResponse.data
-            .filter((p: Plan) => p.is_active)
-            .sort((a: Plan, b: Plan) => a.price - b.price);
+            .filter((p: Plan) => p && p.is_active)
+            .sort((a: Plan, b: Plan) => (a.price || 0) - (b.price || 0));
           setPlans(sortedPlans);
         } else {
-          setPlans([]);
+          // If response is not as expected, set an error to inform the user.
+          throw new Error("Dữ liệu bảng giá trả về không hợp lệ.");
         }
         
         if (currentSubResponse && currentSubResponse.data && currentSubResponse.data.id) {
@@ -148,7 +176,7 @@ export const PricingPage: React.FC = () => {
         
       } catch (err: any) {
         setError(err.message || "Không thể tải dữ liệu bảng giá.");
-        console.error(err);
+        console.error("Lỗi khi tải dữ liệu:", err);
       } finally {
         setLoading(false);
       }
@@ -156,23 +184,77 @@ export const PricingPage: React.FC = () => {
     fetchData();
   }, [isAuthenticated]);
 
-  // Hàm xử lý khi nhấn nút "Chọn gói này"
-  const handleSelectPlan = (plan: Plan) => {
+  // --- UPDATED: Hàm xử lý khi nhấn nút "Chọn gói này" ---
+  const handleSelectPlan = async (plan: Plan) => {
+    const token = localStorage.getItem('auth_token');
+
+    // 1. Kiểm tra xem người dùng đã đăng nhập chưa
+    if (!isAuthenticated || !token) {
+        Swal.fire({
+            title: 'Yêu cầu đăng nhập',
+            text: 'Bạn cần đăng nhập hoặc đăng ký để chọn gói cước.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Đăng nhập',
+            cancelButtonText: 'Để sau',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Chuyển hướng đến trang đăng nhập
+                window.location.href = '/login';
+            }
+        });
+        return; // Dừng hàm tại đây
+    }
+
+    // Logic cho gói miễn phí không thay đổi
     if (plan.price === 0) {
-      Swal.fire({
-        title: 'Gói Miễn phí',
-        text: 'Bạn không cần thanh toán cho gói miễn phí.',
-        icon: 'info',
-        confirmButtonText: 'Đã hiểu'
-      });
+      Swal.fire('Gói Miễn phí', 'Bạn không cần thanh toán cho gói miễn phí.', 'info');
       return;
     }
-    setSelectedPlan(plan);
-    setIsQrModalOpen(true);
+
+    // 2. Hiển thị hộp thoại xác nhận trước khi gửi API
+    const confirmation = await Swal.fire({
+        title: 'Xác nhận chọn gói',
+        html: `Bạn có chắc chắn muốn đăng ký <b>Gói ${plan.name}</b> không?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        reverseButtons: true
+    });
+
+    // 3. Nếu người dùng xác nhận, mới tiến hành gửi API
+    if (confirmation.isConfirmed) {
+        setIsSubscribing(plan.id);
+        try {
+          // Gửi yêu cầu đăng ký đến backend
+          const response = await api.post(
+            '/api/v1/subscriptions',
+            { subscription_id: plan.id },
+            token
+          );
+
+          // Nếu thành công (status 201), hiển thị modal QR
+          if (response.status === 201) {
+            setSelectedPlan(plan);
+            setIsQrModalOpen(true);
+          }
+        } catch (err: any) {
+          // Hiển thị lỗi nếu API thất bại
+          Swal.fire({
+            title: 'Đăng ký thất bại',
+            text: err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại sau.',
+            icon: 'error',
+          });
+        } finally {
+          setIsSubscribing(null); // Dừng trạng thái loading
+        }
+    }
   };
 
   const featureRows = [
-    { name: "🔥 Giá bán", getValue: (p: Plan) => formatPrice(p.price), getNote: (p: Plan) => p.description.split(', ')[1] || null },
+    { name: "🔥 Giá bán", getValue: (p: Plan) => formatPrice(p.price), getNote: (p: Plan) => p.description?.split(', ')[1] || null },
     { name: "📅 Số video/ngày", getValue: (p: Plan) => p.max_videos_per_day },
     { name: "📋 Lên lịch trước tối đa", getValue: (p: Plan) => `${p.max_scheduled_days} ngày` },
     { name: "💾 Số video có thể lưu cùng lúc", getValue: (p: Plan) => p.max_stored_videos },
@@ -224,15 +306,6 @@ export const PricingPage: React.FC = () => {
     return <div className="flex justify-center items-center min-h-screen text-red-500">{error}</div>;
   }
 
-  if (!plans || plans.length === 0) {
-    return (
-      <div className="flex flex-col justify-center items-center min-h-screen">
-        <h2 className="text-2xl font-bold text-gray-700 mb-4">Không có gói cước nào</h2>
-        <p className="text-gray-500">Hiện tại không có gói cước nào để hiển thị. Vui lòng quay lại sau.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -253,10 +326,10 @@ export const PricingPage: React.FC = () => {
             </div>
           )}
         </div>
-
+        
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {plans.filter((plan): plan is Plan => !!plan && typeof plan === 'object' && typeof plan.name === 'string').map((plan) => {
+          {plans.map((plan) => {
             const uiDetails = getPlanUIDetails(plan.name);
             return (
               <div
@@ -278,7 +351,7 @@ export const PricingPage: React.FC = () => {
                         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
                           {uiDetails.icon}
                         </div>
-                        <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+                        <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name?.toUpperCase()}</h3>
                       </div>
                     </div>
                     
@@ -288,20 +361,22 @@ export const PricingPage: React.FC = () => {
                     </div>
                     
                     <div className="h-8">
-                      {(plan.description && plan.description.split(', ')[1]) ? (
+                      {(plan.description?.split(', ')[1]) ? (
                         <div className="text-purple-600 font-bold mb-2 bg-purple-100 rounded-full px-3 py-1 inline-block text-sm">
                           {plan.description.split(', ')[1]}
                         </div>
                       ) : null}
                     </div>
                     <p className="text-gray-600 mb-6 h-10">
-                      {plan.description ? plan.description.split(', ')[0] : ''}
+                      {plan.description?.split(', ')[0] || ''}
                     </p>
                     
                     <button 
                       onClick={() => handleSelectPlan(plan)}
-                      className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor}`}>
-                      Chọn gói này
+                      disabled={isSubscribing === plan.id || (!!currentSub && currentSub.subscription_plan?.id === plan.id)}
+                      className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
+                    >
+                      {isSubscribing === plan.id ? 'Đang xử lý...' : (currentSub && currentSub.subscription_plan?.id === plan.id ? 'Gói hiện tại' : 'Chọn gói này')}
                     </button>
                   </div>
                 </div>
@@ -309,66 +384,66 @@ export const PricingPage: React.FC = () => {
             );
           })}
         </div>
-
+        
         {/* Detailed Comparison Table */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-          {/* Table Header */}
-          <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-            <div className="grid grid-cols-5 gap-0">
-              <div className="p-6 border-r border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Star className="text-gray-600" size={20} />
-                  <h3 className="text-lg font-bold text-gray-900">TÍNH NĂNG</h3>
+        {plans && plans.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+            {/* Table Header */}
+            <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+              <div className="grid grid-cols-5 gap-0">
+                <div className="p-6 border-r border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Star className="text-gray-600" size={20} />
+                    <h3 className="text-lg font-bold text-gray-900">TÍNH NĂNG</h3>
+                  </div>
                 </div>
-              </div>
-              {plans.filter((plan): plan is Plan => !!plan && typeof plan === 'object' && typeof plan.name === 'string').map((plan) => {
-                const uiDetails = getPlanUIDetails(plan.name);
-                return (
-                  <div key={plan.id} className="p-6 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      {uiDetails.icon}
-                      <h3 className={`text-lg font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+                {plans.map((plan) => {
+                  const uiDetails = getPlanUIDetails(plan.name);
+                  return (
+                    <div key={plan.id} className="p-6 text-center">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        {uiDetails.icon}
+                        <h3 className={`text-lg font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Features Rows */}
-          {featureRows.map((feature, featureIndex) => (
-            <div key={featureIndex} className={`grid grid-cols-5 gap-0 ${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}>
-              <div className="p-4 border-r border-gray-200 flex items-center">
-                <div>
-                  <div className="font-semibold text-gray-900 flex items-center gap-2">
-                    {feature.name}
-                  </div>
-                  {feature.note && (
-                    <div className="text-xs text-gray-500 italic mt-1">{feature.note}</div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-              {plans.filter((plan): plan is Plan => !!plan && typeof plan === 'object' && typeof plan.name === 'string').map((plan) => (
-                <div key={plan.id} className="p-4 flex items-center justify-center min-h-[4rem]">
-                  {renderFeatureValue(feature.getValue(plan), feature, plan)}
-                </div>
-              ))}
             </div>
-          ))}
-        </div>
 
-        {/* FAQ & CTA Sections... */}
+            {/* Features Rows */}
+            {featureRows.map((feature, featureIndex) => (
+              <div key={featureIndex} className={`grid grid-cols-5 gap-0 ${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}>
+                <div className="p-4 border-r border-gray-200 flex items-center">
+                  <div>
+                    <div className="font-semibold text-gray-900 flex items-center gap-2">
+                      {feature.name}
+                    </div>
+                    {feature.note && (
+                      <div className="text-xs text-gray-500 italic mt-1">{feature.note}</div>
+                    )}
+                  </div>
+                </div>
+                {plans.map((plan) => (
+                  <div key={plan.id} className="p-4 flex items-center justify-center min-h-[4rem]">
+                    {renderFeatureValue(feature.getValue(plan), feature, plan)}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* QR Code Payment Modal */}
       {isQrModalOpen && selectedPlan && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100]"
-          onClick={() => setIsQrModalOpen(false)} // Đóng modal khi click ra ngoài
+          onClick={() => setIsQrModalOpen(false)}
         >
           <div 
             className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full m-4 transform transition-all duration-300 scale-95 animate-in fade-in-0 zoom-in-95"
-            onClick={(e) => e.stopPropagation()} // Ngăn việc click bên trong modal làm đóng modal
+            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-2 text-gray-800">Thanh toán cho gói "{selectedPlan.name}"</h2>
             <p className="text-gray-600 mb-4">Vui lòng quét mã QR để thanh toán</p>
