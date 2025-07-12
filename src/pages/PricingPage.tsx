@@ -54,7 +54,7 @@ const api = {
 
 const getPlanUIDetails = (planName: string) => {
   switch (planName) {
-    case "Dùng thử (Free)":
+    case "Miễn phí":
       return {
         icon: <Gift className="text-pink-600/70 drop-shadow-[0_0_2px_rgba(0,0,0,0.25)]" size={24} />,
         color: "border-gray-300",
@@ -161,7 +161,7 @@ export const PricingPage: React.FC = () => {
     { name: "📋 Lên lịch trước tối đa", getValue: (p: Plan) => `${p.max_scheduled_days} ngày` },
     { name: "💾 Số video có thể lưu cùng lúc", getValue: (p: Plan) => p.max_stored_videos },
     { name: "💽 Dung lượng lưu trữ khuyến nghị", getValue: (p: Plan) => `${p.storage_limit_gb}GB` },
-    { name: "🗑️ Tự động xóa video sau đăng", getValue: () => "7 ngày" },
+    { name: "🗑️ Tự động xóa video sau đăng", getValue: () => "3 ngày" },
     { name: "👥 Tổng số tài khoản MXH", getValue: (p: Plan) => p.max_social_accounts, note: "(Fanpage, Reels, Instagram, YouTube)" },
     { name: "🤖 Hỗ trợ AI viết nội dung", getValue: (p: Plan) => p.ai_content_generation },
     { name: "☁️ Lưu trữ trên", getValue: () => "Đám mây" },
