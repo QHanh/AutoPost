@@ -8,11 +8,8 @@ import {
   Zap,
   CheckCircle,
   ArrowRight,
-  Smartphone,
-  Globe,
   TrendingUp,
   Calendar,
-  Share2,
   Sparkles
 } from 'lucide-react';
 
