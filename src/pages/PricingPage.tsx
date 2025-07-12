@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Star, Zap, Crown, Rocket, Gift } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import Swal from 'sweetalert2';
 
 // --- TYPE DEFINITIONS ---
 interface Plan {
@@ -114,6 +115,10 @@ export const PricingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // State để quản lý modal QR
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('auth_token');
@@ -128,24 +133,20 @@ export const PricingPage: React.FC = () => {
 
         const [plansResponse, currentSubResponse] = await Promise.all(promises);
 
-        // Add robust check for plans data
         if (plansResponse && Array.isArray(plansResponse.data)) {
           const sortedPlans = plansResponse.data
             .filter((p: Plan) => p.is_active)
             .sort((a: Plan, b: Plan) => a.price - b.price);
           setPlans(sortedPlans);
         } else {
-          setPlans([]); // Default to empty array if data is not an array
+          setPlans([]);
         }
         
-        console.log("Subscription Response:", currentSubResponse); // DEBUG
         if (currentSubResponse && currentSubResponse.data && currentSubResponse.data.id) {
-          console.log("Setting current subscription:", currentSubResponse.data); // DEBUG
           setCurrentSub(currentSubResponse.data);
         }
         
       } catch (err: any) {
-        console.error("Failed to fetch pricing data:", err); // DEBUG
         setError(err.message || "Không thể tải dữ liệu bảng giá.");
         console.error(err);
       } finally {
@@ -154,6 +155,21 @@ export const PricingPage: React.FC = () => {
     };
     fetchData();
   }, [isAuthenticated]);
+
+  // Hàm xử lý khi nhấn nút "Chọn gói này"
+  const handleSelectPlan = (plan: Plan) => {
+    if (plan.price === 0) {
+      Swal.fire({
+        title: 'Gói Miễn phí',
+        text: 'Bạn không cần thanh toán cho gói miễn phí.',
+        icon: 'info',
+        confirmButtonText: 'Đã hiểu'
+      });
+      return;
+    }
+    setSelectedPlan(plan);
+    setIsQrModalOpen(true);
+  };
 
   const featureRows = [
     { name: "🔥 Giá bán", getValue: (p: Plan) => formatPrice(p.price), getNote: (p: Plan) => p.description.split(', ')[1] || null },
@@ -282,7 +298,9 @@ export const PricingPage: React.FC = () => {
                       {plan.description ? plan.description.split(', ')[0] : ''}
                     </p>
                     
-                    <button className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor}`}>
+                    <button 
+                      onClick={() => handleSelectPlan(plan)}
+                      className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor}`}>
                       Chọn gói này
                     </button>
                   </div>
@@ -339,53 +357,52 @@ export const PricingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* FAQ Section */}
-        <div className="mt-16 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Câu hỏi thường gặp</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-              <h3 className="font-bold text-gray-900 mb-3">Tôi có thể thay đổi gói bất cứ lúc nào không?</h3>
-              <p className="text-gray-600">
-                Có, bạn có thể nâng cấp hoặc hạ cấp gói bất cứ lúc nào. Phí sẽ được tính theo tỷ lệ.
-              </p>
+        {/* FAQ & CTA Sections... */}
+      </div>
+
+      {/* QR Code Payment Modal */}
+      {isQrModalOpen && selectedPlan && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100]"
+          onClick={() => setIsQrModalOpen(false)} // Đóng modal khi click ra ngoài
+        >
+          <div 
+            className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full m-4 transform transition-all duration-300 scale-95 animate-in fade-in-0 zoom-in-95"
+            onClick={(e) => e.stopPropagation()} // Ngăn việc click bên trong modal làm đóng modal
+          >
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">Thanh toán cho gói "{selectedPlan.name}"</h2>
+            <p className="text-gray-600 mb-4">Vui lòng quét mã QR để thanh toán</p>
+            
+            <img 
+              src="/assets/qr-bank.jpg" 
+              alt="Mã QR thanh toán ngân hàng" 
+              className="mx-auto mb-4 w-64 h-64 object-contain rounded-lg border-4 border-gray-200"
+              onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x256/e2e8f0/4a5568?text=QR+Lỗi'; e.currentTarget.alt = 'Lỗi tải mã QR'; }}
+            />
+            
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-lg text-gray-700 mb-2">
+                    Số tiền cần chuyển: <span className="font-bold text-blue-600 text-xl">{formatPrice(selectedPlan.price)}</span>
+                </p>
+                <p className="text-gray-600">
+                    Nội dung chuyển khoản: <br/>
+                    <strong className="text-red-600 text-lg tracking-wider bg-red-100 px-2 py-1 rounded">[SỐ ĐIỆN THOẠI CỦA BẠN]</strong>
+                </p>
             </div>
             
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-              <h3 className="font-bold text-gray-900 mb-3">Có hỗ trợ khách hàng không?</h3>
-              <p className="text-gray-600">
-                Có, chúng tôi cung cấp hỗ trợ 24/7 qua email và chat trực tuyến cho tất cả các gói.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-              <h3 className="font-bold text-gray-900 mb-3">Dữ liệu của tôi có an toàn không?</h3>
-              <p className="text-gray-600">
-                Tất cả dữ liệu được mã hóa và lưu trữ an toàn trên đám mây với backup hàng ngày.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-              <h3 className="font-bold text-gray-900 mb-3">Có thể hủy bất cứ lúc nào không?</h3>
-              <p className="text-gray-600">
-                Có, bạn có thể hủy đăng ký bất cứ lúc nào mà không mất phí. Dịch vụ sẽ tiếp tục đến hết chu kỳ thanh toán.
-              </p>
-            </div>
+            <p className="text-sm text-gray-500 mt-4">
+                Sau khi chuyển khoản, hệ thống sẽ tự động kích hoạt gói trong vòng 1-3 phút.
+            </p>
+
+            <button 
+              onClick={() => setIsQrModalOpen(false)}
+              className="mt-6 bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold w-full"
+            >
+              Đã hiểu
+            </button>
           </div>
         </div>
-
-        {/* CTA Section */}
-        <div className="mt-16 text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Sẵn sàng bắt đầu?
-          </h2>
-          <p className="text-blue-100 text-lg mb-8">
-            Tham gia cùng hàng nghìn người dùng đã tin tưởng dịch vụ của chúng tôi
-          </p>
-          <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            Bắt đầu dùng thử miễn phí
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

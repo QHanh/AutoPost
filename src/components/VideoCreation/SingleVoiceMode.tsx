@@ -514,7 +514,7 @@ export const SingleVoiceMode: React.FC = () => {
               >
                 <option value="Pexels">Pexels</option>
                 <option value="Pixabay">Pixabay</option>
-                <option value="Tệp cục bộ">Tệp cục bộ</option>
+                {/* <option value="Tệp cục bộ">Tệp cục bộ</option> */}
               </select>
             </div>
 
@@ -957,7 +957,7 @@ export const SingleVoiceMode: React.FC = () => {
               >
                 <option value="Ngẫu nhiên">Ngẫu nhiên</option>
                 <option value="Không có">Không có</option>
-                <option value="Tùy chỉnh">Tùy chỉnh</option>
+                {/* <option value="Tùy chỉnh">Tùy chỉnh</option> */}
               </select>
             </div>
 

@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  Target, 
   Users, 
   BarChart3, 
   Clock, 
@@ -12,6 +11,7 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const SolutionPage: React.FC = () => {
   const solutions = [
@@ -138,18 +138,22 @@ export const SolutionPage: React.FC = () => {
               bạn cần để thành công trên mạng xã hội.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">              
+              <Link
+                to="/posts"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2"
+              > 
                 Khám phá giải pháp
-                <ArrowRight size={20} />
-              </button>
+                <ArrowRight size={20}/>
+              </Link>
               
-              <button className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg">
-                <div className="bg-white rounded-full p-3 shadow-lg">
-                  <Target size={20} className="text-blue-600" />
-                </div>
+              <a 
+                href="https://zalo.me/0888822522"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+              >
                 Tư vấn miễn phí
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -316,14 +320,27 @@ export const SolutionPage: React.FC = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2">
+            {/* Nút Tư vấn Zalo */}
+            <a 
+              href="https://zalo.me/0888822522"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            >
               Tư vấn miễn phí
-              <ArrowRight size={20} />
-            </button>
+              {/* Bạn có thể thêm icon ArrowRight nếu đã import nó */}
+              {/* <ArrowRight size={20} /> */}
+            </a>
             
-            <button className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all duration-300">
+            {/* Nút Xem Demo YouTube */}
+            <a 
+              href="https://www.youtube.com/watch?v=6_opEtIQlDM"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-blue-600 transition-all duration-300"
+            >
               Xem Demo
-            </button>
+            </a>
           </div>
           
           <p className="text-blue-100 text-sm mt-6">

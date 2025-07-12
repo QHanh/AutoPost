@@ -84,19 +84,24 @@ export const HomePage: React.FC = () => {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link
-                to="/posts"
+                to="/accounts"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2"
               >
                 Bắt Đầu Miễn Phí
                 <ArrowRight size={20} />
               </Link>
               
-              <button className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg">
-                <div className="bg-white rounded-full p-3 shadow-lg">
+              <a 
+                href="https://www.youtube.com/watch?v=6_opEtIQlDM" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg group"
+              >
+                <div className="bg-white rounded-full p-3 shadow-lg group-hover:shadow-blue-200 transition-shadow">
                   <Play size={20} className="text-blue-600" />
                 </div>
-                Xem Demo
-              </button>
+                <span>Xem Demo</span>
+              </a>
             </div>
 
             {/* Platform Icons */}
@@ -289,7 +294,7 @@ export const HomePage: React.FC = () => {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
-              to="/posts"
+              to="/accounts"
               className="bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2"
             >
               Bắt Đầu Miễn Phí
