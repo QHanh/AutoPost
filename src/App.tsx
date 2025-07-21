@@ -7,11 +7,14 @@ import { PostsPage } from './pages/PostsPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { PricingPage } from './pages/PricingPage';
 import { VideoPage } from './pages/VideoPage';
+import { ChatbotPage } from './pages/ChatbotPage';
+import ChatbotPageWithTabs from './pages/ChatbotPageWithTabs';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { usePlatforms } from './hooks/usePlatforms';
 import { usePosts } from './hooks/usePosts';
 import { useAuth } from './hooks/useAuth';
+import { ServiceManagementPage } from './pages/ServiceManagementPage';
 
 import { ChatBot } from './components/ChatBot';
 import { ZaloButton } from './components/ZaloButton';
@@ -73,6 +76,14 @@ function App() {
         
         
         {/* Protected routes */}
+        <Route
+          path="/services"
+          element={
+            <ProtectedRoute>
+              <ServiceManagementPage />
+            </ProtectedRoute>
+          }
+        />
         <Route 
           path="/posts" 
           element={
@@ -114,6 +125,22 @@ function App() {
           element={
             <ProtectedRoute>
               <VideoPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chatbot" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chatbot-tabs" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPageWithTabs />
             </ProtectedRoute>
           } 
         />
