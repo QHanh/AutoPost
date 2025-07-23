@@ -6,6 +6,7 @@ import { DeviceInfo, Color, Storage, UserDevice, DeviceColor } from '../types/de
 import { deviceColorService } from '../services/deviceColorService';
 import { deviceInfoService } from '../services/deviceInfoService';
 import { deviceApiService } from '../services/deviceApiService';
+import { deviceStorageService } from '../services/deviceStorageService';
 
 // Interfaces đã được chuyển sang file types/deviceTypes.ts
 
@@ -83,6 +84,17 @@ const ChatbotPageWithTabs: React.FC = () => {
   const [deviceStorageDevices, setDeviceStorageDevices] = useState<DeviceInfo[]>([]);
   const [deviceStorageStorages, setDeviceStorageStorages] = useState<any[]>([]);
 
+  // State cho bảng thiết bị-dung lượng
+  const [storageList, setStorageList] = useState<any[]>([]);
+  const [storageLoading, setStorageLoading] = useState(false);
+  const [storageSearch, setStorageSearch] = useState('');
+  const [storagePagination, setStoragePagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchDevices();
@@ -121,10 +133,19 @@ const ChatbotPageWithTabs: React.FC = () => {
         setIsDeviceStorageLoading(true);
         try {
           const result = await deviceApiService.getDeviceInfos({}, { page: 1, limit: 100 });
-          setDeviceStorageDevices(result.devices);
-          if (result.devices.length > 0) {
-            setSelectedDeviceStorageDeviceId(result.devices[0].id);
-          }
+          const devices = result.devices;
+          // Lấy dung lượng cho từng thiết bị
+          const devicesWithStorages = await Promise.all(
+            devices.map(async (device: any) => {
+              try {
+                const storages = await deviceApiService.getDeviceStorages(device.id);
+                return { ...device, storages };
+              } catch {
+                return { ...device, storages: [] };
+              }
+            })
+          );
+          setDeviceStorageDevices(devicesWithStorages);
         } catch (e) {
           setDeviceStorageDevices([]);
         } finally {
@@ -134,38 +155,16 @@ const ChatbotPageWithTabs: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Fetch storages for selected device
-  useEffect(() => {
-    if (activeTab === 'device-storage' && selectedDeviceStorageDeviceId) {
-      fetchDeviceStoragesForDevice(selectedDeviceStorageDeviceId);
-    } else {
-      setDeviceStorages([]);
-    }
-  }, [activeTab, selectedDeviceStorageDeviceId]);
-
-  const fetchDeviceStoragesForDevice = async (deviceId: string) => {
-    setIsDeviceStorageLoading(true);
-    try {
-      const storages = await deviceApiService.getDeviceStorages(deviceId);
-      setDeviceStorages(storages);
-    } catch (e) {
-      setDeviceStorages([]);
-    } finally {
-      setIsDeviceStorageLoading(false);
-    }
-  };
-
   const handleAddDeviceStorage = () => {
     setIsDeviceStorageModalOpen(true);
   };
 
   const handleDeleteDeviceStorage = async (storageId: string) => {
-    if (!selectedDeviceStorageDeviceId) return;
     if (!window.confirm('Bạn có chắc chắn muốn xóa liên kết thiết bị-dung lượng này?')) return;
     setIsDeviceStorageLoading(true);
     try {
-      await deviceApiService.removeStorageFromDevice(selectedDeviceStorageDeviceId, storageId);
-      fetchDeviceStoragesForDevice(selectedDeviceStorageDeviceId);
+      await deviceApiService.removeStorageFromDevice(storageId);
+      fetchAllDeviceStorages(); // Cập nhật lại bảng tổng hợp
     } catch (e) {
       alert('Có lỗi xảy ra khi xóa liên kết thiết bị-dung lượng');
     } finally {
@@ -178,7 +177,7 @@ const ChatbotPageWithTabs: React.FC = () => {
     try {
       await deviceApiService.addStorageToDevice(formData.device_info_id, formData.capacity);
       setIsDeviceStorageModalOpen(false);
-      fetchDeviceStoragesForDevice(formData.device_info_id);
+      fetchAllDeviceStorages(); // Cập nhật lại bảng tổng hợp
     } catch (e) {
       alert('Có lỗi xảy ra khi lưu liên kết thiết bị-dung lượng');
     } finally {
@@ -572,7 +571,15 @@ const ChatbotPageWithTabs: React.FC = () => {
       console.log('Import result:', result);
 
       if (response.ok) {
-        alert(`Nhập dữ liệu thành công!\nTổng số: ${result.data.total}\nThành công: ${result.data.success}\nCập nhật: ${result.data.updated_count}\nTạo mới: ${result.data.created_count}\nLỗi: ${result.data.error}`);
+        // Nếu có lỗi chi tiết, hiển thị từng lỗi
+        if (result.data && result.data.error > 0 && Array.isArray(result.data.errors) && result.data.errors.length > 0) {
+          alert(
+            `Có lỗi khi nhập dữ liệu!\nTổng số: ${result.data.total}\nThành công: ${result.data.success}\nCập nhật: ${result.data.updated_count}\nTạo mới: ${result.data.created_count}\nLỗi: ${result.data.error}\n\nChi tiết lỗi:\n` +
+            result.data.errors.join('\n')
+          );
+        } else {
+          alert(`Nhập dữ liệu thành công!\nTổng số: ${result.data.total}\nThành công: ${result.data.success}\nCập nhật: ${result.data.updated_count}\nTạo mới: ${result.data.created_count}\nLỗi: ${result.data.error}`);
+        }
         // Làm mới danh sách thiết bị
         fetchUserDevices();
       } else {
@@ -600,7 +607,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Smartphone className="text-blue-600" /> Thiết bị của bạn
+            <Smartphone className="text-blue-600" /> Thiết bị
           </h2>
           <div className="flex gap-2">
             {/* Nút Export Excel */}
@@ -2324,13 +2331,13 @@ const ChatbotPageWithTabs: React.FC = () => {
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Smartphone className="text-blue-600" /> Thiết bị
+          <Smartphone className="text-blue-600" /> Thiết bị mẫu
         </h2>
         <button
           onClick={handleCreateDeviceInfo}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
         >
-          <Plus className="h-4 w-4 mr-2" /> Thêm thiết bị
+          <Plus className="h-4 w-4 mr-2" /> Thêm thiết bị mẫu
         </button>
       </div>
       <div className="mb-5 flex justify-between">
@@ -2430,38 +2437,40 @@ const ChatbotPageWithTabs: React.FC = () => {
         </button>
       </div>
       <div className="mb-5 flex justify-between">
-        <div className="relative max-w-xs w-full flex items-center space-x-2">
-          <select
-            className="block w-48 border border-gray-300 rounded-md p-2 mr-2"
-            value={selectedDeviceStorageDeviceId}
-            onChange={e => setSelectedDeviceStorageDeviceId(e.target.value)}
-          >
-            <option value="">Chọn thiết bị để xem dung lượng</option>
-            {deviceStorageDevices.map(device => (
-              <option key={device.id} value={device.id}>{device.model}</option>
-            ))}
-          </select>
+        <div className="relative max-w-xs w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Tìm kiếm thiết bị..."
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={storageSearch}
+            onChange={handleStorageSearch}
+          />
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thiết bị</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dung lượng</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {isDeviceStorageLoading && deviceStorages.length === 0 ? (
-              <tr><td colSpan={2} className="px-6 py-4 text-center">Đang tải...</td></tr>
-            ) : deviceStorages.length === 0 ? (
-              <tr><td colSpan={2} className="px-6 py-4 text-center text-gray-500">Không có liên kết thiết bị-dung lượng nào</td></tr>
+            {storageLoading && storageList.length === 0 ? (
+              <tr><td colSpan={3} className="px-6 py-4 text-center">Đang tải...</td></tr>
+            ) : storageList.length === 0 ? (
+              <tr><td colSpan={3} className="px-6 py-4 text-center text-gray-500">Không có liên kết thiết bị-dung lượng nào</td></tr>
             ) : (
-              deviceStorages.map((ds: any) => (
-                <tr key={ds.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{ds.capacity} GB</td>
+              storageList.map((item: any) => (
+                <tr key={item.storage_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{item.device_model}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.capacity} GB</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button onClick={() => handleDeleteDeviceStorage(ds.id)} className="text-red-600 hover:text-red-800"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => handleDeleteDeviceStorage(item.storage_id)} className="text-red-600 hover:text-red-800"><Trash2 className="h-4 w-4" /></button>
                   </td>
                 </tr>
               ))
@@ -2469,6 +2478,32 @@ const ChatbotPageWithTabs: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {/* Pagination */}
+      {storageList.length > 0 && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-700">
+            Hiển thị <span className="font-medium">{(storagePagination.page - 1) * storagePagination.limit + 1}</span> đến <span className="font-medium">
+              {Math.min(storagePagination.page * storagePagination.limit, storagePagination.total)}
+            </span> trong <span className="font-medium">{storagePagination.total}</span> kết quả
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleStoragePageChange(storagePagination.page - 1)}
+              disabled={storagePagination.page === 1}
+              className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${storagePagination.page === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleStoragePageChange(storagePagination.page + 1)}
+              disabled={storagePagination.page === storagePagination.totalPages}
+              className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${storagePagination.page === storagePagination.totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* DeviceStorageModal */}
       <DeviceStorageModal
         isOpen={isDeviceStorageModalOpen}
@@ -2587,6 +2622,41 @@ const ChatbotPageWithTabs: React.FC = () => {
     }
   }, [isAddingDevice]);
 
+  // Fetch dữ liệu thiết bị-dung lượng
+  const fetchAllDeviceStorages = async () => {
+    setStorageLoading(true);
+    try {
+      const result = await deviceStorageService.getAllDeviceStorages(storageSearch, storagePagination.page, storagePagination.limit);
+      setStorageList(result.data);
+      setStoragePagination(prev => ({
+        ...prev,
+        total: result.pagination.total,
+        totalPages: result.pagination.totalPages
+      }));
+    } catch (e) {
+      setStorageList([]);
+    } finally {
+      setStorageLoading(false);
+    }
+  };
+
+  // Đảm bảo fetchAllDeviceStorages được gọi khi tab device-storage được kích hoạt
+  useEffect(() => {
+    if (activeTab === 'device-storage') {
+      console.log('Fetching device storages...');
+      fetchAllDeviceStorages();
+    }
+  }, [activeTab, storagePagination.page, storageSearch]);
+
+  const handleStorageSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStorageSearch(e.target.value);
+    setStoragePagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleStoragePageChange = (newPage: number) => {
+    setStoragePagination(prev => ({ ...prev, page: newPage }));
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -2639,7 +2709,7 @@ const ChatbotPageWithTabs: React.FC = () => {
             onClick={() => setActiveTab('device-infos')}
             className={`flex items-center gap-2 px-4 py-2 font-medium text-sm ${activeTab === 'device-infos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Smartphone size={18} /> Thiết bị
+            <Smartphone size={18} /> Thiết bị mẫu
           </button>
           <button
             onClick={() => setActiveTab('device-storage')}
