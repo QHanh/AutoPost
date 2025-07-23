@@ -101,7 +101,7 @@ export const ChatbotPage: React.FC = () => {
   const fetchDevices = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/device-infos?limit=100', {
+      const response = await fetch('http://localhost:8000/api/v1/device-infos?limit=100', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -117,7 +117,7 @@ export const ChatbotPage: React.FC = () => {
   const fetchColors = async (deviceId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/device-infos/${deviceId}/colors`, {
+      const response = await fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/colors`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -133,7 +133,7 @@ export const ChatbotPage: React.FC = () => {
   const fetchStorages = async (deviceId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/device-infos/${deviceId}/storages`, {
+      const response = await fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/storages`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -155,7 +155,7 @@ export const ChatbotPage: React.FC = () => {
       if (!token) return; // Chỉ gọi nếu có token
       
       // Sử dụng endpoint mới để lấy thiết bị của người dùng hiện tại
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/my-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/my-devices', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -209,7 +209,7 @@ export const ChatbotPage: React.FC = () => {
         return;
       }
       
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -252,7 +252,7 @@ export const ChatbotPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/user-devices/${deviceId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/user-devices/${deviceId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -277,7 +277,7 @@ export const ChatbotPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/user-devices/${deviceId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/user-devices/${deviceId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -311,7 +311,7 @@ export const ChatbotPage: React.FC = () => {
       }
 
       // Gọi API tải template Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/template', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/template', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -354,7 +354,7 @@ export const ChatbotPage: React.FC = () => {
       }
 
       // Gọi API xuất Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/export/my-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/export/my-devices', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -404,7 +404,7 @@ export const ChatbotPage: React.FC = () => {
       formData.append('file', file);
 
       // Gọi API import Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/import', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/import', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -1,7 +1,7 @@
 import { DeviceColor } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://common-walls-beam.loca.lt//api/v1';
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export const deviceColorService = {
   async getAllDeviceColors(skip = 0, limit = 20, search = ''): Promise<{ data: DeviceColor[]; total: number; totalPages: number }> {

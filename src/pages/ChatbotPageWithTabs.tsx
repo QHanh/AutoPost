@@ -5,7 +5,7 @@ import { Navigate } from 'react-router-dom';
 import { DeviceInfo, Color, Storage, UserDevice, DeviceColor } from '../types/deviceTypes';
 import { deviceColorService } from '../services/deviceColorService';
 import { deviceInfoService } from '../services/deviceInfoService';
-import { deviceApiService } from '../../../admindangbai/src/services/deviceApiService';
+import { deviceApiService } from '../services/deviceApiService';
 
 // Interfaces đã được chuyển sang file types/deviceTypes.ts
 
@@ -190,7 +190,7 @@ const ChatbotPageWithTabs: React.FC = () => {
   const fetchDevices = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/device-infos?limit=100', {
+      const response = await fetch('http://localhost:8000/api/v1/device-infos?limit=100', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -207,7 +207,7 @@ const ChatbotPageWithTabs: React.FC = () => {
   const fetchColors = async (deviceId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/device-infos/${deviceId}/colors`, {
+      const response = await fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/colors`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -226,7 +226,7 @@ const ChatbotPageWithTabs: React.FC = () => {
   const fetchStorages = async (deviceId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/device-infos/${deviceId}/storages`, {
+      const response = await fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/storages`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -248,7 +248,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       if (!token) return; // Chỉ gọi nếu có token
       
       // Sử dụng endpoint mới để lấy thiết bị của người dùng hiện tại
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/my-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/my-devices', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
@@ -365,7 +365,7 @@ const ChatbotPageWithTabs: React.FC = () => {
         return;
       }
       
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -409,7 +409,7 @@ const ChatbotPageWithTabs: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/user-devices/${deviceId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/user-devices/${deviceId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ const ChatbotPageWithTabs: React.FC = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/user-devices/${deviceId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/user-devices/${deviceId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -467,7 +467,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       }
 
       // Gọi API tải template Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/template', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/template', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -510,7 +510,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       }
 
       // Gọi API xuất Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/export/my-devices', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/export/my-devices', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -560,7 +560,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       formData.append('file', file);
 
       // Gọi API import Excel
-      const response = await fetch('https://common-walls-beam.loca.lt//api/v1/user-devices/import', {
+      const response = await fetch('http://localhost:8000/api/v1/user-devices/import', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -645,11 +645,14 @@ const ChatbotPageWithTabs: React.FC = () => {
         {isAddingDevice && (
           <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Thêm thiết bị mới</h3>
-            
+            {/* Hàng 1: Thiết bị, màu sắc, dung lượng */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               {/* Device Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Thiết bị</label>
+                {selectedDevice && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{selectedDevice.model}</span></div>
+                )}
                 <div className="relative">
                   <input
                     type="text"
@@ -660,7 +663,6 @@ const ChatbotPageWithTabs: React.FC = () => {
                   />
                   <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                 </div>
-                
                 <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
                   {filteredDevices.length > 0 ? (
                     filteredDevices.map(device => (
@@ -680,10 +682,12 @@ const ChatbotPageWithTabs: React.FC = () => {
                   )}
                 </div>
               </div>
-              
               {/* Color Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Màu sắc</label>
+                {selectedColor && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{selectedColor.name}</span></div>
+                )}
                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg bg-white">
                   {colors.length > 0 ? (
                     colors.map(color => (
@@ -700,10 +704,12 @@ const ChatbotPageWithTabs: React.FC = () => {
                   )}
                 </div>
               </div>
-              
               {/* Storage Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dung lượng</label>
+                {selectedStorage && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{selectedStorage.capacity} GB</span></div>
+                )}
                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg bg-white">
                   {storages.length > 0 ? (
                     storages.map(storage => (
@@ -721,28 +727,29 @@ const ChatbotPageWithTabs: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+            {/* Hàng 2: Loại máy, tình trạng, tình trạng pin */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              {/* Device Condition */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tình trạng</label>
-                <select
-                  value={newDevice.device_condition}
-                  onChange={(e) => setNewDevice({...newDevice, device_condition: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  <option value="Mới">Mới</option>
-                  <option value="Đã qua sử dụng">Đã qua sử dụng</option>
-                  <option value="Tân trang">Tân trang</option>
-                </select>
-              </div>
-              
-              {/* Device Type */}
+              {/* Device Type (Loại máy) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Loại máy</label>
+                {newDevice.device_type && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{newDevice.device_type}</span></div>
+                )}
                 <select
                   value={newDevice.device_type}
-                  onChange={(e) => setNewDevice({...newDevice, device_type: e.target.value})}
+                  onChange={e => {
+                    const value = e.target.value;
+                    if (value === 'Mới') {
+                      setNewDevice(prev => ({ ...prev, device_type: value, device_condition: 'Mới', battery_condition: '100%' }));
+                    } else {
+                      setNewDevice(prev => ({
+                        ...prev,
+                        device_type: value,
+                        device_condition: prev.device_condition === 'Mới' ? '' : prev.device_condition,
+                        battery_condition: prev.battery_condition === '100%' ? '' : prev.battery_condition
+                      }));
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
                   <option value="Mới">Mới</option>
@@ -750,14 +757,30 @@ const ChatbotPageWithTabs: React.FC = () => {
                   <option value="Trưng bày">Trưng bày</option>
                 </select>
               </div>
-              
-              {/* Battery Condition */}
+              {/* Device Condition (Tình trạng) */}
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tình trạng</label>
+                {newDevice.device_condition && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{newDevice.device_condition}</span></div>
+                )}
+                <input
+                  type="text"
+                  value={newDevice.device_condition}
+                  onChange={e => setNewDevice(prev => ({ ...prev, device_condition: e.target.value }))}
+                  placeholder="Nhập tình trạng thiết bị (VD: Mới, Đã qua sử dụng, ... )"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+              {/* Battery Condition */}
+              <div className="flex flex-col">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tình trạng pin</label>
+                {newDevice.battery_condition && (
+                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{newDevice.battery_condition}</span></div>
+                )}
                 <input
                   type="text"
                   value={newDevice.battery_condition || ''}
-                  onChange={(e) => setNewDevice({...newDevice, battery_condition: e.target.value})}
+                  onChange={e => setNewDevice(prev => ({ ...prev, battery_condition: e.target.value }))}
                   placeholder="Nhập tình trạng pin (VD: 100%, 90-99%, ... hoặc ghi chú khác)"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
@@ -1080,7 +1103,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       const limit = colorPagination.limit;
       const searchParam = colorFilter ? `&search=${encodeURIComponent(colorFilter)}` : '';
       
-      const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/colors?skip=${skip}&limit=${limit}${searchParam}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/colors?skip=${skip}&limit=${limit}${searchParam}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       const data = await response.json();
@@ -1125,7 +1148,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       setIsColorDeleting(true);
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/colors/${id}`, {
+        const response = await fetch(`http://localhost:8000/api/v1/colors/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -1152,7 +1175,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       
       if (selectedColorForEdit) {
         // Update existing color
-        response = await fetch(`https://common-walls-beam.loca.lt//api/v1/colors/${selectedColorForEdit.id}`, {
+        response = await fetch(`http://localhost:8000/api/v1/colors/${selectedColorForEdit.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -1162,7 +1185,7 @@ const ChatbotPageWithTabs: React.FC = () => {
         });
       } else {
         // Create new color
-        response = await fetch('https://common-walls-beam.loca.lt//api/v1/colors', {
+        response = await fetch('http://localhost:8000/api/v1/colors', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1426,7 +1449,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`https://common-walls-beam.loca.lt//api/v1/colors/${colorId}/devices`, {
+        const response = await fetch(`http://localhost:8000/api/v1/colors/${colorId}/devices`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const data = await response.json();
@@ -1942,7 +1965,7 @@ const ChatbotPageWithTabs: React.FC = () => {
         setIsDeviceColorOptionsLoading(true);
         try {
           const token = localStorage.getItem('auth_token');
-          const deviceRes = await fetch('https://common-walls-beam.loca.lt//api/v1/device-infos?limit=100', {
+          const deviceRes = await fetch('http://localhost:8000/api/v1/device-infos?limit=100', {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {},
           });
           const deviceData = await deviceRes.json();
@@ -1966,12 +1989,12 @@ const ChatbotPageWithTabs: React.FC = () => {
       try {
         const token = localStorage.getItem('auth_token');
         // Lấy tất cả màu
-        const colorRes = await fetch('https://common-walls-beam.loca.lt//api/v1/colors?limit=100', {
+        const colorRes = await fetch('http://localhost:8000/api/v1/colors?limit=100', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         });
         const colorData = await colorRes.json();
         // Lấy các màu đã liên kết với thiết bị này
-        const linkedRes = await fetch(`https://common-walls-beam.loca.lt//api/v1/device-colors/device/${deviceId}`, {
+        const linkedRes = await fetch(`http://localhost:8000/api/v1/device-colors/device/${deviceId}`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         });
         const linkedData = await linkedRes.json();
@@ -2548,6 +2571,21 @@ const ChatbotPageWithTabs: React.FC = () => {
       </div>
     );
   };
+
+  // Khi mở form thêm thiết bị mới, set mặc định nếu loại máy là 'Mới'
+  useEffect(() => {
+    if (isAddingDevice) {
+      setNewDevice(prev => {
+        let updates = { ...prev };
+        if (!prev.device_type) updates.device_type = 'Mới';
+        if (updates.device_type === 'Mới') {
+          if (!updates.device_condition) updates.device_condition = 'Mới';
+          if (!updates.battery_condition) updates.battery_condition = '100%';
+        }
+        return updates;
+      });
+    }
+  }, [isAddingDevice]);
 
   if (isLoading) {
     return (

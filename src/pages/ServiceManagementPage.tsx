@@ -5,6 +5,7 @@ import { Service } from '../types/Service.js';
 import { Brand } from '../types/Brand.js';
 import { Plus, Edit, Trash2, ChevronRight } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { deviceApiService } from '../services/deviceApiService';
 
 export const ServiceManagementPage: React.FC = () => {
     const [services, setServices] = useState<Service[]>([]);
@@ -17,6 +18,11 @@ export const ServiceManagementPage: React.FC = () => {
     const [brandModalOpen, setBrandModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
     const [currentBrand, setCurrentBrand] = useState<Partial<Brand> | null>(null);
+
+    const [deviceOptions, setDeviceOptions] = useState<{id: string, name: string}[]>([]);
+    const [colorOptions, setColorOptions] = useState<{id: string, name: string}[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+    const [selectedColor, setSelectedColor] = useState<string>('');
 
     const fetchServices = async () => {
         try {
@@ -112,9 +118,30 @@ export const ServiceManagementPage: React.FC = () => {
     };
     
     // Brand Modal Handlers
-    const handleOpenBrandModal = (brand: Partial<Brand> | null = null) => {
+    const handleOpenBrandModal = async (brand: Partial<Brand> | null = null) => {
         setCurrentBrand(brand ? { ...brand } : { name: '', warranty: '' });
         setBrandModalOpen(true);
+        // Lấy danh sách thiết bị
+        const res = await deviceApiService.getDeviceInfos({}, {limit: 100});
+        setDeviceOptions(res.devices.map(d => ({id: String(d.id), name: String(d.model)})));
+        // Nếu sửa, set selectedDeviceId và selectedColor
+        if (brand && brand.device_type) {
+            const foundDevice = res.devices.find(d => d.name === brand.device_type);
+            if (foundDevice) {
+                setSelectedDeviceId(String(foundDevice.id));
+                // Lấy màu sắc cho thiết bị này
+                const colors = await deviceApiService.getColorsByDeviceInfoId(foundDevice.id);
+                setColorOptions(colors.map(c => ({id: String(c.id), name: String(c.name)})));
+                if (brand.color) {
+                    const foundColor = colors.find(c => c.name === brand.color);
+                    if (foundColor) setSelectedColor(String(foundColor.id));
+                }
+            }
+        } else {
+            setSelectedDeviceId('');
+            setColorOptions([]);
+            setSelectedColor('');
+        }
     };
     
     const handleCloseBrandModal = () => {
@@ -127,24 +154,25 @@ export const ServiceManagementPage: React.FC = () => {
             Swal.fire('Lỗi', 'Tên hãng không được để trống.', 'error');
             return;
         }
-        try {
-            const payload: Partial<Brand> = {
-                name: currentBrand.name,
-                warranty: currentBrand.warranty || '',
-                service_id: selectedService.id
-            };
-
-            if (currentBrand.id) {
-                await brandService.updateBrand(currentBrand.id, payload);
-            } else {
-                await brandService.createBrand(payload);
-            }
-            Swal.fire('Thành công', 'Lưu hãng thành công!', 'success');
-            fetchBrands(selectedService.id);
-            handleCloseBrandModal();
-        } catch (error) {
-            Swal.fire('Lỗi', 'Không thể lưu hãng.', 'error');
+        // Lấy tên thiết bị và màu sắc
+        const deviceName = deviceOptions.find(d => d.id === selectedDeviceId)?.name || '';
+        const colorName = colorOptions.find(c => c.id === selectedColor)?.name || '';
+        const payload: Partial<Brand> = {
+            name: currentBrand.name,
+            warranty: currentBrand.warranty || '',
+            service_id: selectedService.id,
+            device_type: deviceName,
+            color: colorName,
+            price: currentBrand.price || ''
+        };
+        if (currentBrand.id) {
+            await brandService.updateBrand(currentBrand.id, payload);
+        } else {
+            await brandService.createBrand(payload);
         }
+        Swal.fire('Thành công', 'Lưu hãng thành công!', 'success');
+        fetchBrands(selectedService.id);
+        handleCloseBrandModal();
     };
     
     const handleDeleteBrand = (brandId: string) => {
@@ -165,6 +193,21 @@ export const ServiceManagementPage: React.FC = () => {
                 }
             }
         });
+    };
+
+    const handleDeviceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const deviceId = e.target.value;
+        setSelectedDeviceId(deviceId);
+        setSelectedColor('');
+        setColorOptions([]);
+        if (deviceId) {
+            const colors = await deviceApiService.getColorsByDeviceInfoId(deviceId);
+            setColorOptions(colors.map(c => ({id: String(c.id), name: String(c.name)})));
+        }
+    };
+
+    const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedColor(e.target.value);
     };
 
   return (
@@ -217,6 +260,9 @@ export const ServiceManagementPage: React.FC = () => {
                                 <tr className="bg-gray-100">
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hãng Pin</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bảo hành</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại máy</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Màu sắc</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
                                 </tr>
                             </thead>
@@ -225,6 +271,9 @@ export const ServiceManagementPage: React.FC = () => {
                                     <tr key={brand.id}>
                                         <td className="px-6 py-4 whitespace-nowrap">{brand.name}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{brand.device_type || ''}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{brand.color || ''}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{brand.price || ''}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <button onClick={() => handleOpenBrandModal(brand)} className="text-indigo-600 hover:text-indigo-900 mr-4"><Edit size={20}/></button>
                                             <button onClick={() => handleDeleteBrand(brand.id)} className="text-red-600 hover:text-red-900"><Trash2 size={20}/></button>
@@ -281,6 +330,34 @@ export const ServiceManagementPage: React.FC = () => {
                           value={currentBrand?.warranty || ''}
                           onChange={(e) => setCurrentBrand(prev => ({...prev, warranty: e.target.value}))}
                           placeholder="Bảo hành (VD: 6 tháng)"
+                          className="w-full p-2 border rounded-md"
+                      />
+                      <select
+                          className="w-full p-2 border rounded-md"
+                          value={selectedDeviceId}
+                          onChange={handleDeviceChange}
+                      >
+                          <option value="">Chọn loại máy</option>
+                          {deviceOptions.map(opt => (
+                              <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                      </select>
+                      <select
+                          className="w-full p-2 border rounded-md"
+                          value={selectedColor}
+                          onChange={handleColorChange}
+                          disabled={!selectedDeviceId}
+                      >
+                          <option value="">Chọn màu sắc</option>
+                          {colorOptions.map(opt => (
+                              <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                      </select>
+                      <input
+                          type="text"
+                          value={currentBrand?.price || ''}
+                          onChange={(e) => setCurrentBrand(prev => ({...prev, price: e.target.value}))}
+                          placeholder="Giá (VD: 500000)"
                           className="w-full p-2 border rounded-md"
                       />
                   </div>
