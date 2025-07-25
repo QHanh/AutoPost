@@ -11,9 +11,16 @@ export const userDeviceService = {
   /**
    * Lấy danh sách thiết bị của người dùng hiện tại
    */
-  getUserDevices: async (): Promise<UserDevice[]> => {
+  getUserDevices: async (sort_by?: string, sort_order?: string): Promise<UserDevice[]> => {
     try {
-      const response = await apiGet<UserDevice[]>('/user-devices/my-devices');
+      const params = new URLSearchParams();
+      if (sort_by) {
+        params.append('sort_by', sort_by);
+      }
+      if (sort_order) {
+        params.append('sort_order', sort_order);
+      }
+      const response = await apiGet<UserDevice[]>(`/user-devices/my-devices?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching user devices:', error);
@@ -21,47 +28,18 @@ export const userDeviceService = {
     }
   },
 
+
+
   /**
-   * Làm phong phú dữ liệu thiết bị với thông tin thiết bị, màu sắc và dung lượng
-   * @param devices Danh sách thiết bị cần làm phong phú
+   * Lấy thông tin chi tiết một thiết bị của người dùng
+   * @param deviceId ID của thiết bị
    */
-  enrichUserDevices: async (devices: UserDevice[]): Promise<UserDevice[]> => {
+  getUserDeviceById: async (deviceId: string): Promise<UserDevice> => {
     try {
-      const enrichedDevices = await Promise.all(devices.map(async (device) => {
-        let deviceModel = '';
-        let colorName = '';
-        let storageCapacity = 0;
-        
-        try {
-          if (device.device_info_id && deviceService.isValidUUID(device.device_info_id)) {
-            const deviceInfo = await deviceService.getDeviceById(device.device_info_id);
-            deviceModel = deviceInfo.model;
-          }
-          
-          if (device.color_id && deviceService.isValidUUID(device.color_id)) {
-            const color = await colorService.getColorById(device.color_id);
-            colorName = color.name;
-          }
-          
-          if (device.storage_id && deviceService.isValidUUID(device.storage_id)) {
-            const storage = await storageService.getStorageById(device.storage_id);
-            storageCapacity = storage.capacity;
-          }
-        } catch (error) {
-          console.error('Error enriching device data:', error);
-        }
-        
-        return {
-          ...device,
-          deviceModel,
-          colorName,
-          storageCapacity
-        };
-      }));
-      
-      return enrichedDevices;
+      const response = await apiGet<UserDevice>(`/user-devices/${deviceId}`);
+      return response.data;
     } catch (error) {
-      console.error('Error enriching user devices:', error);
+      console.error(`Error fetching user device with ID ${deviceId}:`, error);
       throw error;
     }
   },
@@ -108,25 +86,25 @@ export const userDeviceService = {
     }
   },
 
-  /**
-   * Tải template Excel
-   */
-  downloadTemplate: async (): Promise<Blob> => {
-    try {
-      const blob = await apiGetBlob('/user-devices/template');
-      return blob;
-    } catch (error) {
-      console.error('Error downloading template:', error);
-      throw error;
-    }
-  },
+  // /**
+  //  * Tải template Excel
+  //  */
+  // downloadTemplate: async (): Promise<Blob> => {
+  //   try {
+  //     const blob = await apiGetBlob('/user-devices/template');
+  //     return blob;
+  //   } catch (error) {
+  //     console.error('Error downloading template:', error);
+  //     throw error;
+  //   }
+  // },
 
   /**
    * Xuất dữ liệu thiết bị ra Excel
    */
   exportToExcel: async (): Promise<Blob> => {
     try {
-      const blob = await apiGetBlob('/user-devices/export/my-devices');
+      const blob = await apiGetBlob('/user-devices/export');
       return blob;
     } catch (error) {
       console.error('Error exporting to Excel:', error);

@@ -1,40 +1,89 @@
-import { Storage } from '../types/deviceTypes';
-import { apiGet } from './apiService';
-import { deviceService } from './deviceService';
+import { DeviceStorage } from '../types/deviceTypes';
+import { getAuthToken } from './apiService';
 
-/**
- * Service xử lý các thao tác liên quan đến dung lượng lưu trữ thiết bị
- */
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+interface StoragesResponse {
+    data: DeviceStorage[];
+    total: number;
+    totalPages: number;
+}
+
 export const storageService = {
-  /**
-   * Lấy danh sách dung lượng lưu trữ theo thiết bị
-   * @param deviceId ID của thiết bị
-   */
-  getStoragesByDeviceId: async (deviceId: string): Promise<Storage[]> => {
-    try {
-      if (!deviceService.isValidUUID(deviceId)) {
-        return [];
-      }
-
-      const response = await apiGet<Storage[]>(`/device-infos/${deviceId}/storages`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching storages for device ${deviceId}:`, error);
-      return [];
+  async getStorages(params: { limit?: number, page?: number, search?: string }): Promise<StoragesResponse> {
+    const token = getAuthToken();
+    const { limit = 10, page = 1, search = '' } = params;
+    const skip = (page - 1) * limit;
+    const response = await fetch(`${API_BASE_URL}/device-storages?skip=${skip}&limit=${limit}&search=${search}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch storages');
     }
+    const data = await response.json();
+    return {
+        data: data.data,
+        total: data.total,
+        totalPages: data.totalPages,
+    };
+  },
+
+  async getAllStorages(): Promise<DeviceStorage[]> {
+    let allStorages: DeviceStorage[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while(hasMore) {
+        try {
+            const response = await this.getStorages({ page, limit: 100 });
+            if (response.data && response.data.length > 0) {
+                allStorages = [...allStorages, ...response.data];
+                if (page >= response.totalPages) {
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            } else {
+                hasMore = false;
+            }
+        } catch (error) {
+            console.error('Error fetching all storages:', error);
+            hasMore = false;
+        }
+    }
+    return allStorages;
+  },
+
+  async createStorage(deviceInfoId: string, capacity: number): Promise<DeviceStorage> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/device-storages`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ device_info_id: deviceInfoId, capacity }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create storage');
+    }
+    return response.json();
   },
 
   /**
    * Lấy thông tin chi tiết của một dung lượng lưu trữ theo ID
    * @param storageId ID của dung lượng lưu trữ
    */
-  getStorageById: async (storageId: string): Promise<Storage> => {
+  getStorageById: async (storageId: string): Promise<DeviceStorage> => {
     try {
       if (!deviceService.isValidUUID(storageId)) {
         throw new Error('Invalid storage ID');
       }
 
-      const response = await apiGet<Storage>(`/storages/${storageId}`);
+      const response = await apiGet<DeviceStorage>(`/storages/${storageId}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching storage with ID ${storageId}:`, error);

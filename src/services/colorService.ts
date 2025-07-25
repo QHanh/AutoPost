@@ -1,44 +1,106 @@
 import { Color } from '../types/deviceTypes';
-import { apiGet } from './apiService';
-import { deviceService } from './deviceService';
+import { getAuthToken } from './apiService';
 
-/**
- * Service xử lý các thao tác liên quan đến màu sắc thiết bị
- */
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+interface ColorsApiResponse {
+  colors: Color[];
+  pagination: {
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const colorService = {
-  /**
-   * Lấy danh sách màu sắc theo thiết bị
-   * @param deviceId ID của thiết bị
-   */
-  getColorsByDeviceId: async (deviceId: string): Promise<Color[]> => {
-    try {
-      if (!deviceService.isValidUUID(deviceId)) {
-        return [];
-      }
-
-      const response = await apiGet<Color[]>(`/device-infos/${deviceId}/colors`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching colors for device ${deviceId}:`, error);
-      return [];
+  async getColors(filter: { search?: string } = {}, pagination: { page?: number; limit?: number } = {}): Promise<ColorsApiResponse> {
+    const token = getAuthToken();
+    const params = new URLSearchParams();
+    const skip = ((pagination.page || 1) - 1) * (pagination.limit || 10);
+    params.append('skip', skip.toString());
+    params.append('limit', (pagination.limit || 10).toString());
+    if (filter.search) {
+      params.append('search', filter.search);
     }
+    
+    const response = await fetch(`${API_BASE_URL}/colors?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch colors');
+    const data = await response.json();
+    return {
+      colors: data.data,
+      pagination: {
+        total: data.total || 0,
+        totalPages: data.totalPages || 1,
+      },
+    };
   },
 
-  /**
-   * Lấy thông tin chi tiết của một màu sắc theo ID
-   * @param colorId ID của màu sắc
-   */
-  getColorById: async (colorId: string): Promise<Color> => {
-    try {
-      if (!deviceService.isValidUUID(colorId)) {
-        throw new Error('Invalid color ID');
-      }
+  async createColor(colorData: Partial<Color>): Promise<Color> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/colors`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(colorData),
+    });
+    if (!response.ok) throw new Error('Failed to create color');
+    const data = await response.json();
+    return data.data;
+  },
 
-      const response = await apiGet<Color>(`/colors/${colorId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching color with ID ${colorId}:`, error);
-      throw error;
+  async updateColor(id: string, colorData: Partial<Color>): Promise<Color> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/colors/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(colorData),
+    });
+    if (!response.ok) throw new Error('Failed to update color');
+    const data = await response.json();
+    return data.data;
+  },
+
+  async deleteColor(id: string): Promise<boolean> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/colors/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      let message = 'Failed to delete color';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
     }
+    const data = await response.json();
+    return data.data;
+  },
+
+  async getColorsByDeviceId(deviceId: string): Promise<Color[]> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceId}/colors`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.data || [];
+  },
+
+  async getColorById(colorId: string): Promise<Color | null> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/colors/${colorId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.data;
   },
 };

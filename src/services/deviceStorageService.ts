@@ -1,30 +1,65 @@
+import { DeviceStorage } from '../types/deviceTypes';
+import { getAuthToken } from './apiService';
+
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+interface DeviceStoragesResponse {
+  data: DeviceStorage[];
+  total: number;
+  totalPages: number;
+}
+
 export const deviceStorageService = {
-  async getAllDeviceStorages(search: string, page: number, limit: number) {
-    const token = localStorage.getItem('auth_token');
-    const params = new URLSearchParams();
-    if (search) params.append('search', search);
-    params.append('page', String(page));
-    params.append('limit', String(limit));
-    
-    console.log('Calling device-storages API with params:', params.toString());
-    
-    try {
-      const response = await fetch(`http://localhost:8000/api/v1/device-storages/all?${params.toString()}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error:', errorText);
-        throw new Error(`Lỗi khi lấy danh sách thiết bị-dung lượng: ${response.status} ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log('API response:', data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching device storages:', error);
-      throw error;
+  async getDeviceStorages(deviceInfoId: string, pagination: { page: number, limit: number }): Promise<DeviceStoragesResponse> {
+    const token = getAuthToken();
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/storages?skip=${skip}&limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch device storages');
     }
-  }
+    const data = await response.json();
+    return {
+        data: data.data,
+        total: data.total,
+        totalPages: data.totalPages
+    };
+  },
+
+  async addDeviceStorage(deviceInfoId: string, storageId: string): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/storages/${storageId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add storage to device');
+    }
+    return response.json();
+  },
+
+  async removeDeviceStorage(deviceInfoId: string, storageId: string): Promise<any> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/device-storages/${storageId}?device_info_id=${deviceInfoId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      let message = 'Failed to remove storage from device';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
+    }
+    return response.json();
+  },
 };

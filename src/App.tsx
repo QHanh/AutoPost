@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
@@ -45,6 +45,9 @@ function App() {
   
   const { isLoading } = useAuth();
   
+  const location = useLocation();
+  const showChatButtons = location.pathname !== '/chatbot-tabs';
+
   // Only server accounts now
   const connectedAccounts = accounts.filter(acc => acc.connected);
 
@@ -145,8 +148,9 @@ function App() {
           } 
         />
       </Routes>
-      <ZaloButton />
-      <ChatBot />
+      
+      {showChatButtons && <ZaloButton />}
+      {showChatButtons && <ChatBot />}
     </div>
   );
 }

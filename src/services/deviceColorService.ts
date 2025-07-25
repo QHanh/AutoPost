@@ -1,67 +1,65 @@
-import { DeviceColor } from '../types/deviceTypes';
+import { Color } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
+interface DeviceColorsResponse {
+  data: Color[];
+  total: number;
+  totalPages: number;
+}
+
 export const deviceColorService = {
-  async getAllDeviceColors(skip = 0, limit = 20, search = ''): Promise<{ data: DeviceColor[]; total: number; totalPages: number }> {
+  async getDeviceColors(deviceInfoId: string, pagination: { page: number, limit: number }): Promise<DeviceColorsResponse> {
     const token = getAuthToken();
-    let url = `${API_BASE_URL}/device-colors?skip=${skip}&limit=${limit}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    const response = await fetch(url, {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors?skip=${skip}&limit=${limit}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) throw new Error('Failed to fetch device colors');
+    if (!response.ok) {
+      throw new Error('Failed to fetch device colors');
+    }
     const data = await response.json();
     return {
-      data: data.data,
-      total: data.total || data.data.length,
-      totalPages: data.totalPages || Math.ceil((data.total || data.data.length) / limit),
+        data: data.data,
+        total: data.total,
+        totalPages: data.totalPages
     };
   },
 
-  async createDeviceColor(deviceColor: { device_info_id: string; color_id: string }): Promise<boolean> {
+  async addDeviceColor(deviceInfoId: string, colorId: string): Promise<any> {
     const token = getAuthToken();
-    // Gọi API giống admin: POST /device-infos/{deviceInfoId}/colors/{colorId}
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceColor.device_info_id}/colors/${deviceColor.color_id}`, {
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors/${colorId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) throw new Error('Failed to create device color');
-    const data = await response.json();
-    return data.data;
+    if (!response.ok) {
+      throw new Error('Failed to add color to device');
+    }
+    return response.json();
   },
 
-  async deleteDeviceColor(deviceColorId: string): Promise<boolean> {
+  async removeDeviceColor(deviceInfoId: string, colorId: string): Promise<any> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-colors/${deviceColorId}`, {
+    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors/${colorId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) throw new Error('Failed to delete device color');
-    const data = await response.json();
-    return data.data;
+    if (!response.ok) {
+      let message = 'Failed to remove color from device';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
+    }
+    return response.json();
   },
-
-  async getDeviceColorsByDeviceInfoId(deviceInfoId: string): Promise<DeviceColor[]> {
-    const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-colors/device/${deviceInfoId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch device colors by device info');
-    const data = await response.json();
-    return data.data;
-  },
-}; 
+};

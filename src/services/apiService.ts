@@ -126,18 +126,3 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
 
   return await response.blob();
 };
-
-// Device Color Service
-export const getAllDeviceColors = async (skip = 0, limit = 20, search = '') => {
-  let url = `/device-colors?skip=${skip}&limit=${limit}`;
-  if (search) url += `&search=${encodeURIComponent(search)}`;
-  return await apiGet(url);
-};
-
-export const createDeviceColor = async (data: { device_info_id: string; color_id: string }) => {
-  return await apiPost('/device-colors', data);
-};
-
-export const deleteDeviceColor = async (deviceColorId: string) => {
-  return await apiDelete(`/device-colors/${deviceColorId}`);
-};

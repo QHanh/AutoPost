@@ -75,7 +75,14 @@ export const deviceInfoService = {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    if (!response.ok) throw new Error('Failed to delete device info');
+    if (!response.ok) {
+      let message = 'Failed to delete device info';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
+    }
     const data = await response.json();
     return data.data;
   },
