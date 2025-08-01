@@ -90,8 +90,8 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           const headers = { 'Authorization': `Bearer ${token}` };
 
           const [colorsRes, storagesRes] = await Promise.all([
-            fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/colors`, { headers }),
-            fetch(`http://localhost:8000/api/v1/device-infos/${deviceId}/storages`, { headers }),
+            fetch(`http://192.168.1.17:8000/api/v1/device-infos/${deviceId}/colors`, { headers }),
+            fetch(`http://192.168.1.17:8000/api/v1/device-infos/${deviceId}/storages`, { headers }),
           ]);
 
           const colorsData = await colorsRes.json();

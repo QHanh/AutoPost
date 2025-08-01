@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { Smartphone, Palette, HardDrive, Settings, Layers, Database } from 'lucide-react';
+import { Smartphone, Palette, HardDrive, Settings, Layers, Database, MessageSquare } from 'lucide-react';
 
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
@@ -10,10 +10,11 @@ import SettingsTab from './ChatbotPage/SettingsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
+import ChatbotTab from './ChatbotPage/ChatbotTab';
 
 const ChatbotPageWithTabs: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'device-colors' | 'device-infos' | 'device-storage'>('devices');
+  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat'>('devices');
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -39,6 +40,8 @@ const ChatbotPageWithTabs: React.FC = () => {
         return <DeviceInfosTab />;
       case 'device-storage':
         return <DeviceStorageTab />;
+      case 'chat':
+        return <ChatbotTab />;
       default:
         return null;
     }
@@ -48,7 +51,7 @@ const ChatbotPageWithTabs: React.FC = () => {
     <div className="flex h-screen bg-gray-100">
       <aside className="w-64 bg-white shadow-md">
         <div className="p-4">
-          <h2 className="text-xl font-bold">Quản lý thiết bị</h2>
+          <h2 className="text-xl font-bold">Quản lý</h2>
         </div>
         <nav>
           <ul>
@@ -94,6 +97,12 @@ const ChatbotPageWithTabs: React.FC = () => {
                 <span>Cài đặt</span>
               </div>
             </li> */}
+            <li className={`p-4 cursor-pointer ${activeTab === 'chat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('chat')}>
+                <div className="flex items-center">
+                    <MessageSquare className="mr-2" />
+                    <span>Chat</span>
+                </div>
+            </li>
           </ul>
         </nav>
       </aside>

@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://192.168.1.17:8000/api/v1';
 
 interface ApiResponse<T> {
   data: T;
@@ -6,32 +8,65 @@ interface ApiResponse<T> {
   status?: string;
 }
 
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem('auth_token');
+const apiClient = axios.create({
+    baseURL: '/api/v1',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+export const getAuthToken = () => {
+    return localStorage.getItem('auth_token');
 };
 
-export const getAuthHeader = (): HeadersInit => {
+apiClient.interceptors.request.use(
+    (config) => {
+        const token = getAuthToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+export const getAuthHeader = (isFormData = false): HeadersInit => {
   const token = getAuthToken();
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
+  const headers: HeadersInit = {
+    'Authorization': `Bearer ${token}`
   };
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return headers;
 };
 
-export const apiGet = async <T>(endpoint: string): Promise<any> => {
-  const token = getAuthToken();
-  if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: getAuthHeader()
-  });
+export const apiGet = async <T>(endpoint: string, options: RequestInit = {}): Promise<any> => {
+    const token = getAuthToken();
+    if (!token) throw new Error('Unauthorized');
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || `Error: ${response.status}`);
-  }
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: getAuthHeader()
+    });
 
-  return await response.json();
+    if (!response.ok) {
+        // Handle non-JSON responses for blob errors
+        if (options.responseType === 'blob') {
+            throw new Error(`Error: ${response.status}`);
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Error: ${response.status}`);
+    }
+    
+    if (options.responseType === 'blob') {
+        return await response.blob();
+    }
+
+    return await response.json();
 };
 
 export const apiPost = async <T>(endpoint: string, data: any): Promise<any> => {
@@ -51,6 +86,25 @@ export const apiPost = async <T>(endpoint: string, data: any): Promise<any> => {
 
   return await response.json();
 };
+
+export const apiPostForm = async <T>(endpoint: string, formData: FormData): Promise<any> => {
+    const token = getAuthToken();
+    if (!token) throw new Error('Unauthorized');
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeader(true), // Pass true for FormData
+        body: formData
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Error: ${response.status}`);
+    }
+
+    return await response.json();
+};
+
 
 export const apiPut = async <T>(endpoint: string, data: any): Promise<any> => {
   const token = getAuthToken();
@@ -125,4 +179,9 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
   }
 
   return await response.blob();
+};
+
+export const chatbot = async (query: string) => {
+    const response = await apiClient.post('/chatbot/chatbot/chat', { query });
+    return response.data.data;
 };
