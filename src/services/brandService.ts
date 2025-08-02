@@ -1,8 +1,5 @@
-import { ResponseModel } from '../types/ResponseModel.js';
 import { Brand } from '../types/Brand.js';
 import { apiGet, apiPost, apiPut, apiDelete, apiPostForm } from './apiService.js';
-
-const API_URL = '/brands';
 
 export const brandService = {
   getAllBrands: async (
@@ -52,14 +49,32 @@ export const brandService = {
     return await apiPostForm(`/brands/import`, formData);
   },
 
-  exportBrands: async () => {
-    const response = await apiGet(`/brands/export`, { responseType: 'blob' });
-    const url = window.URL.createObjectURL(new Blob([response]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'danh_sach_tat_ca_dich_vu.xlsx');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  exportBrands: async (serviceIds?: string[]) => {
+    let url = '/brands/export';
+    if (serviceIds && serviceIds.length > 0) {
+      // Add service_ids as query parameters
+      const params = new URLSearchParams();
+      serviceIds.forEach(id => params.append('service_ids', id));
+      url += '?' + params.toString();
+    }
+    
+    try {
+      const response = await apiGet(url, { responseType: 'blob' });
+      const fileName = serviceIds && serviceIds.length > 0 
+        ? `danh_sach_dich_vu_${serviceIds.length}.xlsx` 
+        : 'danh_sach_tat_ca_dich_vu.xlsx';
+        
+      const blobUrl = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl); // Clean up
+    } catch (error) {
+      console.error('Export error:', error);
+      throw error;
+    }
   },
 };

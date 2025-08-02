@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserDevice, DeviceInfo, Color, DeviceStorage } from '../types/deviceTypes';
 import { deviceInfoService } from '../services/deviceInfoService';
-import { colorService } from '../services/colorService';
-import { storageService } from '../services/storageService';
-import { userDeviceService } from '../services/userDeviceService';
 import { Search } from 'lucide-react';
 
 interface DeviceFormModalProps {
@@ -16,7 +13,7 @@ interface DeviceFormModalProps {
 // Extend Partial<UserDevice> to allow device_info_id, color_id, device_storage_id
 interface DeviceFormData extends Partial<UserDevice> {
   device_info_id?: string;
-  color_id?: string;
+  color_ids?: string[];
   device_storage_id?: string;
 }
 
@@ -30,7 +27,7 @@ const defaultFormData: DeviceFormData = {
   warranty: '12 tháng',
   notes: '',
   device_info_id: '',
-  color_id: '',
+  color_ids: [],
   device_storage_id: '',
 };
 
@@ -48,7 +45,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
         setFormData({
           ...device,
           device_info_id: device.device_info?.id || '',
-          color_id: device.color?.id || '',
+          color_ids: device.color?.id ? [device.color.id] : [],
           device_storage_id: device.device_storage?.id || '',
         });
       } else {
@@ -64,7 +61,6 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
     const fetchDeviceInfos = async () => {
       setIsLoading(true);
       try {
-        // Sửa limit từ 1000 thành 100 để tránh lỗi 422
         const deviceInfosData = await deviceInfoService.getDeviceInfos({}, { page: 1, limit: 100 });
         setDeviceInfos(Array.isArray(deviceInfosData.devices) ? deviceInfosData.devices : []);
       } catch (error) {
@@ -129,28 +125,22 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Kiểm tra bắt buộc chọn đủ các trường UUID
-    if (
-      !formData.device_info_id ||
-      !formData.color_id ||
-      !formData.device_storage_id
-    ) {
+    if (!formData.device_info_id || !formData.color_ids || formData.color_ids.length === 0 || !formData.device_storage_id) {
       alert('Vui lòng chọn đầy đủ Thiết bị, Màu sắc và Dung lượng!');
       return;
     }
 
-    // Kiểm tra các trường UUID có đúng định dạng không (có thể dùng regex nếu cần)
-    // Nếu chắc chắn dropdown chỉ trả về UUID thì không cần kiểm tra thêm
-
-    // Chỉ gửi UUID hợp lệ, không gửi rỗng
-    const submitData: UserDevice = {
-      ...formData,
-      device_info_id: formData.device_info_id,
-      color_id: formData.color_id,
-      device_storage_id: formData.device_storage_id,
-    } as UserDevice;
-
-    onSave(submitData);
+    if (device) {
+      const deviceData: any = {
+        ...formData,
+        device_info_id: formData.device_info_id!,
+        color_id: formData.color_ids?.[0] || '',
+        device_storage_id: formData.device_storage_id!,
+      };
+      onSave(deviceData);
+    } else {
+      onSave(formData as any);
+    }
   };
 
   if (!isOpen) return null;
@@ -167,61 +157,102 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
               <label className="block text-sm font-medium text-gray-700">
                 Thiết bị <span className="text-red-500">*</span>
               </label>
-                {formData.device_info_id && (
-                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{deviceInfos.find(d => d.id === formData.device_info_id)?.model}</span></div>
+              {formData.device_info_id && (
+                <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{deviceInfos.find(d => d.id === formData.device_info_id)?.model}</span></div>
+              )}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm thiết bị..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  disabled={isLoading}
+                />
+                <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
+              </div>
+              <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+                {filteredDeviceInfos.length > 0 ? (
+                  filteredDeviceInfos.map(info => (
+                    <div
+                      key={info.id}
+                      onClick={() => {
+                        if (isLoading) return;
+                        setFormData(prev => ({ ...prev, device_info_id: info.id, color_ids: [], device_storage_id: '' }));
+                        setSearchTerm('');
+                      }}
+                      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.device_info_id === info.id ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
+                    >
+                      {info.model}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">Không tìm thấy thiết bị</div>
                 )}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm thiết bị..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    disabled={isLoading}
-                  />
-                  <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-                </div>
-                <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-                  {filteredDeviceInfos.length > 0 ? (
-                    filteredDeviceInfos.map(info => (
-                      <div
-                        key={info.id}
-                        onClick={() => {
-                          if (isLoading) return;
-                          setFormData(prev => ({ ...prev, device_info_id: info.id, color_id: '', device_storage_id: '' }));
-                          setSearchTerm('');
-                        }}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.device_info_id === info.id ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
-                      >
-                        {info.model}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-gray-500">Không tìm thấy thiết bị</div>
-                  )}
-                </div>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Màu sắc <span className="text-red-500">*</span>
               </label>
-              {formData.color_id && (
-                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{colors.find(c => c.id === formData.color_id)?.name}</span></div>
-              )}
+              <div className="flex justify-between items-center mb-2">
+                {formData.color_ids && formData.color_ids.length > 0 && (
+                  <div>
+                    <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium text-sm">
+                      {formData.color_ids.length} màu đã chọn
+                    </span>
+                  </div>
+                )}
+                {colors.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLoading) return;
+                      if (formData.color_ids?.length === colors.length) {
+                        // If all colors are selected, deselect all
+                        setFormData(prev => ({ ...prev, color_ids: [] }));
+                      } else {
+                        // Select all colors
+                        const allColorIds = colors.map(color => color.id);
+                        setFormData(prev => ({ ...prev, color_ids: allColorIds }));
+                      }
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    {formData.color_ids?.length === colors.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  </button>
+                )}
+              </div>
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
-                  {colors.length > 0 ? (
-                    colors.map(color => (
-                      <div
-                        key={color.id}
-                        onClick={() => { if (!isLoading) setFormData(prev => ({ ...prev, color_id: color.id }))}}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.color_id === color.id ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
-                      >
-                        {color.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-gray-500">{formData.device_info_id ? (isLoading ? 'Đang tải...' : 'Không có màu sắc') : 'Vui lòng chọn thiết bị'}</div>
-                  )}
+                {colors.length > 0 ? (
+                  colors.map(color => (
+                    <div
+                      key={color.id}
+                      onClick={() => {
+                        if (isLoading) return;
+                        const currentColors = formData.color_ids || [];
+                        const colorIndex = currentColors.indexOf(color.id);
+                        
+                        if (colorIndex > -1) {
+                          // Remove color if already selected
+                          currentColors.splice(colorIndex, 1);
+                        } else {
+                          // Add color if not selected
+                          currentColors.push(color.id);
+                        }
+                        
+                        setFormData(prev => ({ ...prev, color_ids: [...currentColors] }));
+                      }}
+                      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.color_ids?.includes(color.id) ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
+                    >
+                      {color.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">
+                    {formData.device_info_id ? (isLoading ? 'Đang tải...' : 'Không có màu sắc') : 'Vui lòng chọn thiết bị'}
+                  </div>
+                )}
               </div>
             </div>
             <div>
@@ -229,22 +260,22 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 Dung lượng <span className="text-red-500">*</span>
               </label>
               {formData.device_storage_id && (
-                  <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{storages.find(s => s.id === formData.device_storage_id)?.capacity} GB</span></div>
+                <div className="mb-2"><span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">{storages.find(s => s.id === formData.device_storage_id)?.capacity} GB</span></div>
               )}
               <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
-                  {storages.length > 0 ? (
-                    storages.map(storage => (
-                      <div
-                        key={storage.id}
-                        onClick={() => { if (!isLoading) setFormData(prev => ({ ...prev, device_storage_id: storage.id }))}}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.device_storage_id === storage.id ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
-                      >
-                        {storage.capacity} GB
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-gray-500">{formData.device_info_id ? (isLoading ? 'Đang tải...' : 'Không có dung lượng') : 'Vui lòng chọn thiết bị'}</div>
-                  )}
+                {storages.length > 0 ? (
+                  storages.map(storage => (
+                    <div
+                      key={storage.id}
+                      onClick={() => { if (!isLoading) setFormData(prev => ({ ...prev, device_storage_id: storage.id }))}}
+                      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.device_storage_id === storage.id ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''}`}
+                    >
+                      {storage.capacity} GB
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">{formData.device_info_id ? (isLoading ? 'Đang tải...' : 'Không có dung lượng') : 'Vui lòng chọn thiết bị'}</div>
+                )}
               </div>
             </div>
           </div>

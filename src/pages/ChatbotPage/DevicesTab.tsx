@@ -52,6 +52,8 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           storageCapacity: device.device_storage?.capacity || 0,
         }));
         setUserDevices(enrichedDevices);
+        
+        // Handle pagination metadata from the API response
         setPagination(prev => ({
             ...prev,
             total: data.total || 0,
@@ -81,17 +83,72 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     setIsModalOpen(false);
   };
 
-  const handleSaveDevice = async (device: UserDevice) => {
+  const handleSaveDevice = async (device: any) => {
     try {
-      if (device.id) {
+      // Check if this is a multi-color device creation
+      if (!device.id && device.color_ids && device.color_ids.length > 0) {
+        // Create multiple devices for each selected color
+        const results = [];
+        const errors = [];
+        
+        for (const colorId of device.color_ids) {
+          try {
+            const deviceData = {
+              ...device,
+              color_id: colorId,
+              device_info_id: device.device_info_id,
+              device_storage_id: device.device_storage_id,
+            };
+            
+            // Remove the temporary fields
+            delete deviceData.color_ids;
+            
+            const result = await userDeviceService.addUserDevice(deviceData);
+            results.push(result);
+          } catch (error: any) {
+            console.error(`Error saving device with color ${colorId}:`, error);
+            errors.push({
+              colorId,
+              error: error.message || 'Unknown error'
+            });
+          }
+        }
+        
+        // Show results to user
+        if (errors.length > 0) {
+          let errorMessage = `Đã thêm ${results.length} thiết bị thành công.\n`;
+          errorMessage += `Có ${errors.length} lỗi:\n`;
+          errors.forEach((err, index) => {
+            errorMessage += `${index + 1}. Màu ${err.colorId}: ${err.error}\n`;
+          });
+          alert(errorMessage);
+        } else {
+          alert(`Đã thêm ${results.length} thiết bị thành công.`);
+        }
+      } else if (device.id) {
+        // Update existing device
         await userDeviceService.updateUserDevice(device.id, device);
+        alert('Cập nhật thiết bị thành công.');
       } else {
+        // Single device creation (fallback)
         await userDeviceService.addUserDevice(device);
+        alert('Thêm thiết bị thành công.');
       }
+      
       fetchUserDevices();
       handleCloseModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving device:', error);
+      // Handle error message from API service
+      if (error.message) {
+        // Extract the actual error message from the error object
+        const message = error.message;
+        // If message contains '400: ', extract the part after it
+        const displayMessage = message.includes('400: ') ? message.split('400: ')[1] : message;
+        alert(`Lỗi: ${displayMessage}`);
+      } else {
+        alert('Có lỗi xảy ra khi lưu thiết bị.');
+      }
     }
   };
 
@@ -129,7 +186,19 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     if (file) {
       try {
         const result = await userDeviceService.importFromExcel(file);
-        alert(`Import thành công: ${result.success} dòng, thất bại: ${result.error} dòng.`);
+        
+        // Create a detailed message with success and error information
+        let message = `Import thành công: ${result.success} dòng, thất bại: ${result.error} dòng.`;
+        
+        // Add detailed error messages if there are any
+        if (result.errors && result.errors.length > 0) {
+          message += '\n\nChi tiết lỗi:';
+          result.errors.forEach((error: string) => {
+            message += `\n${error}`;
+          });
+        }
+        
+        alert(message);
         fetchUserDevices();
       } catch (error) {
         console.error('Error importing from Excel:', error);
@@ -143,7 +212,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     (device.product_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
-  const paginatedDevices = userDevices;
+  const paginatedDevices = filteredDevices;
 
   const renderSortIcon = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity') => {
     if (!sortConfig || sortConfig.key !== key) {

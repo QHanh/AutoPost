@@ -8,6 +8,10 @@ interface ApiResponse<T> {
   status?: string;
 }
 
+interface ApiGetOptions extends RequestInit {
+  responseType?: 'blob' | 'json';
+}
+
 const apiClient = axios.create({
     baseURL: '/api/v1',
     headers: {
@@ -44,7 +48,7 @@ export const getAuthHeader = (isFormData = false): HeadersInit => {
 };
 
 
-export const apiGet = async <T>(endpoint: string, options: RequestInit = {}): Promise<any> => {
+export const apiGet = async <T>(endpoint: string, options: ApiGetOptions = {}): Promise<any> => {
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 

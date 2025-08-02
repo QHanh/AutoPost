@@ -61,6 +61,7 @@ export interface ImportResult {
   updated_count: number;
   created_count: number;
   error: number;
+  errors?: string[];
 }
 
 export interface DeviceColor {
