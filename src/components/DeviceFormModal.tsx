@@ -58,21 +58,36 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
   }, [device, isOpen]);
 
   useEffect(() => {
-    const fetchDeviceInfos = async () => {
-      setIsLoading(true);
-      try {
-        const deviceInfosData = await deviceInfoService.getDeviceInfos({}, { page: 1, limit: 100 });
-        setDeviceInfos(Array.isArray(deviceInfosData.devices) ? deviceInfosData.devices : []);
-      } catch (error) {
-        console.error('Error fetching device infos', error);
-        setDeviceInfos([]);
-      } finally {
-        setIsLoading(false);
+    // Debounce search term to reduce API calls
+    const handler = setTimeout(() => {
+      if (searchTerm.length >= 2 || searchTerm.length === 0) {  // Only search when term is empty or at least 2 characters
+        fetchDeviceInfos(searchTerm);
       }
-    };
+    }, 500);
 
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const fetchDeviceInfos = async (search = '') => {
+    if (!isOpen) return;
+    setIsLoading(true);
+    try {
+      const params = { search: search };
+      const deviceInfosData = await deviceInfoService.getDeviceInfos(params, { page: 1, limit: 100 });
+      setDeviceInfos(Array.isArray(deviceInfosData.devices) ? deviceInfosData.devices : []);
+    } catch (error) {
+      console.error('Error fetching device infos', error);
+      setDeviceInfos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (isOpen) {
-      fetchDeviceInfos();
+      fetchDeviceInfos(); // Initial fetch when modal opens
     }
   }, [isOpen]);
 
