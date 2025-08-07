@@ -1,7 +1,7 @@
 import { DeviceInfo } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'http://192.168.1.17:8000/api/v1';
+const API_BASE_URL = 'http://192.168.1.161:8000/api/v1';
 
 export const deviceInfoService = {
   async getDeviceInfos(filter: any = {}, pagination: { page?: number; limit?: number } = {}) {

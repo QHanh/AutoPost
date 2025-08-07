@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { Smartphone, Palette, HardDrive, Settings, Layers, Database, MessageSquare } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package } from 'lucide-react';
 
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
-import StorageTab from './ChatbotPage/StorageTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
+import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 
 const ChatbotPageWithTabs: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat'>('devices');
+  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat' | 'product-components'>('devices');
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -42,6 +42,8 @@ const ChatbotPageWithTabs: React.FC = () => {
         return <DeviceStorageTab />;
       case 'chat':
         return <ChatbotTab />;
+      case 'product-components':
+        return <LinhKienManagementTabs />;
       default:
         return null;
     }
@@ -97,6 +99,12 @@ const ChatbotPageWithTabs: React.FC = () => {
                 <span>Cài đặt</span>
               </div>
             </li> */}
+            <li className={`p-4 cursor-pointer ${activeTab === 'product-components' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('product-components')}>
+                <div className="flex items-center">
+                    <Package className="mr-2" />
+                    <span>Linh kiện</span>
+                </div>
+            </li>
             <li className={`p-4 cursor-pointer ${activeTab === 'chat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('chat')}>
                 <div className="flex items-center">
                     <MessageSquare className="mr-2" />

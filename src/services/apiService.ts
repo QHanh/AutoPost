@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://192.168.1.17:8000/api/v1';
+const API_BASE_URL = 'http://192.168.1.161:8000/api/v1';
 
 interface ApiResponse<T> {
   data: T;

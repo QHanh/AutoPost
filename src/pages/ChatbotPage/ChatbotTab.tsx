@@ -66,7 +66,6 @@ const ChatbotTab: React.FC = () => {
           value={input}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
           placeholder="Type your message..."
-          disabled={isLoading}
           className="flex-grow p-2 border rounded-md"
         />
         <button type="submit" disabled={isLoading} className="p-2 bg-blue-500 text-white rounded-md">

@@ -1,80 +1,99 @@
-import { Brand } from '../types/Brand.js';
-import { apiGet, apiPost, apiPut, apiDelete, apiPostForm } from './apiService.js';
+import { Brand, BrandCreate, BrandUpdate } from '../types/Brand';
 
-export const brandService = {
-  getAllBrands: async (
-    skip = 0,
-    limit = 100,
-    search = '',
-    service_id?: string,
-    sort_by?: keyof Brand,
-    sort_order?: 'asc' | 'desc'
-  ) => {
-    const params: any = { skip, limit, search };
-    if (service_id) {
-        params.service_id = service_id;
-    }
-    if (sort_by) {
-        params.sort_by = sort_by;
-        params.sort_order = sort_order || 'asc';
-    }
-    let url = '/brands' + '?' + new URLSearchParams(params).toString();
-    const response = await apiGet(url);
-    return response.data;
-  },
+const API_URL = "http://192.168.1.161:8000/api/v1"; // Ensure this is your correct API URL
 
-  getBrand: async (id: string) => {
-    const response = await apiGet(`/brands/${id}`);
-    return response.data;
-  },
+class BrandService {
+  private async makeRequest(endpoint: string, options: RequestInit = {}) {
+    const token = localStorage.getItem("auth_token");
 
-  createBrand: async (brandData: Partial<Brand>) => {
-    const response = await apiPost('/brands', brandData);
-    return response.data;
-  },
+    const config: RequestInit = {
+      headers: {
+        ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
 
-  updateBrand: async (id: string, brandData: Partial<Brand>) => {
-    const response = await apiPut(`/brands/${id}`, brandData);
-    return response.data;
-  },
+    const response = await fetch(`${API_URL}${endpoint}`, config);
 
-  deleteBrand: async (id: string) => {
-    const response = await apiDelete(`/brands/${id}`);
-    return response.data;
-  },
-  
-  importBrands: async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return await apiPostForm(`/brands/import`, formData);
-  },
-
-  exportBrands: async (serviceIds?: string[]) => {
-    let url = '/brands/export';
-    if (serviceIds && serviceIds.length > 0) {
-      // Add service_ids as query parameters
-      const params = new URLSearchParams();
-      serviceIds.forEach(id => params.append('service_ids', id));
-      url += '?' + params.toString();
+    if (!response.ok) {
+      if (response.headers.get("Content-Type")?.includes("application/json")) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    try {
-      const response = await apiGet(url, { responseType: 'blob' });
-      const fileName = serviceIds && serviceIds.length > 0 
-        ? `danh_sach_dich_vu_${serviceIds.length}.xlsx` 
-        : 'danh_sach_tat_ca_dich_vu.xlsx';
-        
-      const blobUrl = window.URL.createObjectURL(new Blob([response]));
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(blobUrl); // Clean up
-    } catch (error) {
-      console.error('Export error:', error);
-      throw error;
+    // For file downloads, we handle the blob in the component.
+    if (response.headers.get("Content-Type")?.includes("sheet")) {
+        return response;
     }
-  },
-};
+
+    return response.json();
+  }
+
+  async getAllBrands(skip = 0, limit = 100, search = '', service_id?: string, sort_by?: keyof Brand, sort_order?: 'asc' | 'desc') {
+    const params = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+      ...(search && { search }),
+      ...(service_id && { service_id }),
+      ...(sort_by && { sort_by }),
+      ...(sort_order && { sort_order }),
+    });
+    const response = await this.makeRequest(`/brands?${params}`);
+    return response.data;
+  }
+
+  async getUniqueBrandNames(serviceId: string) {
+    return this.makeRequest(`/brands/unique-names/${serviceId}`);
+  }
+
+  async createBrand(data: Partial<Brand>) {
+    return this.makeRequest('/brands', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBrand(brandId: string, data: Partial<Brand>) {
+    return this.makeRequest(`/brands/${brandId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBrand(brandId: string) {
+    return this.makeRequest(`/brands/${brandId}`, { method: 'DELETE' });
+  }
+
+  async importBrands(file: File) {
+      const formData = new FormData();
+      formData.append('file', file);
+      return this.makeRequest('/brands/import', {
+          method: 'POST',
+          body: formData,
+      });
+  }
+
+  async exportBrands(serviceIds?: string[]) {
+    const params = new URLSearchParams();
+    if (serviceIds) {
+      serviceIds.forEach(id => params.append('service_ids', id));
+    }
+    const response = await this.makeRequest(`/brands/export?${params}`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `brands_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    return response;
+  }
+}
+
+export const brandService = new BrandService();

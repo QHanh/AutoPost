@@ -1,6 +1,6 @@
 import { DeviceBrand, DeviceBrandCreate, DeviceBrandUpdate } from "../types/deviceBrand";
 
-const API_URL = "http://192.168.1.17:8000/api/v1";
+const API_URL = "http://192.168.1.161:8000/api/v1";
 
 class DeviceBrandService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {

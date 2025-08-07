@@ -101,8 +101,8 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           const headers = { 'Authorization': `Bearer ${token}` };
 
           const [colorsRes, storagesRes] = await Promise.all([
-            fetch(`http://192.168.1.17:8000/api/v1/device-infos/${deviceId}/colors`, { headers }),
-            fetch(`http://192.168.1.17:8000/api/v1/device-infos/${deviceId}/storages`, { headers }),
+            fetch(`http://192.168.1.161:8000/api/v1/device-infos/${deviceId}/colors`, { headers }),
+            fetch(`http://192.168.1.161:8000/api/v1/device-infos/${deviceId}/storages`, { headers }),
           ]);
 
           const colorsData = await colorsRes.json();
@@ -210,17 +210,16 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
               <label className="block text-sm font-medium text-gray-700">
                 Màu sắc <span className="text-red-500">*</span>
               </label>
-              <div className="flex justify-between items-center mb-2">
-                {formData.color_ids && formData.color_ids.length > 0 && (
-                  <div>
-                    <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium text-sm">
-                      {formData.color_ids.length} màu đã chọn
-                    </span>
-                  </div>
-                )}
+              {formData.color_ids && formData.color_ids.length > 0 && (
+                <div className="mb-2">
+                  <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium text-sm">
+                    {formData.color_ids.length} màu đã chọn
+                  </span>
+                </div>
+              )}
+              <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
                 {colors.length > 0 && (
-                  <button
-                    type="button"
+                  <div
                     onClick={() => {
                       if (isLoading) return;
                       if (formData.color_ids?.length === colors.length) {
@@ -232,13 +231,11 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                         setFormData(prev => ({ ...prev, color_ids: allColorIds }));
                       }
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${formData.color_ids?.length === colors.length ? 'bg-blue-50 text-blue-700 font-medium' : ''} ${isLoading ? 'cursor-not-allowed' : ''} border-b border-gray-200`}
                   >
                     {formData.color_ids?.length === colors.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                  </button>
+                  </div>
                 )}
-              </div>
-              <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
                 {colors.length > 0 ? (
                   colors.map(color => (
                     <div
