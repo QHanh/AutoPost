@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
+import PropertySelector from '../../components/PropertySelector';
 
 interface ProductComponentsTabProps {
   isAuthenticated: boolean;
@@ -27,6 +28,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     product_name: '',
     amount: 0,
     stock: 0,
+    properties: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -201,7 +203,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         product_photo: productComponent.product_photo || '',
         product_link: productComponent.product_link || '',
         category_id: productComponent.category_id || '',
-        property_id: productComponent.property_id || '',
+        properties: productComponent.properties || '',
       });
     } else {
       setEditingProductComponent(null);
@@ -210,6 +212,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         product_name: '',
         amount: 0,
         stock: 0,
+        properties: '',
       });
     }
     console.log('Checking if categories need to be fetched...');
@@ -261,7 +264,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           product_photo: formData.product_photo || undefined,
           product_link: formData.product_link || undefined,
           category_id: formData.category_id || undefined,
-          property_id: formData.property_id || undefined,
+          properties: formData.properties || undefined,
         };
         
         result = await productComponentService.updateProductComponent(editingProductComponent.id, updateData);
@@ -485,7 +488,24 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       {productComponent.category ? productComponent.category.name : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {productComponent.property ? `${productComponent.property.key}: ${productComponent.property.value || 'N/A'}` : 'N/A'}
+                      {productComponent.properties ? (
+                        (() => {
+                          try {
+                            const parsedProperties = JSON.parse(productComponent.properties);
+                            return parsedProperties && parsedProperties.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {parsedProperties.map((property: any, index: number) => (
+                                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs">
+                                    {property.key}: {property.values ? property.values.join(', ') : 'N/A'}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : 'N/A';
+                          } catch (e) {
+                            return productComponent.properties || 'N/A';
+                          }
+                        })()
+                      ) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
@@ -639,23 +659,49 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                   )}
                 </div>
                 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thuộc Tính</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.property_id || ''}
-                    onChange={(e) => setFormData({...formData, property_id: e.target.value || undefined})}
-                  >
-                    <option value="">Chọn thuộc tính</option>
-                    {properties.map(property => (
-                      <option key={property.id} value={property.id}>
-                        {property.key}: {property.value || 'N/A'}
-                      </option>
-                    ))}
-                  </select>
-                  {properties.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">Đang tải thuộc tính...</p>
-                  )}
+                  <PropertySelector 
+                    properties={properties}
+                    selectedProperties={formData.properties || ''}
+                    onPropertiesChange={(properties) => {
+                      setFormData({
+                        ...formData,
+                        properties
+                      });
+                    }}
+                    onAddNewProperty={async (key, values) => {
+                      try {
+                        const newProperty = await productComponentService.createProperty({
+                          key,
+                          values
+                        });
+                        
+                        setProperties(prev => [...prev, newProperty]);
+                        
+                        // Update properties in form data
+                        let currentProperties: any[] = [];
+                        try {
+                          currentProperties = formData.properties ? JSON.parse(formData.properties) : [];
+                        } catch (e) {
+                          currentProperties = [];
+                        }
+                        
+                        const updatedProperties = [
+                          ...currentProperties,
+                          { key: newProperty.key, values: newProperty.values || [] }
+                        ];
+                        
+                        setFormData({
+                          ...formData,
+                          properties: JSON.stringify(updatedProperties)
+                        });
+                      } catch (error) {
+                        console.error('Error creating new property:', error);
+                        alert('Có lỗi xảy ra khi thêm thuộc tính mới');
+                      }
+                    }}
+                  />
                 </div>
                 
                 <div className="md:col-span-2">

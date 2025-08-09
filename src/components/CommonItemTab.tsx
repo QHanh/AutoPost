@@ -80,7 +80,7 @@ const DraggableItemNode: React.FC<{
                             {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
                         </button>
                     )}
-                    <span className="text-sm font-medium text-gray-800">{node.name}{itemType === 'property' && node.value ? `: ${node.value}` : ''}</span>
+                    <span className="text-sm font-medium text-gray-800">{node.name}{itemType === 'property' && node.values && node.values.length > 0 ? `: ${node.values.join(', ')}` : ''}</span>
                 </div>
                 {!isOverlay && (
                     <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -127,7 +127,7 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
           parent_id: prop.parent_id,
           created_at: prop.created_at,
           updated_at: prop.updated_at,
-          value: prop.value // Include value field for properties
+          values: prop.values // Include values field for properties
         }));
         setItems(commonItems);
       }
@@ -177,7 +177,7 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
       setEditingItem(item);
       setFormData({
         name: item.name,
-        value: item.value || '',
+        values: item.values || [],
         parent_id: item.parent_id
       });
     } else {
@@ -195,7 +195,7 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingItem(null);
-    setFormData({ name: '' });
+    setFormData({ name: '', values: [] });
     setFormErrors({});
   };
 
@@ -224,11 +224,11 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
         if (itemType === 'category') {
           await productComponentService.updateCategory(editingItem.id, updateData);
         } else {
-          // For properties, we need to convert name back to key and include value
+          // For properties, we need to convert name back to key and include values
           const propertyUpdateData = {
             key: updateData.name,
-            value: formData.value,
-            parent_id: updateData.parent_id
+            values: formData.values,
+            parent_id: formData.parent_id
           };
           await productComponentService.updateProperty(editingItem.id, propertyUpdateData);
         }
@@ -237,10 +237,10 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
         if (itemType === 'category') {
           await productComponentService.createCategory(formData as any);
         } else {
-          // For properties, we need to convert name to key and include value
+          // For properties, we need to convert name to key and include values
           const propertyCreateData = {
             key: formData.name,
-            value: formData.value,
+            values: formData.values,
             parent_id: formData.parent_id
           };
           await productComponentService.createProperty(propertyCreateData as any);
@@ -418,12 +418,42 @@ const CommonItemTab: React.FC<CommonItemTabProps> = ({ isAuthenticated, itemType
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Giá trị
                   </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={formData.value || ''}
-                    onChange={(e) => setFormData({...formData, value: e.target.value})}
-                  />
+                  {(formData.values || ['']).map((value, index) => (
+                    <div key={index} className="flex mb-2">
+                      <input
+                        type="text"
+                        className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={value || ''}
+                        onChange={(e) => {
+                          const newValues = [...(formData.values || [''])];
+                          newValues[index] = e.target.value;
+                          setFormData({...formData, values: newValues});
+                        }}
+                        placeholder={`Giá trị ${index + 1}`}
+                      />
+                      <button
+                        type="button"
+                        className="ml-2 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                        onClick={() => {
+                          const newValues = [...(formData.values || [''])];
+                          newValues.splice(index, 1);
+                          setFormData({...formData, values: newValues});
+                        }}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="mt-2 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    onClick={() => {
+                      const newValues = [...(formData.values || []), ''];
+                      setFormData({...formData, values: newValues});
+                    }}
+                  >
+                    Thêm giá trị
+                  </button>
                 </div>
               )}
               

@@ -148,9 +148,10 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             Swal.fire('Thành công', `Đã thêm ${colorOptions.length} loại dịch vụ.`, 'success');
             onSave();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create brands for all colors", error);
-            Swal.fire('Lỗi', 'Không thể tạo loại dịch vụ cho tất cả màu sắc.', 'error');
+            const errorMessage = error.response?.data?.detail || 'Không thể tạo loại dịch vụ cho tất cả màu sắc.';
+            Swal.fire('Lỗi', errorMessage, 'error');
         }
     } else {
         const colorName = colorOptions.find(c => c.id === selectedColor)?.name || '';
@@ -175,8 +176,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             }
             onSave();
             onClose();
-        } catch (error) {
-            Swal.fire('Lỗi', 'Không thể lưu loại dịch vụ.', 'error');
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.detail || 'Không thể lưu loại dịch vụ.';
+            Swal.fire('Lỗi', errorMessage, 'error');
         }
     }
 };

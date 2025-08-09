@@ -11,11 +11,11 @@ export interface ProductComponent {
   product_link?: string;
   user_id: string;
   category_id?: string;
-  property_id?: string;
+  properties?: string;
   created_at: string;
   updated_at: string;
   category?: Category;
-  property?: Property;
+  property_ids?: string[];
 }
 
 export interface Category {
@@ -31,7 +31,7 @@ export interface Category {
 export interface Property {
   id: string;
   key: string;
-  value?: string;
+  values?: string[];
   parent_id?: string;
   created_at: string;
   updated_at: string;
@@ -40,7 +40,7 @@ export interface Property {
 }
 
 export interface ProductComponentCreate {
-  product_code: string;
+  product_code?: string;
   product_name: string;
   amount: number;
   trademark?: string;
@@ -49,9 +49,9 @@ export interface ProductComponentCreate {
   description?: string;
   product_photo?: string;
   product_link?: string;
-  user_id: string;
+  user_id?: string;
   category_id?: string;
-  property_id?: string;
+  properties?: string;
 }
 
 export interface ProductComponentUpdate {
@@ -65,7 +65,7 @@ export interface ProductComponentUpdate {
   product_photo?: string;
   product_link?: string;
   category_id?: string;
-  property_id?: string;
+  properties?: string;
 }
 
 export interface CategoryCreate {
@@ -80,13 +80,13 @@ export interface CategoryUpdate {
 
 export interface PropertyCreate {
   key: string;
-  value?: string;
+  values?: string[];
   parent_id?: string;
 }
 
 export interface PropertyUpdate {
   key?: string;
-  value?: string;
+  values?: string[];
   parent_id?: string;
 }
 

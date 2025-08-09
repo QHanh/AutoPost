@@ -1,4 +1,4 @@
-import { Brand, BrandCreate, BrandUpdate } from '../types/Brand';
+import { Brand } from '../types/Brand';
 
 const API_URL = "http://192.168.1.161:8000/api/v1"; // Ensure this is your correct API URL
 
@@ -20,7 +20,9 @@ class BrandService {
     if (!response.ok) {
       if (response.headers.get("Content-Type")?.includes("application/json")) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        const error = new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        (error as any).response = { data: errorData, status: response.status };
+        throw error;
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }

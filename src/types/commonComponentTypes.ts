@@ -4,18 +4,19 @@ export interface CommonItem {
   parent_id?: string;
   created_at: string;
   updated_at: string;
-  value?: string | null;
+  values?: string[];
   children?: CommonItem[];
 }
 
 export interface CommonItemCreate {
   name: string;
-  value?: string;
+  values?: string[];
   parent_id?: string;
 }
 
 export interface CommonItemUpdate {
   name?: string;
+  values?: string[];
   parent_id?: string;
 }
 
