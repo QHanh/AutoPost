@@ -17,7 +17,7 @@ const DeviceStorageTab: React.FC = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   
   const [deviceSearchTerm, setDeviceSearchTerm] = useState('');
-  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(true);
   const deviceDropdownRef = useRef<HTMLDivElement>(null);
   
   const [storageSearchTerm, setStorageSearchTerm] = useState('');

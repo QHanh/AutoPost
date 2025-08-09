@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { DeviceInfo, Color, DeviceColor } from '../../types/deviceTypes';
+import { DeviceInfo, Color } from '../../types/deviceTypes';
 import { deviceService } from '../../services/deviceService';
 import { colorService } from '../../services/colorService';
 import { deviceColorService } from '../../services/deviceColorService';
@@ -17,7 +17,7 @@ const DeviceColorsTab: React.FC = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   
   const [deviceSearchTerm, setDeviceSearchTerm] = useState('');
-  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(true);
   const deviceDropdownRef = useRef<HTMLDivElement>(null);
   
   const [colorSearchTerm, setColorSearchTerm] = useState('');
@@ -108,16 +108,20 @@ const DeviceColorsTab: React.FC = () => {
 
   const handleAddDeviceColor = async () => {
     if (!selectedDevice || !selectedColorToAdd) {
-      alert('Vui lòng chọn thiết bị và màu sắc để thêm.');
+      alert('Vui lòng chọn một thiết bị và một màu sắc');
       return;
     }
     try {
-      await deviceColorService.addDeviceColor(selectedDevice, selectedColorToAdd);
-      alert('Thêm màu vào thiết bị thành công.');
+      await deviceColorService.createDeviceColor({
+        device_info_id: selectedDevice,
+        color_id: selectedColorToAdd,
+      });
       fetchDeviceColors(selectedDevice);
       setSelectedColorToAdd(null);
     } catch (error: any) {
-      alert('Thêm màu vào thiết bị thất bại.');
+      console.error('Error adding device color:', error);
+      const errorMessage = error.response?.data?.detail || 'Không thể thêm màu cho thiết bị. Đã có lỗi xảy ra.';
+      alert(errorMessage);
     }
   };
 
