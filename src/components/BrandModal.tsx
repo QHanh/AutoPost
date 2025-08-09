@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
 import deviceBrandService from '../services/deviceBrandService';
 import { brandService } from '../services/brandService';
+import { warrantyService, WarrantyService } from '../services/warrantyService';
 import { Service } from '../types/Service';
 
 interface UniqueBrandName {
@@ -28,12 +29,15 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   const [deviceOptions, setDeviceOptions] = useState<{ id: string, name: string }[]>([]);
   const [colorOptions, setColorOptions] = useState<{ id: string, name: string }[]>([]);
   const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
+  const [warrantyServices, setWarrantyServices] = useState<WarrantyService[]>([]);
   const [uniqueBrandNames, setUniqueBrandNames] = useState<UniqueBrandName[]>([]);
   const [selectedDeviceBrand, setSelectedDeviceBrand] = useState<string>('');
   const [newDeviceBrand, setNewDeviceBrand] = useState<string>('');
   const [isAddingNewBrand, setIsAddingNewBrand] = useState<boolean>(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [newWarrantyService, setNewWarrantyService] = useState<string>('');
+  const [isAddingNewWarranty, setIsAddingNewWarranty] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,6 +52,15 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
     const brandData = await deviceBrandService.getDeviceBrands();
     setDeviceBrands(brandData);
+
+    // Fetch warranty services
+    try {
+      const warrantyData = await warrantyService.getWarrantyServices();
+      setWarrantyServices(warrantyData);
+    } catch (error) {
+      console.error('Failed to fetch warranty services:', error);
+      setWarrantyServices([]);
+    }
 
     if (selectedService) {
         const uniqueNames = await brandService.getUniqueBrandNames(selectedService.id);
@@ -94,6 +107,20 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedColor(e.target.value);
 };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    if (/^\d*$/.test(rawValue)) {
+      setCurrentBrand(prev => prev ? { ...prev, price: rawValue } : null);
+    }
+  };
+
+  const formatPrice = (price: string): string => {
+    if (!price) return '';
+    const numberValue = parseInt(price, 10);
+    if (isNaN(numberValue)) return '';
+    return numberValue.toLocaleString('vi-VN');
+  };
 
   const handleSave = async () => {
     if (!currentBrand || !currentBrand.name || !selectedService) {
@@ -187,28 +214,30 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             <label className="block text-sm font-medium text-gray-700">
               Thương hiệu
             </label>
-            <div className="relative">
-              <select
-                value={selectedDeviceBrand}
-                onChange={(e) => {
-                  setSelectedDeviceBrand(e.target.value);
-                }}
-                className="w-full p-2 border rounded-md"
-              >
-                <option value="">Chọn thương hiệu</option>
-                {deviceBrands.map(brand => (
-                  <option key={brand.id} value={brand.id}>{brand.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setIsAddingNewBrand(true)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700"
-              >
-                <Plus size={16} />
-              </button>
-              {isAddingNewBrand && (
-                <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-white border rounded-md shadow-lg z-10 flex gap-2">
+            <div className="mt-1">
+              {!isAddingNewBrand ? (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={(deviceBrands || []).map(brand => ({ id: brand.id, name: brand.name }))}
+                      value={selectedDeviceBrand}
+                      onChange={(value) => {
+                        setSelectedDeviceBrand(value);
+                      }}
+                      placeholder="Chọn thương hiệu"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewBrand(true)}
+                    className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
+                    title="Thêm thương hiệu mới"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newDeviceBrand}
@@ -251,13 +280,68 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           {/* Warranty */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Bảo hành</label>
-            <input
-              type="text"
-              value={currentBrand?.warranty || ''}
-              onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, warranty: e.target.value } : null)}
-              placeholder="Bảo hành (VD: 6 tháng)"
-              className="w-full p-2 border rounded-md mt-1"
-            />
+            <div className="mt-1">
+              {!isAddingNewWarranty ? (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={(warrantyServices || []).map(ws => ({ id: ws.id, name: ws.value }))}
+                      value={(warrantyServices || []).find(ws => ws.value === currentBrand?.warranty)?.id || ''}
+                      onChange={(value) => {
+                        const selectedWarranty = (warrantyServices || []).find(ws => ws.id === value);
+                        setCurrentBrand(prev => prev ? { ...prev, warranty: selectedWarranty?.value || '' } : null);
+                      }}
+                      placeholder="Chọn bảo hành"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewWarranty(true)}
+                    className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
+                    title="Thêm bảo hành mới"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newWarrantyService}
+                    onChange={(e) => setNewWarrantyService(e.target.value)}
+                    placeholder="Tên bảo hành mới"
+                    className="flex-1 p-2 border rounded-md"
+                    autoFocus
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newWarrantyService.trim()) return;
+                      try {
+                        const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() });
+                        setWarrantyServices(prev => [...prev, newWarranty]);
+                        setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null);
+                        setNewWarrantyService('');
+                        setIsAddingNewWarranty(false);
+                        Swal.fire('Thành công', 'Thêm bảo hành mới thành công!', 'success');
+                      } catch (error) {
+                        console.error('Failed to create warranty service:', error);
+                        Swal.fire('Lỗi', 'Không thể tạo bảo hành mới.', 'error');
+                      }
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewWarranty(false)}
+                    className="p-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  >
+                    X
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Device Type */}
@@ -295,9 +379,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             <label className="block text-sm font-medium text-gray-700">Giá</label>
             <input
                 type="text"
-                value={currentBrand?.price || ''}
-                onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, price: e.target.value } : null)}
-                placeholder="Giá (VD: 500000)"
+                value={formatPrice(currentBrand?.price || '')}
+                onChange={handlePriceChange}
+                placeholder="Giá (VD: 500.000)"
                 className="w-full p-2 border rounded-md mt-1"
             />
           </div>

@@ -36,6 +36,17 @@ apiClient.interceptors.request.use(
     }
 );
 
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // If there's a response with error details, pass them through
+        if (error.response && error.response.data && error.response.data.detail) {
+            return Promise.reject(error);
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const getAuthHeader = (isFormData = false): HeadersInit => {
   const token = getAuthToken();
   const headers: HeadersInit = {
@@ -186,6 +197,14 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
 };
 
 export const chatbot = async (query: string) => {
-    const response = await apiClient.post('/chatbot/chatbot/chat', { query });
-    return response.data.data;
+    try {
+        const response = await apiClient.post('/chatbot/chatbot/chat', { 
+            query,
+            llm_provider: 'google_genai'
+        });
+        return response.data.data;
+    } catch (error) {
+        // Re-throw the error so it can be handled by the calling function
+        throw error;
+    }
 };

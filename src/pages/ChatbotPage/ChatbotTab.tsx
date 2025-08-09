@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { chatbot } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
@@ -11,9 +11,21 @@ interface Message {
 
 const ChatbotTab: React.FC = () => {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const savedMessages = localStorage.getItem('chatbotMessages');
+    return savedMessages ? JSON.parse(savedMessages) : [];
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('chatbotMessages', JSON.stringify(messages));
+  }, [messages]);
+
+  const clearChat = () => {
+    setMessages([]);
+    localStorage.removeItem('chatbotMessages');
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,9 +40,18 @@ const ChatbotTab: React.FC = () => {
       const response = await chatbot(input);
       const botMessage: Message = { text: response.response, sender: 'bot' };
       setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = { text: 'Sorry, something went wrong.', sender: 'bot' };
+      let errorText = 'Sorry, something went wrong.';
+      
+      // Check if it's an API error with a detail message
+      if (error.response && error.response.data && error.response.data.detail) {
+        errorText = error.response.data.detail;
+      } else if (error.message) {
+        errorText = error.message;
+      }
+      
+      const errorMessage: Message = { text: errorText, sender: 'bot' };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -39,7 +60,15 @@ const ChatbotTab: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <h2 className="text-2xl font-bold mb-4">Chatbot</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Chatbot</h2>
+        <button 
+          onClick={clearChat}
+          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+        >
+          Clear Chat
+        </button>
+      </div>
       <div className="flex-grow p-4 border rounded-md mb-4 overflow-y-auto">
         <div className="space-y-4">
           {messages.map((msg, index) => (
