@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
@@ -7,11 +7,14 @@ import { PostsPage } from './pages/PostsPage';
 import { AccountsPage } from './pages/AccountsPage';
 import { PricingPage } from './pages/PricingPage';
 import { VideoPage } from './pages/VideoPage';
+import { ChatbotPage } from './pages/ChatbotPage';
+import ChatbotPageWithTabs from './pages/ChatbotPageWithTabs';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { usePlatforms } from './hooks/usePlatforms';
 import { usePosts } from './hooks/usePosts';
 import { useAuth } from './hooks/useAuth';
+import { ServiceManagementPage } from './pages/ServiceManagementPage';
 
 import { ChatBot } from './components/ChatBot';
 import { ZaloButton } from './components/ZaloButton';
@@ -42,6 +45,9 @@ function App() {
   
   const { isLoading } = useAuth();
   
+  const location = useLocation();
+  const showChatButtons = location.pathname !== '/chatbot-tabs';
+
   // Only server accounts now
   const connectedAccounts = accounts.filter(acc => acc.connected);
 
@@ -73,6 +79,14 @@ function App() {
         
         
         {/* Protected routes */}
+        <Route
+          path="/services"
+          element={
+            <ProtectedRoute>
+              <ServiceManagementPage />
+            </ProtectedRoute>
+          }
+        />
         <Route 
           path="/posts" 
           element={
@@ -117,9 +131,26 @@ function App() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/chatbot" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chatbot-tabs" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPageWithTabs />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
-      <ZaloButton />
-      <ChatBot />
+      
+      {showChatButtons && <ZaloButton />}
+      {showChatButtons && <ChatBot />}
     </div>
   );
 }
