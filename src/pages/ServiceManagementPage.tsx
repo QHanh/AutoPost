@@ -158,6 +158,11 @@ export const ServiceManagementPage: React.FC = () => {
         setCurrentService(null);
     };
 
+    const handleSaveService = async (savedService: Service) => {
+        await fetchServices();
+        handleSelectService(savedService);
+    };
+
     const handleDeleteService = (service: Service) => {
         Swal.fire({
             title: `Xóa dịch vụ "${service.name}"?`,
@@ -272,8 +277,11 @@ export const ServiceManagementPage: React.FC = () => {
             }
         } catch (error) {
             Swal.fire('Lỗi Import', 'Có lỗi xảy ra trong quá trình import file.', 'error');
+        } finally {
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
-        event.target.value = '';
     };
 
   return (
@@ -373,7 +381,7 @@ export const ServiceManagementPage: React.FC = () => {
       <ServiceModal 
         isOpen={serviceModalOpen}
         onClose={handleCloseServiceModal}
-        onSave={fetchServices}
+        onSave={handleSaveService}
         currentService={currentService}
         setCurrentService={setCurrentService}
       />

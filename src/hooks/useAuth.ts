@@ -21,12 +21,10 @@ export const useAuth = () => {
     isLoading: true
   });
 
-  // Get API base URL from environment variables with fallback
   const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL;
   };
 
-  // Check for existing auth on mount
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
@@ -40,7 +38,6 @@ export const useAuth = () => {
           isLoading: false
         });
       } catch (error) {
-        // Invalid stored data, clear it
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_data');
         setAuthState({
@@ -58,9 +55,45 @@ export const useAuth = () => {
     }
   }, []);
 
-  const register = async (email: string, password: string, full_name: string) => {
+  const sendVerificationCode = async (email: string) => {
     try {
       const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/send-verification-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() })
+      });
+
+      if (response.status === 204) {
+        return { success: true, message: 'Mã xác thực đã được gửi đến email của bạn.' };
+      } else {
+        const data = await response.json();
+        return { success: false, message: data.detail || 'Không thể gửi mã xác thực. Vui lòng thử lại.' };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+      };
+    }
+  };
+
+  const register = async (email: string, password: string, full_name: string, verificationCode: string) => {
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const plansResponse = await fetch(`${apiBaseUrl}/api/v1/subscriptions/plans`);
+      if (!plansResponse.ok) {
+        throw new Error('Failed to fetch subscription plans.');
+      }
+      const plans = await plansResponse.json();
+
+      const freePlan = plans.find((plan: any) => plan.name.toLowerCase() === 'miễn phí');
+      if (!freePlan) {
+        throw new Error('"miễn phí" subscription plan not found.');
+      }
+
       const response = await fetch(`${apiBaseUrl}/api/v1/users/register`, {
         method: 'POST',
         headers: {
@@ -70,8 +103,8 @@ export const useAuth = () => {
           email: email.trim(),
           password: password,
           full_name: full_name.trim(),
-          subscription_id: "78f113ee-b988-447e-9672-9bafd0266e2e"
-          //role: 'user'
+          subscription_id: freePlan.id,
+          verification_code: verificationCode
         })
       });
 
@@ -79,30 +112,10 @@ export const useAuth = () => {
 
       if (response.status === 201) {
         return { success: true, message: 'Đăng ký thành công! Vui lòng đăng nhập.' };
-      } else if (response.status === 422) {
-        let errorMessage = 'Đăng ký thất bại.';
-        
-        if (data.detail) {
-          if (Array.isArray(data.detail)) {
-            errorMessage = data.detail.map((err: any) => err.msg || err.message || err).join(', ');
-          } else if (typeof data.detail === 'string') {
-            errorMessage = data.detail;
-          } else {
-            errorMessage = data.detail.message || 'Dữ liệu không hợp lệ.';
-          }
-        } else if (data.message) {
-          errorMessage = data.message;
-        } else if (data.error) {
-          errorMessage = data.error;
-        } else {
-          errorMessage = 'Email có thể đã được sử dụng hoặc dữ liệu không hợp lệ.';
-        }
-        
-        return { success: false, message: errorMessage };
       } else {
         return { 
           success: false, 
-          message: `Lỗi server (${response.status}). Vui lòng thử lại sau.` 
+          message: data.detail || `Lỗi server (${response.status}). Vui lòng thử lại sau.` 
         };
       }
     } catch (error) {
@@ -127,9 +140,7 @@ export const useAuth = () => {
 
       const data = await response.json();
 
-
       if (response.status === 200) {
-        // Create user object with the response data
         const user: User = {
           id: data.user?.id || data.id || 'user_id',
           email: username,
@@ -138,7 +149,6 @@ export const useAuth = () => {
           role: data.role 
         };
 
-        // Store auth data
         localStorage.setItem('auth_token', user.token);
         localStorage.setItem('user_data', JSON.stringify({
           id: user.id,
@@ -154,8 +164,6 @@ export const useAuth = () => {
         });
 
         return { success: true, message: 'Đăng nhập thành công!' };
-      } else if (response.status === 422) {
-        return { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' };
       } else {
         return { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' };
       }
@@ -164,6 +172,49 @@ export const useAuth = () => {
         success: false, 
         message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
       };
+    }
+  };
+
+  const saveToken = async (token: string) => {
+    localStorage.setItem('auth_token', token);
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/me`,
+       {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const userData = await response.json();
+
+      const user: User = {
+        id: userData.id,
+        email: userData.email,
+        full_name: userData.full_name,
+        token: token,
+        role: userData.role
+      };
+
+      localStorage.setItem('user_data', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role
+      }));
+
+      setAuthState({
+        user,
+        isAuthenticated: true,
+        isLoading: false
+      });
+
+    } catch (error) {
+      logout();
     }
   };
 
@@ -177,10 +228,64 @@ export const useAuth = () => {
     });
   };
 
+  const forgotPassword = async (email: string) => {
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() })
+      });
+
+      if (response.status === 204) {
+        return { success: true, message: 'Nếu email của bạn tồn tại trong hệ thống, chúng tôi đã gửi một mã khôi phục.' };
+      } else {
+        const data = await response.json();
+        return { success: false, message: data.detail || 'Không thể gửi yêu cầu. Vui lòng thử lại.' };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Không thể kết nối đến server.` 
+      };
+    }
+  };
+
+  const resetPassword = async (email: string, code: string, new_password: string) => {
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/v1/users/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim(), code, new_password })
+      });
+
+      if (response.status === 204) {
+        return { success: true, message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.' };
+      } else {
+        const data = await response.json();
+        return { success: false, message: data.detail || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.' };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        message: `Không thể kết nối đến server.` 
+      };
+    }
+  };
+
   return {
     ...authState,
     register,
+    sendVerificationCode,
     login,
-    logout
+    logout,
+    saveToken,
+    forgotPassword,
+    resetPassword
   };
 };

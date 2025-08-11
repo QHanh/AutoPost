@@ -52,6 +52,21 @@ export const LoginPage: React.FC = () => {
     if (message) setMessage(null);
   };
 
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/google/login`);
+      if (!response.ok) {
+        throw new Error('Failed to get Google auth URL');
+      }
+      const data = await response.json();
+      window.location.href = data.authorization_url;
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Không thể đăng nhập bằng Google. Vui lòng thử lại.' });
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -111,10 +126,17 @@ export const LoginPage: React.FC = () => {
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Mật khẩu
-                </label>
-                <div className="relative">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                    Mật khẩu
+                  </label>
+                  <div className="text-sm">
+                    <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
+                </div>
+                <div className="mt-1 relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
                     id="password"
@@ -153,6 +175,24 @@ export const LoginPage: React.FC = () => {
                     Đăng nhập
                   </>
                 )}
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center justify-center my-6">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <span className="mx-4 text-sm text-gray-500">HOẶC</span>
+                <div className="flex-grow border-t border-gray-300"></div>
+              </div>
+
+              {/* Google Login Button */}
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                className="w-full bg-white text-gray-700 py-3 px-4 rounded-lg font-semibold text-lg border border-gray-300 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                <img src="/google-logo.svg" alt="Google logo" className="w-6 h-6" />
+                Đăng nhập với Google
               </button>
             </div>
           </div>

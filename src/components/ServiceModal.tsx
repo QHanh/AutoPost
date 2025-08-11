@@ -6,7 +6,7 @@ import { serviceService } from '../services/serviceService';
 interface ServiceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (savedService: Service) => void;
   currentService: Partial<Service> | null;
   setCurrentService: React.Dispatch<React.SetStateAction<Partial<Service> | null>>;
 }
@@ -20,13 +20,14 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, onS
       return;
     }
     try {
+      let savedService;
       if (currentService.id) {
-        await serviceService.updateService(currentService.id, { name: currentService.name });
+        savedService = await serviceService.updateService(currentService.id, { name: currentService.name, description: currentService.description || '' });
       } else {
-        await serviceService.createService({ name: currentService.name });
+        savedService = await serviceService.createService({ name: currentService.name, description: currentService.description || '' });
       }
       Swal.fire('Thành công', 'Lưu dịch vụ thành công!', 'success');
-      onSave();
+      onSave(savedService);
       onClose();
     } catch (error) {
       Swal.fire('Lỗi', 'Không thể lưu dịch vụ.', 'error');

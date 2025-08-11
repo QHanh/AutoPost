@@ -112,10 +112,7 @@ const DeviceColorsTab: React.FC = () => {
       return;
     }
     try {
-      await deviceColorService.createDeviceColor({
-        device_info_id: selectedDevice,
-        color_id: selectedColorToAdd,
-      });
+      await deviceColorService.addDeviceColor(selectedDevice, selectedColorToAdd);
       fetchDeviceColors(selectedDevice);
       setSelectedColorToAdd(null);
     } catch (error: any) {

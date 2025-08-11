@@ -203,6 +203,11 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       } catch (error) {
         console.error('Error importing from Excel:', error);
         alert('Có lỗi xảy ra khi import file.');
+      } finally {
+        // Reset the file input to allow re-uploading the same file
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     }
   };
@@ -227,6 +232,11 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
 
   const handleLimitChange = (newLimit: number) => {
     setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+  };
+
+  // Price formatting function
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(price);
   };
 
   return (
@@ -293,7 +303,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.product_code}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.deviceModel}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.inventory}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.price.toLocaleString()} đ</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPrice(device.price)} đ</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.colorName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.storageCapacity} GB</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.device_type}</td>

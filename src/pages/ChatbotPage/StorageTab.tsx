@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { Storage } from '../../types/deviceTypes';
+import { DeviceStorage } from '../../types/deviceTypes';
 import { storageService } from '../../services/storageService';
 import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import StorageModal from '../../components/StorageModal';
 
 const StorageTab: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  const [storages, setStorages] = useState<Storage[]>([]);
+  const [storages, setStorages] = useState<DeviceStorage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedStorage, setSelectedStorage] = useState<Storage | null>(null);
+  const [selectedStorage, setSelectedStorage] = useState<DeviceStorage | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
@@ -28,14 +28,16 @@ const StorageTab: React.FC = () => {
   const fetchStorages = async () => {
     setIsLoading(true);
     try {
-      const filter = { search: searchTerm };
-      const pageOptions = { page: pagination.page, limit: pagination.limit };
-      const result = await storageService.getStorages(filter, pageOptions);
-      setStorages(result.storages);
+      const result = await storageService.getStorages({ 
+        page: pagination.page, 
+        limit: pagination.limit, 
+        search: searchTerm 
+      });
+      setStorages(result.data);
       setPagination(prev => ({
         ...prev,
-        total: result.pagination.total,
-        totalPages: result.pagination.totalPages
+        total: result.total,
+        totalPages: result.totalPages
       }));
     } catch (error) {
       console.error('Error fetching storages:', error);
@@ -54,7 +56,7 @@ const StorageTab: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (storage: Storage) => {
+  const handleEdit = (storage: DeviceStorage) => {
     setSelectedStorage(storage);
     setIsModalOpen(true);
   };
@@ -73,7 +75,7 @@ const StorageTab: React.FC = () => {
     }
   };
 
-  const handleSave = async (storageData: Partial<Storage>) => {
+  const handleSave = async (storageData: Partial<DeviceStorage>) => {
     setIsLoading(true);
     try {
       if (selectedStorage) {

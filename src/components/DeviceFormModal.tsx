@@ -137,6 +137,24 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Price formatting functions
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat('vi-VN').format(price);
+  };
+
+  const parsePrice = (formattedPrice: string): number => {
+    const numericValue = formattedPrice.replace(/\./g, '');
+    return parseInt(numericValue) || 0;
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    if (/^\d*$/.test(rawValue)) {
+      const numericValue = parseInt(rawValue) || 0;
+      setFormData(prev => ({ ...prev, price: numericValue }));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -352,10 +370,10 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
             <div>
               <label className="block text-sm font-medium text-gray-700">Giá</label>
               <input
-                type="number"
+                type="text"
                 name="price"
-                value={formData.price || ''}
-                onChange={handleChange}
+                value={formatPrice(formData.price)}
+                onChange={handlePriceChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
             </div>
