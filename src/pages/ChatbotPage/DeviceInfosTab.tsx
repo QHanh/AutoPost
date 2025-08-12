@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { DeviceInfo } from '../../types/deviceTypes';
 import { deviceInfoService } from '../../services/deviceInfoService';

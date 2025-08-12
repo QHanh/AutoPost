@@ -1,5 +1,5 @@
 import React from 'react';
-import zaloIcon from '../../assets/zalo-icon.png';
+import zaloIcon from '../assets/zalo-icon.png';
 
 export const ZaloButton: React.FC = () => {
   return (

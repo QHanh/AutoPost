@@ -1,23 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Social Media Dashboard - Unified Posting Platform" />
-    <title>Social Post Scheduler</title>
+    
+    <!-- SEO Meta -->
+    <title>AutoPost - Nền tảng đăng bài mạng xã hội tự động</title>
+    <meta name="description" content="DoiQuanAI giúp bạn lập lịch và đăng bài tự động lên Facebook, Instagram, Youtube, tạo video thu hút hấp dẫn. Tiết kiệm thời gian, hỗ trợ quản lý nội dung hiệu quả." />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Facebook / Zalo Preview -->
+    <meta property="og:title" content="AutoPost - Đăng bài mạng xã hội tự động" />
+    <meta property="og:description" content="Lên lịch, đăng bài và quản lý nội dung trên các nền tảng mạng xã hội trong một bảng điều khiển duy nhất." />
+    <meta property="og:url" content="https://doiquanai.vn/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://doiquanai.vn/og-image.png" />
+    
+    <!-- Style -->
     <style>
-      /* Prevent FOUC */
-      body { 
-        margin: 0; 
-        padding: 0; 
+      body {
+        margin: 0;
+        padding: 0;
         font-family: system-ui, -apple-system, sans-serif;
         background-color: #f9fafb;
       }
-      #root { 
-        min-height: 100vh; 
+      #root {
+        min-height: 100vh;
       }
-      /* Loading spinner */
       .loading {
         display: flex;
         justify-content: center;
@@ -30,14 +40,12 @@
   </head>
   <body>
     <div id="root">
-      <div class="loading-container">
-        <div class="loading-message">
-          <strong>Đang tải ứng dụng...</strong><br />
-          Nếu quá 15 giây vẫn không thấy nội dung, hãy kiểm tra:<br />
-            Tắt các phần mềm <strong>chặn quảng cáo</strong> (AdBlock, uBlock,...)<br />
-            Làm mới trang sau khi tắt (Ctrl + R)
-        </div>
-      </div>
+      <!-- 
+        Đang tải ứng dụng...
+        Nếu quá 15 giây vẫn không thấy nội dung, hãy kiểm tra:
+        - Tắt các phần mềm chặn quảng cáo (AdBlock, uBlock,...)
+        - Làm mới trang sau khi tắt (Ctrl + R)
+      -->
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

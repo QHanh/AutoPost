@@ -101,8 +101,8 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           const headers = { 'Authorization': `Bearer ${token}` };
 
           const [colorsRes, storagesRes] = await Promise.all([
-            fetch(`http://192.168.1.161:8000/api/v1/device-infos/${deviceId}/colors`, { headers }),
-            fetch(`http://192.168.1.161:8000/api/v1/device-infos/${deviceId}/storages`, { headers }),
+            fetch(`https://autodangbai.doiquanai.vn/api/v1/device-infos/${deviceId}/colors`, { headers }),
+            fetch(`https://autodangbai.doiquanai.vn/api/v1/device-infos/${deviceId}/storages`, { headers }),
           ]);
 
           const colorsData = await colorsRes.json();
@@ -140,11 +140,6 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
   // Price formatting functions
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('vi-VN').format(price);
-  };
-
-  const parsePrice = (formattedPrice: string): number => {
-    const numericValue = formattedPrice.replace(/\./g, '');
-    return parseInt(numericValue) || 0;
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,7 +367,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
               <input
                 type="text"
                 name="price"
-                value={formatPrice(formData.price)}
+                value={formatPrice(formData.price || 0)}
                 onChange={handlePriceChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />

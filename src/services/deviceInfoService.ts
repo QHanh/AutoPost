@@ -1,7 +1,7 @@
 import { DeviceInfo } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'http://192.168.1.161:8000/api/v1';
+const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
 
 export const deviceInfoService = {
   async getDeviceInfos(filter: { search?: string; brand?: string; sort_by?: string; sort_order?: 'asc' | 'desc' } = {}, pagination: { page?: number; limit?: number } = {}) {

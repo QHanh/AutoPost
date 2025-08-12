@@ -9,7 +9,7 @@ import {
   DevicePagination,
 } from "../types/device";
 
-const PUBLIC_URL = "http://192.168.1.161:8000/api/v1";
+const PUBLIC_URL = "https://autodangbai.doiquanai.vn/api/v1";
 
 class DeviceApiService {
   private isValidUUID(uuid: string): boolean {

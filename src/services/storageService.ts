@@ -2,7 +2,7 @@ import { DeviceStorage } from '../types/deviceTypes';
 import { apiGet, getAuthToken } from './apiService';
 import { deviceService } from './deviceService';
 
-const API_BASE_URL = 'http://192.168.1.161:8000/api/v1';
+const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
 
 interface StoragesResponse {
     data: DeviceStorage[];
