@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, Plus, Trash2, Edit, Save, X, Search, FileDown, FileUp, Eye, Loader, Upload, Download, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, FileDown, FileUp, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { DeviceInfo, Color, DeviceStorage, UserDevice } from '../../types/deviceTypes';
+import { UserDevice } from '../../types/deviceTypes';
 import { userDeviceService } from '../../services/userDeviceService';
 import DeviceFormModal from '../../components/DeviceFormModal';
 
@@ -10,7 +10,7 @@ interface DevicesTabProps {
 }
 
 const DevicesTab: React.FC<DevicesTabProps> = () => {
-  const { user } = useAuth();
+  const { } = useAuth();
   const [userDevices, setUserDevices] = useState<UserDevice[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<UserDevice | null>(null);

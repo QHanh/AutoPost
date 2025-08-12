@@ -4,7 +4,6 @@ import { Color } from '../../types/deviceTypes';
 import { colorService } from '../../services/colorService';
 import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import ColorModal from '../../components/ColorModal';
-import { toast } from 'react-toastify';
 import { GridColDef } from '@mui/x-data-grid';
 
 const ColorsTab: React.FC = () => {
