@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface ApiResponse<T> {
   data: T;
@@ -88,7 +88,7 @@ export const apiPost = async <T>(endpoint: string, data: any): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
     method: 'POST',
     headers: getAuthHeader(),
     body: JSON.stringify(data)
@@ -106,7 +106,7 @@ export const apiPostForm = async <T>(endpoint: string, formData: FormData): Prom
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
         method: 'POST',
         headers: getAuthHeader(true), // Pass true for FormData
         body: formData
@@ -125,7 +125,7 @@ export const apiPut = async <T>(endpoint: string, data: any): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
     method: 'PUT',
     headers: getAuthHeader(),
     body: JSON.stringify(data)
@@ -143,7 +143,7 @@ export const apiDelete = async <T>(endpoint: string): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
     method: 'DELETE',
     headers: getAuthHeader()
   });
@@ -165,7 +165,7 @@ export const apiPostFormData = async <T>(endpoint: string, formData: FormData): 
     // Không đặt Content-Type khi gửi FormData, browser sẽ tự đặt
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
     method: 'POST',
     headers,
     body: formData
@@ -183,7 +183,7 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     }

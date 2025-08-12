@@ -1,4 +1,4 @@
-const PUBLIC_URL = "https://autodangbai.doiquanai.vn/api/v1";
+const PUBLIC_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 export interface WarrantyService {
   id: string;
@@ -28,7 +28,7 @@ class WarrantyServiceService {
       ...options,
     };
 
-    const response = await fetch(`${PUBLIC_URL}${endpoint}`, config);
+    const response = await fetch(`${PUBLIC_URL}/api/v1${endpoint}`, config);
 
     if (!response.ok) {
       if (response.status === 401) {

@@ -1,7 +1,7 @@
 import { DeviceInfo } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface DeviceInfoResponse {
     data: DeviceInfo[];
@@ -17,7 +17,7 @@ export const deviceService = {
     const token = getAuthToken();
     const { limit = 10, page = 1, search = '' } = params;
     const skip = (page - 1) * limit;
-    const response = await fetch(`${API_BASE_URL}/device-infos?skip=${skip}&limit=${limit}&search=${search}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos?skip=${skip}&limit=${limit}&search=${search}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -37,7 +37,7 @@ export const deviceService = {
     const token = getAuthToken();
     // Fetch with a high limit to get all devices, as the dropdown needs all of them.
     // The API is capped at 100 per request.
-    const response = await fetch(`${API_BASE_URL}/device-infos?limit=100`, { 
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos?limit=100`, { 
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -51,7 +51,7 @@ export const deviceService = {
 
   async getDeviceById(deviceId: string): Promise<DeviceInfo> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },

@@ -1,7 +1,7 @@
 import { DeviceStorage } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface DeviceStoragesResponse {
   data: DeviceStorage[];
@@ -14,7 +14,7 @@ export const deviceStorageService = {
     const token = getAuthToken();
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/storages?skip=${skip}&limit=${limit}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceInfoId}/storages?skip=${skip}&limit=${limit}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -32,7 +32,7 @@ export const deviceStorageService = {
 
   async addDeviceStorage(deviceInfoId: string, storageId: string): Promise<any> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/storages/${storageId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceInfoId}/storages/${storageId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -46,7 +46,7 @@ export const deviceStorageService = {
 
   async removeDeviceStorage(deviceInfoId: string, storageId: string): Promise<any> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-storages/${storageId}?device_info_id=${deviceInfoId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-storages/${storageId}?device_info_id=${deviceInfoId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

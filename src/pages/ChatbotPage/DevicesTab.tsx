@@ -40,7 +40,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       params.append('skip', ((pagination.page - 1) * pagination.limit).toString());
       params.append('limit', pagination.limit.toString());
 
-      const response = await fetch(`https://autodangbai.doiquanai.vn/api/v1/user-devices/my-devices?${params.toString()}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/user-devices/my-devices?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();

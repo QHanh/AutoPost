@@ -163,7 +163,7 @@ export const ApiKeyManager: React.FC = () => {
             <div className="relative">
               <input
                 type={showKeys[platform as 'gemini' | 'openai'] ? 'text' : 'password'}
-                value={apiKeys[`${platform}_api_key` as keyof ApiKeys]}
+                value={apiKeys[`${platform}_api_key` as keyof ApiKeys] || ''}
                 onChange={(e) =>
                   handleInputChange(`${platform}_api_key` as keyof ApiKeys, e.target.value)
                 }

@@ -1,6 +1,6 @@
 import { Brand } from '../types/Brand';
 
-const API_URL = "https://autodangbai.doiquanai.vn/api/v1"; // Ensure this is your correct API URL
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'; // Ensure this is your correct API URL
 
 class BrandService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -15,7 +15,7 @@ class BrandService {
       ...options,
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const response = await fetch(`${API_URL}/api/v1${endpoint}`, config);
 
     if (!response.ok) {
       if (response.headers.get("Content-Type")?.includes("application/json")) {

@@ -1,7 +1,7 @@
 import { Color } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface ColorsApiResponse {
   colors: Color[];
@@ -22,7 +22,7 @@ export const colorService = {
       params.append('search', filter.search);
     }
     
-    const response = await fetch(`${API_BASE_URL}/colors?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/colors?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch colors');
@@ -38,7 +38,7 @@ export const colorService = {
 
   async createColor(colorData: Partial<Color>): Promise<Color> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/colors`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/colors`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -53,7 +53,7 @@ export const colorService = {
 
   async updateColor(id: string, colorData: Partial<Color>): Promise<Color> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/colors/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/colors/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -68,7 +68,7 @@ export const colorService = {
 
   async deleteColor(id: string): Promise<boolean> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/colors/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/colors/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -86,7 +86,7 @@ export const colorService = {
 
   async getColorsByDeviceId(deviceId: string): Promise<Color[]> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceId}/colors`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceId}/colors`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) return [];
@@ -96,7 +96,7 @@ export const colorService = {
 
   async getColorById(colorId: string): Promise<Color | null> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/colors/${colorId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/colors/${colorId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) return null;

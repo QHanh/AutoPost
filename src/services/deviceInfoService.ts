@@ -1,7 +1,7 @@
 import { DeviceInfo } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 export const deviceInfoService = {
   async getDeviceInfos(filter: { search?: string; brand?: string; sort_by?: string; sort_order?: 'asc' | 'desc' } = {}, pagination: { page?: number; limit?: number } = {}) {
@@ -15,7 +15,7 @@ export const deviceInfoService = {
     if (filter.brand) params.append('brand', filter.brand);
     if (filter.sort_by) params.append('sort_by', filter.sort_by);
     if (filter.sort_order) params.append('sort_order', filter.sort_order);
-    const response = await fetch(`${API_BASE_URL}/device-infos?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch device infos');
@@ -33,7 +33,7 @@ export const deviceInfoService = {
 
   async getDeviceInfoById(id: string): Promise<DeviceInfo> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch device info');
@@ -43,7 +43,7 @@ export const deviceInfoService = {
 
   async createDeviceInfo(deviceInfo: Partial<DeviceInfo>): Promise<DeviceInfo> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -58,7 +58,7 @@ export const deviceInfoService = {
 
   async updateDeviceInfo(id: string, deviceInfo: Partial<DeviceInfo>): Promise<DeviceInfo> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -73,7 +73,7 @@ export const deviceInfoService = {
 
   async deleteDeviceInfo(id: string): Promise<boolean> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     });

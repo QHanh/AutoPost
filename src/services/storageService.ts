@@ -2,7 +2,7 @@ import { DeviceStorage } from '../types/deviceTypes';
 import { apiGet, getAuthToken } from './apiService';
 import { deviceService } from './deviceService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface StoragesResponse {
     data: DeviceStorage[];
@@ -15,7 +15,7 @@ export const storageService = {
     const token = getAuthToken();
     const { limit = 10, page = 1, search = '' } = params;
     const skip = (page - 1) * limit;
-    const response = await fetch(`${API_BASE_URL}/device-storages?skip=${skip}&limit=${limit}&search=${search}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-storages?skip=${skip}&limit=${limit}&search=${search}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -59,7 +59,7 @@ export const storageService = {
 
   async createStorage(deviceInfoId: string, capacity: number): Promise<DeviceStorage> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-storages`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-storages`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const storageService = {
 
   async updateStorage(storageId: string, storageData: Partial<DeviceStorage>): Promise<DeviceStorage> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-storages/${storageId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-storages/${storageId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const storageService = {
 
   async deleteStorage(storageId: string): Promise<void> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-storages/${storageId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-storages/${storageId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,

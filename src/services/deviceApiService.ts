@@ -9,7 +9,7 @@ import {
   DevicePagination,
 } from "../types/device";
 
-const PUBLIC_URL = "https://autodangbai.doiquanai.vn/api/v1";
+const PUBLIC_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 class DeviceApiService {
   private isValidUUID(uuid: string): boolean {
@@ -30,7 +30,7 @@ class DeviceApiService {
       ...options,
     };
 
-    const response = await fetch(`${PUBLIC_URL}${endpoint}`, config);
+    const response = await fetch(`${PUBLIC_URL}/api/v1${endpoint}`, config);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -677,7 +677,7 @@ class DeviceApiService {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`${PUBLIC_URL}/user-devices/import`, {
+    const response = await fetch(`${PUBLIC_URL}/api/v1/user-devices/import`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
@@ -701,7 +701,7 @@ class DeviceApiService {
       endpoint = `/user-devices/export?user_id=${userId}`;
     }
 
-    const response = await fetch(`${PUBLIC_URL}${endpoint}`, {
+    const response = await fetch(`${PUBLIC_URL}/api/v1${endpoint}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
@@ -717,7 +717,7 @@ class DeviceApiService {
 
   async exportMyDevices(): Promise<Blob> {
     const response = await fetch(
-      `${PUBLIC_URL}/user-devices/export/my-devices`,
+      `${PUBLIC_URL}/api/v1/user-devices/export/my-devices`,
       {
         method: "GET",
         headers: {
@@ -734,7 +734,7 @@ class DeviceApiService {
   }
 
   async downloadTemplate(): Promise<Blob> {
-    const response = await fetch(`${PUBLIC_URL}/user-devices/template`, {
+    const response = await fetch(`${PUBLIC_URL}/api/v1/user-devices/template`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("auth_token")}`,

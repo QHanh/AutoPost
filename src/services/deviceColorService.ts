@@ -1,7 +1,7 @@
 import { Color } from '../types/deviceTypes';
 import { getAuthToken } from './apiService';
 
-const API_BASE_URL = 'https://autodangbai.doiquanai.vn/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 interface DeviceColorsResponse {
   data: Color[];
@@ -14,7 +14,7 @@ export const deviceColorService = {
     const token = getAuthToken();
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors?skip=${skip}&limit=${limit}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceInfoId}/colors?skip=${skip}&limit=${limit}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -32,7 +32,7 @@ export const deviceColorService = {
 
   async addDeviceColor(deviceInfoId: string, colorId: string): Promise<any> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors/${colorId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceInfoId}/colors/${colorId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -46,7 +46,7 @@ export const deviceColorService = {
 
   async removeDeviceColor(deviceInfoId: string, colorId: string): Promise<any> {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/device-infos/${deviceInfoId}/colors/${colorId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${deviceInfoId}/colors/${colorId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

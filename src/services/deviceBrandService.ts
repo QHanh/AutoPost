@@ -1,6 +1,6 @@
 import { DeviceBrand, DeviceBrandCreate, DeviceBrandUpdate } from "../types/deviceBrand";
 
-const API_URL = "https://autodangbai.doiquanai.vn/api/v1";
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 class DeviceBrandService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -15,7 +15,7 @@ class DeviceBrandService {
       ...options,
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const response = await fetch(`${API_URL}/api/v1${endpoint}`, config);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

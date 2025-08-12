@@ -71,7 +71,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
   }, [searchTerm]);
 
   const fetchDeviceInfos = async (search = '') => {
-    if (!isOpen) return;
+    if (!isOpen || formData.device_info_id) return; // Do not fetch if a device is already selected
     setIsLoading(true);
     try {
       const params = { search: search };
@@ -101,8 +101,8 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           const headers = { 'Authorization': `Bearer ${token}` };
 
           const [colorsRes, storagesRes] = await Promise.all([
-            fetch(`https://autodangbai.doiquanai.vn/api/v1/device-infos/${deviceId}/colors`, { headers }),
-            fetch(`https://autodangbai.doiquanai.vn/api/v1/device-infos/${deviceId}/storages`, { headers }),
+            fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/device-infos/${deviceId}/colors`, { headers }),
+            fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/device-infos/${deviceId}/storages`, { headers }),
           ]);
 
           const colorsData = await colorsRes.json();
