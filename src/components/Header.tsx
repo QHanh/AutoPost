@@ -1,8 +1,9 @@
 import React from 'react';
-import { Share2, Users, Home, DollarSign, LogOut, Lightbulb, Video, Menu, X, Smartphone, Building2 } from 'lucide-react';
+import { Users, Home, DollarSign, LogOut, Lightbulb, Video, Menu, X, Smartphone, Building2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import Swal from 'sweetalert2';
+import autopostLogo from '../assets/autopost.png';
 
 interface HeaderProps {
   connectedCount: number;
@@ -80,9 +81,15 @@ export const Header: React.FC<HeaderProps> = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img src="/assets/autopost.png" alt="Logo" className="w-10 h-10 object-cover rounded shadow-md"/>
+              <div className="bg-white rounded-lg">
+                <img
+                  src={autopostLogo}
+                  alt="Hoàng Mai Mobile"
+                  className="w-10 h-10 object-cover rounded shadow-md"
+                />
+              </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Social Hub</h1>
+                <h1 className="text-xl font-bold text-gray-900">AutoPost</h1>
                 <p className="text-xs text-gray-500">Lập lịch đăng bài tự động</p>
               </div>
             </Link>

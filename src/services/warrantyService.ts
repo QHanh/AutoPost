@@ -1,4 +1,4 @@
-const PUBLIC_URL = "http://192.168.1.161:8000/api/v1";
+const PUBLIC_URL = "https://autodangbai.doiquanai.vn/api/v1";
 
 export interface WarrantyService {
   id: string;

@@ -1,6 +1,6 @@
 import { Brand } from '../types/Brand';
 
-const API_URL = "http://192.168.1.161:8000/api/v1"; // Ensure this is your correct API URL
+const API_URL = "https://autodangbai.doiquanai.vn/api/v1"; // Ensure this is your correct API URL
 
 class BrandService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
