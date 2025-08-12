@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface SearchableSelectProps {
     options: { id: string; name: string }[];
@@ -6,9 +7,11 @@ interface SearchableSelectProps {
     onChange: (value: string) => void;
     placeholder?: string;
     creatable?: boolean;
+    onEdit?: (id: string, name: string) => void;
+    onDelete?: (id: string) => void;
 }
 
-export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder, creatable = false }) => {
+export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder, creatable = false, onDelete, onEdit }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const selectRef = useRef<HTMLDivElement>(null);
@@ -116,10 +119,43 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                             {filteredOptions.map(option => (
                                 <li
                                     key={option.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                                    onMouseDown={() => handleSelectOption(option)}
+                                    className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                    onMouseDown={(e) => {
+                                        if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
+                                          return; 
+                                        }
+                                        handleSelectOption(option);
+                                    }}
                                 >
-                                    {option.name}
+                                    <span>{option.name}</span>
+                                    <div className="flex items-center">
+                                        {onEdit && (
+                                            <button
+                                                className="control-btn p-1 text-blue-500 hover:text-blue-700"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onEdit(option.id, option.name);
+                                                    setIsOpen(false);
+                                                }}
+                                                title="Sửa"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                className="control-btn p-1 text-red-500 hover:text-red-700"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDelete(option.id);
+                                                    setIsOpen(false);
+                                                }}
+                                                title="Xóa"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </li>
                             ))}
                             {showCreateOption && (
@@ -164,10 +200,43 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                             filteredOptions.map(option => (
                                 <li
                                     key={option.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                                    onClick={() => handleSelect(option.id)}
+                                    className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                    onClick={(e) => {
+                                      if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
+                                        return; 
+                                      }
+                                      handleSelect(option.id);
+                                    }}
                                 >
-                                    {option.name}
+                                    <span>{option.name}</span>
+                                    <div className="flex items-center">
+                                        {onEdit && (
+                                            <button
+                                                className="control-btn p-1 text-blue-500 hover:text-blue-700"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onEdit(option.id, option.name);
+                                                    setIsOpen(false);
+                                                }}
+                                                title="Sửa"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                className="control-btn p-1 text-red-500 hover:text-red-700"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onDelete(option.id);
+                                                    setIsOpen(false);
+                                                }}
+                                                title="Xóa"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </li>
                             ))
                         ) : (

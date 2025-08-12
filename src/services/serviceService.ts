@@ -6,8 +6,12 @@ const API_URL = '/services';
 
 export const serviceService = {
   getAllServices: async (skip = 0, limit = 100, search = '') => {
-    const params = { skip, limit, search };
-    let url = '/services' + '?' + new URLSearchParams(params).toString();
+    const query = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+      search: search || ''
+    });
+    const url = `${API_URL}?${query.toString()}`;
     const response = await apiGet(url);
     return response.data;
   },

@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { DeviceInfo } from '../../types/deviceTypes';
 import { deviceInfoService } from '../../services/deviceInfoService';
-import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import DeviceInfoModal from '../../components/DeviceInfoModal';
 
 const DeviceInfosTab: React.FC = () => {
@@ -13,6 +13,7 @@ const DeviceInfosTab: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<DeviceInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'model', direction: 'asc' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -24,12 +25,16 @@ const DeviceInfosTab: React.FC = () => {
     if (isAuthenticated) {
       fetchDeviceInfos();
     }
-  }, [isAuthenticated, pagination.page, pagination.limit, searchTerm]);
+  }, [isAuthenticated, pagination.page, pagination.limit, searchTerm, sortConfig]);
 
   const fetchDeviceInfos = async () => {
     setIsLoading(true);
     try {
-      const filter = { search: searchTerm };
+      const filter = { 
+        search: searchTerm,
+        sort_by: sortConfig.key,
+        sort_order: sortConfig.direction
+      };
       const pageOptions = { page: pagination.page, limit: pagination.limit };
       const result = await deviceInfoService.getDeviceInfos(filter, pageOptions);
       setDeviceInfos(result.devices);
@@ -104,6 +109,14 @@ const DeviceInfosTab: React.FC = () => {
   const handleLimitChange = (newLimit: number) => {
     setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
   };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -146,9 +159,30 @@ const DeviceInfosTab: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thương hiệu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày ra mắt</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
+                  <div className="flex items-center">
+                    Model
+                    {sortConfig.key === 'model' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    ) : <ChevronsUpDown size={16} />}
+                  </div>
+                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('brand')}>
+                   <div className="flex items-center">
+                    Thương hiệu
+                    {sortConfig.key === 'brand' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    ) : <ChevronsUpDown size={16} />}
+                  </div>
+                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('release_date')}>
+                   <div className="flex items-center">
+                    Ngày ra mắt
+                    {sortConfig.key === 'release_date' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    ) : <ChevronsUpDown size={16} />}
+                  </div>
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Màn hình</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chip/RAM</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Camera</th>
@@ -156,7 +190,14 @@ const DeviceInfosTab: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết nối/HĐH</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Màu (EN)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kích thước/Trọng lượng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('created_at')}>
+                   <div className="flex items-center">
+                    Ngày tạo
+                    {sortConfig.key === 'created_at' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    ) : <ChevronsUpDown size={16} />}
+                  </div>
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
               </tr>
             </thead>

@@ -56,7 +56,7 @@ const ChatbotPageWithTabs: React.FC = () => {
           <h2 className="text-xl font-bold">Quản lý</h2>
         </div>
         <nav>
-          <ul>
+          <ul className="select-none">
             <li className={`p-4 cursor-pointer ${activeTab === 'devices' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('devices')}>
               <div className="flex items-center">
                 <Smartphone className="mr-2" />

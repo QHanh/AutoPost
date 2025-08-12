@@ -1,8 +1,5 @@
 import { UserDevice, ImportResult } from '../types/deviceTypes';
 import { apiGet, apiPost, apiPut, apiDelete, apiGetBlob, apiPostFormData } from './apiService';
-import { deviceService } from './deviceService';
-import { colorService } from './colorService';
-import { storageService } from './storageService';
 
 /**
  * Service xử lý các thao tác liên quan đến thiết bị của người dùng

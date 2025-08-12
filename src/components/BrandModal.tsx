@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Brand } from '../types/Brand';
 import { DeviceBrand } from '../types/deviceBrand';
 import { SearchableSelect } from './SearchableSelect';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
 import deviceBrandService from '../services/deviceBrandService';
@@ -38,6 +38,8 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [newWarrantyService, setNewWarrantyService] = useState<string>('');
   const [isAddingNewWarranty, setIsAddingNewWarranty] = useState<boolean>(false);
+  const [isAddingNewTypeName, setIsAddingNewTypeName] = useState<boolean>(false);
+  const [newTypeName, setNewTypeName] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -183,6 +185,130 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }
 };
 
+  const handleDeleteDeviceBrand = async (brandId: string) => {
+    if (!brandId) return;
+
+    Swal.fire({
+      title: 'Bạn có chắc chắn muốn xóa?',
+      text: "Hành động này không thể hoàn tác!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Vâng, xóa nó!',
+      cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await deviceBrandService.deleteDeviceBrand(brandId);
+          Swal.fire(
+            'Đã xóa!',
+            'Thương hiệu đã được xóa.',
+            'success'
+          );
+          fetchInitialData(); // Refresh data
+          setSelectedDeviceBrand(''); // Reset selection
+        } catch (error) {
+          console.error("Failed to delete device brand", error);
+          Swal.fire(
+            'Lỗi!',
+            'Không thể xóa thương hiệu.',
+            'error'
+          );
+        }
+      }
+    });
+  };
+
+  const handleEditDeviceBrand = async (brandId: string, currentName: string) => {
+    Swal.fire({
+      title: 'Sửa tên thương hiệu',
+      input: 'text',
+      inputValue: currentName,
+      showCancelButton: true,
+      confirmButtonText: 'Lưu',
+      cancelButtonText: 'Hủy',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Tên không được để trống!'
+        }
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await deviceBrandService.updateDeviceBrand(brandId, { name: result.value });
+          Swal.fire('Thành công!', 'Tên thương hiệu đã được cập nhật.', 'success');
+          fetchInitialData();
+        } catch (error) {
+          console.error("Failed to update device brand", error);
+          Swal.fire('Lỗi!', 'Không thể cập nhật tên thương hiệu.', 'error');
+        }
+      }
+    });
+  };
+
+  const handleEditWarranty = async (warrantyId: string, currentValue: string) => {
+    Swal.fire({
+      title: 'Sửa thông tin bảo hành',
+      input: 'text',
+      inputValue: currentValue,
+      showCancelButton: true,
+      confirmButtonText: 'Lưu',
+      cancelButtonText: 'Hủy',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Thông tin không được để trống!'
+        }
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await warrantyService.updateWarrantyService(warrantyId, { value: result.value });
+          Swal.fire('Thành công!', 'Thông tin bảo hành đã được cập nhật.', 'success');
+          fetchInitialData();
+          if (currentBrand?.warranty === currentValue) {
+            setCurrentBrand(prev => prev ? { ...prev, warranty: result.value } : null);
+          }
+        } catch (error) {
+          console.error("Failed to update warranty service", error);
+          Swal.fire('Lỗi!', 'Không thể cập nhật thông tin bảo hành.', 'error');
+        }
+      }
+    });
+  };
+
+  const handleDeleteWarranty = async (warrantyId: string) => {
+    if (!warrantyId) return;
+  
+    const warrantyToDelete = warrantyServices.find(w => w.id === warrantyId);
+    if (!warrantyToDelete) return;
+  
+    Swal.fire({
+        title: `Bạn có chắc chắn muốn xóa bảo hành "${warrantyToDelete.value}"?`,
+        text: "Hành động này không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Vâng, xóa nó!',
+        cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                await warrantyService.deleteWarrantyService(warrantyId);
+                Swal.fire('Đã xóa!', 'Bảo hành đã được xóa.', 'success');
+                fetchInitialData();
+                if (currentBrand?.warranty === warrantyToDelete.value) {
+                    setCurrentBrand(prev => prev ? { ...prev, warranty: '' } : null);
+                }
+            } catch (error) {
+                console.error("Failed to delete warranty service", error);
+                Swal.fire('Lỗi!', 'Không thể xóa bảo hành.', 'error');
+            }
+        }
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -195,26 +321,73 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             <label className="block text-sm font-medium text-gray-700">
               Loại {selectedService ? `cho "${selectedService.name}"` : ''} <span className="text-red-500">*</span>
             </label>
-            <SearchableSelect
-              options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))}
-              value={currentBrand?.name || ''}
-              onChange={(value) => {
-                const selected = uniqueBrandNames.find(b => b.name === value);
-                setCurrentBrand(prev => ({
-                  ...prev,
-                  name: value,
-                  warranty: selected ? selected.warranty : prev?.warranty || ''
-                }));
-              }}
-              placeholder="Chọn hoặc nhập tên loại"
-              creatable
-            />
+            <div className="mt-1">
+              {!isAddingNewTypeName ? (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchableSelect
+                      options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))}
+                      value={currentBrand?.name || ''}
+                      onChange={(value) => {
+                        const selected = uniqueBrandNames.find(b => b.name === value);
+                        setCurrentBrand(prev => ({
+                          ...prev,
+                          name: value,
+                          warranty: selected ? selected.warranty : prev?.warranty || ''
+                        }));
+                      }}
+                      placeholder="Chọn tên loại"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewTypeName(true)}
+                    className="p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
+                    title="Thêm loại mới"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTypeName}
+                    onChange={(e) => setNewTypeName(e.target.value)}
+                    placeholder="Tên loại mới"
+                    className="flex-1 p-2 border rounded-md"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newTypeName.trim()) return;
+                      setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' }));
+                      if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) {
+                        setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]);
+                      }
+                      setIsAddingNewTypeName(false);
+                      setNewTypeName('');
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewTypeName(false)}
+                    className="p-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  >
+                    X
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Device Brand */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Thương hiệu
+              Thương hiệu điện thoại
             </label>
             <div className="mt-1">
               {!isAddingNewBrand ? (
@@ -227,6 +400,8 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                         setSelectedDeviceBrand(value);
                       }}
                       placeholder="Chọn thương hiệu"
+                      onDelete={handleDeleteDeviceBrand}
+                      onEdit={handleEditDeviceBrand}
                     />
                   </div>
                   <button
@@ -279,6 +454,48 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             </div>
           </div>
           
+          {/* Device Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Loại máy</label>
+            <SearchableSelect
+                options={deviceOptions}
+                value={selectedDeviceId}
+                onChange={handleDeviceChange}
+                placeholder="Chọn loại máy"
+            />
+          </div>
+          
+          {/* Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Màu sắc</label>
+            <select
+                className="w-full p-2 border rounded-md mt-1"
+                value={selectedColor}
+                onChange={handleColorChange}
+                disabled={!selectedDeviceId}
+            >
+                <option value="">Chọn màu sắc</option>
+                {colorOptions.length > 0 && !currentBrand?.id && (
+                    <option value="all">Tất cả màu sắc</option>
+                )}
+                {colorOptions.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+            </select>
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Giá</label>
+            <input
+                type="text"
+                value={formatPrice(currentBrand?.price || '')}
+                onChange={handlePriceChange}
+                placeholder="Giá (VD: 500.000)"
+                className="w-full p-2 border rounded-md mt-1"
+            />
+          </div>
+
           {/* Warranty */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Bảo hành</label>
@@ -294,6 +511,8 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                         setCurrentBrand(prev => prev ? { ...prev, warranty: selectedWarranty?.value || '' } : null);
                       }}
                       placeholder="Chọn bảo hành"
+                      onDelete={handleDeleteWarranty}
+                      onEdit={handleEditWarranty}
                     />
                   </div>
                   <button
@@ -344,48 +563,6 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Device Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Loại máy</label>
-            <SearchableSelect
-                options={deviceOptions}
-                value={selectedDeviceId}
-                onChange={handleDeviceChange}
-                placeholder="Chọn loại máy"
-            />
-          </div>
-          
-          {/* Color */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Màu sắc</label>
-            <select
-                className="w-full p-2 border rounded-md mt-1"
-                value={selectedColor}
-                onChange={handleColorChange}
-                disabled={!selectedDeviceId}
-            >
-                <option value="">Chọn màu sắc</option>
-                {colorOptions.length > 0 && !currentBrand?.id && (
-                    <option value="all">Tất cả màu sắc</option>
-                )}
-                {colorOptions.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.name}</option>
-                ))}
-            </select>
-          </div>
-
-          {/* Price */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Giá</label>
-            <input
-                type="text"
-                value={formatPrice(currentBrand?.price || '')}
-                onChange={handlePriceChange}
-                placeholder="Giá (VD: 500.000)"
-                className="w-full p-2 border rounded-md mt-1"
-            />
           </div>
         </div>
         <div className="mt-6 flex justify-end gap-3">

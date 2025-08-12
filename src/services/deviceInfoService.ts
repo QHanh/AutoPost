@@ -4,7 +4,7 @@ import { getAuthToken } from './apiService';
 const API_BASE_URL = 'http://192.168.1.161:8000/api/v1';
 
 export const deviceInfoService = {
-  async getDeviceInfos(filter: any = {}, pagination: { page?: number; limit?: number } = {}) {
+  async getDeviceInfos(filter: { search?: string; brand?: string; sort_by?: string; sort_order?: 'asc' | 'desc' } = {}, pagination: { page?: number; limit?: number } = {}) {
     const token = getAuthToken();
     const params = new URLSearchParams();
     const skip = ((pagination.page || 1) - 1) * (pagination.limit || 10);
@@ -13,6 +13,8 @@ export const deviceInfoService = {
     params.append('limit', limit.toString());
     if (filter.search) params.append('search', filter.search);
     if (filter.brand) params.append('brand', filter.brand);
+    if (filter.sort_by) params.append('sort_by', filter.sort_by);
+    if (filter.sort_order) params.append('sort_order', filter.sort_order);
     const response = await fetch(`${API_BASE_URL}/device-infos?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
