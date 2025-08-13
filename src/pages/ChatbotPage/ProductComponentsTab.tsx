@@ -26,7 +26,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const [formData, setFormData] = useState<ProductComponentCreate | ProductComponentUpdate>({
     product_code: '',
     product_name: '',
-    amount: 0,
     stock: 0,
     properties: '',
   });
@@ -195,7 +194,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       setFormData({
         product_code: productComponent.product_code,
         product_name: productComponent.product_name,
-        amount: productComponent.amount,
         trademark: productComponent.trademark || '',
         guarantee: productComponent.guarantee || '',
         stock: productComponent.stock,
@@ -210,7 +208,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       setFormData({
         product_code: '',
         product_name: '',
-        amount: 0,
         stock: 0,
         properties: '',
       });
@@ -239,7 +236,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!formData.product_name) errors.product_name = 'Tên sản phẩm là bắt buộc';
-    if (formData.amount === undefined || formData.amount < 0) errors.amount = 'Số lượng phải lớn hơn hoặc bằng 0';
     if (formData.stock === undefined || formData.stock < 0) errors.stock = 'Tồn kho phải lớn hơn hoặc bằng 0';
     
     setFormErrors(errors);
@@ -256,7 +252,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         const updateData: ProductComponentUpdate = {
           product_code: formData.product_code || undefined,
           product_name: formData.product_name || undefined,
-          amount: formData.amount,
           trademark: formData.trademark || undefined,
           guarantee: formData.guarantee || undefined,
           stock: formData.stock,
@@ -422,16 +417,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('amount')}
-                >
-                  <div className="flex items-center">
-                    Số Lượng
-                    {renderSortIcon('amount')}
-                  </div>
-                </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('stock')}
                 >
                   <div className="flex items-center">
@@ -481,7 +466,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                   <tr key={productComponent.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.product_code}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{productComponent.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.amount}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.stock}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.trademark || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -569,169 +553,173 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       {/* Modal for Create/Update Product Component */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h3 className="text-xl font-semibold text-gray-900">
                 {editingProductComponent ? 'Cập Nhật Linh Kiện' : 'Thêm Linh Kiện Mới'}
               </h3>
             </div>
             
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mã Sản Phẩm</label>
-                  <input
-                    type="text"
-                    className={`w-full px-3 py-2 border rounded-md ${formErrors.product_code ? 'border-red-500' : 'border-gray-300'}`}
-                    value={formData.product_code}
-                    onChange={(e) => setFormData({...formData, product_code: e.target.value})}
-                  />
-                  <p className="text-gray-500 text-xs mt-1">Nếu không nhập, hệ thống sẽ tự động tạo mã</p>
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mã Sản Phẩm</label>
+                    <input
+                      type="text"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.product_code ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formData.product_code}
+                      onChange={(e) => setFormData({...formData, product_code: e.target.value})}
+                      placeholder="Nhập mã sản phẩm (tùy chọn)"
+                    />
+                    <p className="text-gray-500 text-xs mt-2">Nếu không nhập, hệ thống sẽ tự động tạo mã</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tên Sản Phẩm *</label>
+                    <input
+                      type="text"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.product_name ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formData.product_name}
+                      onChange={(e) => setFormData({...formData, product_name: e.target.value})}
+                      placeholder="Nhập tên sản phẩm"
+                    />
+                    {formErrors.product_name && <p className="text-red-500 text-xs mt-2">{formErrors.product_name}</p>}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tồn Kho *</label>
+                    <input
+                      type="number"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.stock ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formData.stock}
+                      onChange={(e) => setFormData({...formData, stock: Number(e.target.value)})}
+                      placeholder="0"
+                      min="0"
+                    />
+                    {formErrors.stock && <p className="text-red-500 text-xs mt-2">{formErrors.stock}</p>}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Thương Hiệu</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.trademark || ''}
+                      onChange={(e) => setFormData({...formData, trademark: e.target.value})}
+                      placeholder="Nhập thương hiệu"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bảo Hành</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.guarantee || ''}
+                      onChange={(e) => setFormData({...formData, guarantee: e.target.value})}
+                      placeholder="Nhập thông tin bảo hành"
+                    />
+                  </div>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên Sản Phẩm *</label>
-                  <input
-                    type="text"
-                    className={`w-full px-3 py-2 border rounded-md ${formErrors.product_name ? 'border-red-500' : 'border-gray-300'}`}
-                    value={formData.product_name}
-                    onChange={(e) => setFormData({...formData, product_name: e.target.value})}
-                  />
-                  {formErrors.product_name && <p className="text-red-500 text-xs mt-1">{formErrors.product_name}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Số Lượng *</label>
-                  <input
-                    type="number"
-                    className={`w-full px-3 py-2 border rounded-md ${formErrors.amount ? 'border-red-500' : 'border-gray-300'}`}
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})}
-                  />
-                  {formErrors.amount && <p className="text-red-500 text-xs mt-1">{formErrors.amount}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tồn Kho *</label>
-                  <input
-                    type="number"
-                    className={`w-full px-3 py-2 border rounded-md ${formErrors.stock ? 'border-red-500' : 'border-gray-300'}`}
-                    value={formData.stock}
-                    onChange={(e) => setFormData({...formData, stock: Number(e.target.value)})}
-                  />
-                  {formErrors.stock && <p className="text-red-500 text-xs mt-1">{formErrors.stock}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thương Hiệu</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.trademark || ''}
-                    onChange={(e) => setFormData({...formData, trademark: e.target.value})}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bảo Hành</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.guarantee || ''}
-                    onChange={(e) => setFormData({...formData, guarantee: e.target.value})}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Danh Mục</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.category_id || ''}
-                    onChange={(e) => setFormData({...formData, category_id: e.target.value || undefined})}
-                  >
-                    <option value="">Chọn danh mục</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                  {categories.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">Đang tải danh mục...</p>
-                  )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Danh Mục</label>
+                    <select
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.category_id || ''}
+                      onChange={(e) => setFormData({...formData, category_id: e.target.value || undefined})}
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map(category => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
+                      ))}
+                    </select>
+                    {categories.length === 0 && (
+                      <p className="text-sm text-gray-500 mt-2">Đang tải danh mục...</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mô Tả</label>
+                    <textarea
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.description || ''}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      rows={3}
+                      placeholder="Nhập mô tả sản phẩm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Liên Kết Ảnh</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.product_photo || ''}
+                      onChange={(e) => setFormData({...formData, product_photo: e.target.value})}
+                      placeholder="Nhập URL ảnh sản phẩm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Liên Kết Sản Phẩm</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.product_link || ''}
+                      onChange={(e) => setFormData({...formData, product_link: e.target.value})}
+                      placeholder="Nhập URL sản phẩm"
+                    />
+                  </div>
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thuộc Tính</label>
-                  <PropertySelector 
-                    properties={properties}
-                    selectedProperties={formData.properties || ''}
-                    onPropertiesChange={(properties) => {
-                      setFormData({
-                        ...formData,
-                        properties
-                      });
-                    }}
-                    onAddNewProperty={async (key, values) => {
-                      try {
-                        const newProperty = await productComponentService.createProperty({
-                          key,
-                          values
-                        });
-                        
-                        setProperties(prev => [...prev, newProperty]);
-                        
-                        // Update properties in form data
-                        let currentProperties: any[] = [];
-                        try {
-                          currentProperties = formData.properties ? JSON.parse(formData.properties) : [];
-                        } catch (e) {
-                          currentProperties = [];
-                        }
-                        
-                        const updatedProperties = [
-                          ...currentProperties,
-                          { key: newProperty.key, values: newProperty.values || [] }
-                        ];
-                        
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Thuộc Tính</label>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <PropertySelector 
+                      properties={properties}
+                      selectedProperties={formData.properties || ''}
+                      onPropertiesChange={(properties) => {
                         setFormData({
                           ...formData,
-                          properties: JSON.stringify(updatedProperties)
+                          properties
                         });
-                      } catch (error) {
-                        console.error('Error creating new property:', error);
-                        alert('Có lỗi xảy ra khi thêm thuộc tính mới');
-                      }
-                    }}
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô Tả</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Liên Kết Ảnh</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.product_photo || ''}
-                    onChange={(e) => setFormData({...formData, product_photo: e.target.value})}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Liên Kết Sản Phẩm</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formData.product_link || ''}
-                    onChange={(e) => setFormData({...formData, product_link: e.target.value})}
-                  />
+                      }}
+                      onAddNewProperty={async (key, values) => {
+                        try {
+                          const newProperty = await productComponentService.createProperty({
+                            key,
+                            values
+                          });
+                          
+                          setProperties(prev => [...prev, newProperty]);
+                          
+                          // Update properties in form data
+                          let currentProperties: any[] = [];
+                          try {
+                            currentProperties = formData.properties ? JSON.parse(formData.properties) : [];
+                          } catch (e) {
+                            currentProperties = [];
+                          }
+                          
+                          const updatedProperties = [
+                            ...currentProperties,
+                            { key: newProperty.key, values: newProperty.values || [] }
+                          ];
+                          
+                          setFormData({
+                            ...formData,
+                            properties: JSON.stringify(updatedProperties)
+                          });
+                        } catch (error) {
+                          console.error('Error creating new property:', error);
+                          alert('Có lỗi xảy ra khi thêm thuộc tính mới');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -739,16 +727,16 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium"
               >
-                <X className="inline mr-1 h-4 w-4" />
+                <X className="inline mr-2 h-4 w-4" />
                 Hủy
               </button>
               <button
                 onClick={handleSaveProductComponent}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                <Save className="inline mr-1 h-4 w-4" />
+                <Save className="inline mr-2 h-4 w-4" />
                 Lưu
               </button>
             </div>

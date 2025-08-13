@@ -5,6 +5,7 @@ export interface Brand {
   service_code: string;
   name: string;
   warranty: string;
+  note?: string;
   service_id: string;
   device_brand_id?: string;
   device_type?: string;

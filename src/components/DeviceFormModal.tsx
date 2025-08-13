@@ -342,7 +342,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 name="device_condition"
                 value={formData.device_condition || ''}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
+                className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm disabled:opacity-50 disabled:bg-gray-100"
                 disabled={formData.device_type === 'Mới'}
                 placeholder={formData.device_type === 'Cũ' ? "Nhập tình trạng thiết bị" : ""}
               />
@@ -354,7 +354,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 name="battery_condition"
                 value={formData.battery_condition || ''}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
+                className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm disabled:opacity-50 disabled:bg-gray-100"
                 disabled={formData.device_type === 'Mới'}
                 placeholder={formData.device_type === 'Cũ' ? "Nhập tình trạng pin" : ""}
               />

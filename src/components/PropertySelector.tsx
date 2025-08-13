@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Property } from '../types/productComponentTypes';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, X, Check } from 'lucide-react';
 
 interface PropertySelectorProps {
   properties: Property[];
@@ -77,113 +77,154 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
     setExpandedPropertyId(expandedPropertyId === propertyId ? null : propertyId);
   };
 
-  const handleValueSelect = (propertyKey: string, value: string) => {
-    // Cập nhật internal state
-    const currentValues = internalSelectedValues[propertyKey] || [];
-    let newValues;
+  const handleCheckboxChange = (propertyKey: string, value: string, checked: boolean) => {
+    // Lấy danh sách thuộc tính đã chọn hiện tại
+    let updatedProperties = [...parsedSelectedProperties];
     
-    if (currentValues.includes(value)) {
-      // Nếu giá trị đã được chọn, bỏ chọn nó
-      newValues = currentValues.filter(v => v !== value);
+    // Tìm thuộc tính trong danh sách đã chọn
+    const existingPropIndex = updatedProperties.findIndex((p: any) => p.key === propertyKey);
+    
+    if (checked) {
+      // Nếu checkbox được chọn
+      if (existingPropIndex !== -1) {
+        // Thuộc tính đã tồn tại, thêm giá trị mới vào
+        const existingValues = updatedProperties[existingPropIndex].values || [];
+        if (!existingValues.includes(value)) {
+          updatedProperties[existingPropIndex].values = [...existingValues, value];
+        }
+      } else {
+        // Thuộc tính chưa tồn tại, tạo mới
+        updatedProperties.push({ key: propertyKey, values: [value] });
+      }
     } else {
-      // Nếu giá trị chưa được chọn, thêm vào
-      newValues = [...currentValues, value];
+      // Nếu checkbox bị bỏ chọn
+      if (existingPropIndex !== -1) {
+        // Lọc bỏ giá trị này khỏi thuộc tính
+        const existingValues = updatedProperties[existingPropIndex].values || [];
+        const newValues = existingValues.filter((v: string) => v !== value);
+        
+        if (newValues.length === 0) {
+          // Nếu không còn giá trị nào, xóa thuộc tính này
+          updatedProperties = updatedProperties.filter((_, index) => index !== existingPropIndex);
+        } else {
+          // Cập nhật danh sách giá trị
+          updatedProperties[existingPropIndex].values = newValues;
+        }
+      }
     }
     
-    const newSelectedValues = {
-      ...internalSelectedValues,
-      [propertyKey]: newValues
-    };
+    // Cập nhật internal state
+    const newSelectedValues: Record<string, string[]> = {};
+    updatedProperties.forEach((prop: any) => {
+      if (prop.values && prop.values.length > 0) {
+        newSelectedValues[prop.key] = prop.values;
+      }
+    });
     
     setInternalSelectedValues(newSelectedValues);
     
-    // Update the properties JSON string
-    const updatedProperties = [...parsedSelectedProperties];
-    const propIndex = updatedProperties.findIndex((p: any) => p.key === propertyKey);
-    if (propIndex !== -1) {
-      updatedProperties[propIndex].values = newValues;
-    } else {
-      updatedProperties.push({ key: propertyKey, values: newValues });
-    }
+    // Cập nhật properties JSON string
     onPropertiesChange(JSON.stringify(updatedProperties));
   };
 
+  const handleValueSelect = (propertyKey: string, value: string) => {
+    // Sử dụng handleCheckboxChange để xử lý logic
+    const currentValues = internalSelectedValues[propertyKey] || [];
+    const isCurrentlySelected = currentValues.includes(value);
+    handleCheckboxChange(propertyKey, value, !isCurrentlySelected);
+  };
+
   return (
-    <div className="border border-gray-300 rounded-md p-3 bg-white">
-      <div className="mb-2">
-        <h3 className="text-sm font-medium text-gray-700">Thuộc tính</h3>
-      </div>
-      
-      {/* Selected properties */}
-      <div className="mb-3 min-h-[40px]">
-        {parsedSelectedProperties.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {parsedSelectedProperties.map((property: any, index: number) => (
-              <div 
-                key={index}
-                className="border border-gray-300 rounded-md px-3 py-2 bg-gray-50 flex items-center justify-between w-full"
-              >
-                <div>
-                  <div className="font-medium text-sm">{property.key}</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {property.values ? property.values.join(', ') : 'N/A'}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updatedProperties = parsedSelectedProperties.filter((_: any, i: number) => i !== index);
-                    onPropertiesChange(JSON.stringify(updatedProperties));
-                  }}
-                  className="text-gray-400 hover:text-gray-600 ml-2"
+    <div className="space-y-4">
+      {/* Selected properties display */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Thuộc tính đã chọn</h4>
+        <div className="min-h-[40px]">
+          {parsedSelectedProperties.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {parsedSelectedProperties.map((property: any, index: number) => (
+                <div 
+                  key={index}
+                  className="border border-blue-200 rounded-lg px-4 py-3 bg-blue-50 flex items-center justify-between"
                 >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 text-sm italic">Chưa chọn thuộc tính nào</p>
-        )}
+                  <div className="flex-1">
+                    <div className="font-medium text-sm text-blue-900">{property.key}</div>
+                    <div className="text-xs text-blue-600 mt-1">
+                      {property.values && property.values.length > 0 
+                        ? `${property.values.length} giá trị: ${property.values.join(', ')}`
+                        : 'Chưa chọn giá trị'
+                      }
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedProperties = parsedSelectedProperties.filter((_: any, i: number) => i !== index);
+                      onPropertiesChange(JSON.stringify(updatedProperties));
+                    }}
+                    className="text-blue-400 hover:text-blue-600 ml-3 p-1 rounded-full hover:bg-blue-100 transition-colors"
+                    title="Xóa thuộc tính"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <p className="text-gray-500 text-sm">Chưa chọn thuộc tính nào</p>
+              <p className="text-gray-400 text-xs mt-1">Chọn thuộc tính từ danh sách bên dưới</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Property selection */}
-      <div className="border border-dashed border-gray-300 rounded-md p-3 bg-gray-50">
-        <div className="space-y-2">
+      {/* Available properties selection */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Chọn thuộc tính</h4>
+        <div className="space-y-3">
           {/* Available properties */}
           {availableProperties.map((property: Property) => (
             <div 
               key={property.id}
-              className="border border-gray-200 rounded-md p-2 bg-white hover:bg-gray-50 transition-colors"
+              className="border border-gray-200 rounded-lg p-4 bg-white hover:border-blue-300 transition-all duration-200"
             >
-              <div className="flex items-center justify-between">
-                <div className="font-medium text-sm">{property.key}</div>
-                <div className="flex items-center">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-medium text-sm text-gray-900">{property.key}</div>
+                <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Add property to selected properties
-                      const updatedProperties = [
-                        ...parsedSelectedProperties,
-                        { key: property.key, values: property.values || [] }
-                      ];
-                      onPropertiesChange(JSON.stringify(updatedProperties));
                       
-                      // Nếu thuộc tính có giá trị, chọn tất cả
-                      if (property.values && property.values.length > 0) {
-                        // Cập nhật internal state với tất cả giá trị
-                        const newSelectedValues = {
-                          ...internalSelectedValues,
-                          [property.key]: [...property.values]
-                        };
-                        
-                        setInternalSelectedValues(newSelectedValues);
+                      // Kiểm tra xem thuộc tính này đã được chọn chưa
+                      const existingPropIndex = parsedSelectedProperties.findIndex((p: any) => p.key === property.key);
+                      
+                      if (existingPropIndex !== -1) {
+                        // Thuộc tính đã tồn tại, cập nhật giá trị
+                        const updatedProperties = [...parsedSelectedProperties];
+                        updatedProperties[existingPropIndex].values = [...(property.values || [])];
+                        onPropertiesChange(JSON.stringify(updatedProperties));
+                      } else {
+                        // Thuộc tính chưa tồn tại, thêm mới
+                        const updatedProperties = [
+                          ...parsedSelectedProperties,
+                          { key: property.key, values: [...(property.values || [])] }
+                        ];
+                        onPropertiesChange(JSON.stringify(updatedProperties));
                       }
+                      
+                      // Cập nhật internal state
+                      const newSelectedValues = {
+                        ...internalSelectedValues,
+                        [property.key]: [...(property.values || [])]
+                      };
+                      setInternalSelectedValues(newSelectedValues);
                     }}
-                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 mr-2"
+                    className="text-xs bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center"
                   >
-                    Chọn
+                    <Check size={14} className="mr-1" />
+                    Chọn tất cả
                   </button>
                   <button
                     type="button"
@@ -191,11 +232,12 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
                       e.stopPropagation();
                       togglePropertyExpansion(property.id);
                     }}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                   >
                     {expandedPropertyId === property.id ? (
-                      <ChevronUp className="h-4 w-4 text-gray-500" />
+                      <ChevronUp className="h-4 w-4" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                      <ChevronDown className="h-4 w-4" />
                     )}
                   </button>
                 </div>
@@ -203,33 +245,37 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
               
               {/* Property values */}
               {expandedPropertyId === property.id && (
-                <div className="mt-2 border-t border-gray-100 pt-2">
+                <div className="border-t border-gray-100 pt-3">
                   {property.values && property.values.length > 0 ? (
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {property.values.map((value: string, index: number) => (
-                        <div 
-                          key={index}
-                          className="flex items-center p-1 hover:bg-gray-50 rounded"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleValueSelect(property.key, value);
-                          }}
-                        >
-                          <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={internalSelectedValues[property.key]?.includes(value) || false}
-                              onChange={() => {}}
-                              className="mr-2"
-                            />
-                            <span className="text-sm">{value}</span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-gray-600 mb-2">Chọn giá trị cụ thể:</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                        {property.values.map((value: string, index: number) => {
+                          // Kiểm tra xem giá trị này có được chọn hay không
+                          const isSelected = parsedSelectedProperties.some(
+                            (prop: any) => prop.key === property.key && prop.values && prop.values.includes(value)
+                          );
+                          
+                          return (
+                            <label 
+                              key={index}
+                              className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => handleCheckboxChange(property.key, value, e.target.checked)}
+                                className="mr-2 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700">{value}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-500 p-2">
-                      Không có giá trị nào
+                    <div className="text-xs text-gray-500 p-3 text-center bg-gray-50 rounded-md">
+                      Thuộc tính này không có giá trị cụ thể
                     </div>
                   )}
                 </div>
@@ -242,30 +288,31 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
             <button
               type="button"
               onClick={() => setIsAddingNew(true)}
-              className="w-full text-left text-sm text-blue-600 hover:text-blue-800 py-2"
+              className="w-full text-left text-sm text-blue-600 hover:text-blue-800 py-3 px-4 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
             >
-              + Thêm thuộc tính mới
+              <Plus className="inline mr-2 h-4 w-4" />
+              Thêm thuộc tính mới
             </button>
           ) : (
-            <div className="border-t border-gray-200 pt-3 mt-2">
-              <div className="mb-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Tên thuộc tính</label>
+            <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-blue-50">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tên thuộc tính</label>
                 <input
                   type="text"
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={newPropertyKey}
                   onChange={(e) => setNewPropertyKey(e.target.value)}
                   placeholder="Nhập tên thuộc tính"
                 />
               </div>
               
-              <div className="mb-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Giá trị</label>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Giá trị</label>
                 {newPropertyValues.map((value, index) => (
-                  <div key={index} className="flex mb-1">
+                  <div key={index} className="flex mb-2">
                     <input
                       type="text"
-                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md mr-1"
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md mr-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={value}
                       onChange={(e) => handleValueChange(index, e.target.value)}
                       placeholder="Nhập giá trị"
@@ -274,9 +321,10 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
                       <button
                         type="button"
                         onClick={() => handleRemoveValueField(index)}
-                        className="text-red-500 hover:text-red-700 px-2"
+                        className="text-red-500 hover:text-red-700 px-3 py-2 rounded-md hover:bg-red-50 transition-colors"
+                        title="Xóa giá trị"
                       >
-                        ×
+                        <X size={16} />
                       </button>
                     )}
                   </div>
@@ -284,13 +332,14 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
                 <button
                   type="button"
                   onClick={handleAddNewValueField}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 px-3 py-2 rounded-md transition-colors"
                 >
-                  + Thêm giá trị
+                  <Plus className="inline mr-1 h-4 w-4" />
+                  Thêm giá trị
                 </button>
               </div>
               
-              <div className="flex justify-end space-x-2 mt-2">
+              <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -298,16 +347,16 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
                     setNewPropertyKey('');
                     setNewPropertyValues(['']);
                   }}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="button"
                   onClick={handleAddNewProperty}
-                  className="px-3 py-1 text-sm bg-blue-600 rounded-md text-white hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 rounded-md text-white hover:bg-blue-700 transition-colors"
                 >
-                  Thêm
+                  Thêm thuộc tính
                 </button>
               </div>
             </div>
