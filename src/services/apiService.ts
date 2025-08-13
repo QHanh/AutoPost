@@ -63,7 +63,7 @@ export const apiGet = async <T>(endpoint: string, options: ApiGetOptions = {}): 
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
         ...options,
         headers: getAuthHeader()
     });

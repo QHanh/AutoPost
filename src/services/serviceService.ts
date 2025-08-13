@@ -2,7 +2,7 @@ import { ResponseModel } from '../types/ResponseModel.js';
 import { Service } from '../types/Service.js';
 import { apiGet, apiPost, apiPut, apiDelete } from './apiService.js';
 
-const API_ENDPOINT = '/api/v1/services';
+const API_ENDPOINT = '/services';
 
 export const serviceService = {
   getAllServices: async (skip = 0, limit = 100, search = '') => {
