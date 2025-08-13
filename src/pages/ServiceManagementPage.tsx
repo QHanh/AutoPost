@@ -32,6 +32,7 @@ export const ServiceManagementPage: React.FC = () => {
     const [currentBrand, setCurrentBrand] = useState<Partial<Brand> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
+    const [isServicesVisible, setIsServicesVisible] = useState(true);
 
 
     // Helper function to format price as Vietnamese currency
@@ -287,40 +288,49 @@ export const ServiceManagementPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8 flex gap-8 h-[calc(100vh-80px)]">
       {/* Services Column */}
-      <div className="w-1/3 bg-white shadow-md rounded-lg p-4 flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Dịch vụ</h2>
-          <button onClick={() => handleOpenServiceModal()} className="p-2 rounded-full hover:bg-gray-200">
-            <Plus size={20} />
-          </button>
+      {isServicesVisible && (
+        <div className="w-1/4 bg-white shadow-md rounded-lg p-4 flex flex-col transition-all duration-300">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Dịch vụ</h2>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => handleOpenServiceModal()} className="p-2 rounded-full hover:bg-gray-200">
+                        <Plus size={20} />
+                    </button>
+                </div>
+            </div>
+            {isLoadingServices ? (
+                <div className="text-center p-4">Đang tải...</div>
+            ) : (
+                <ul className="space-y-2 overflow-y-auto">
+                    {services.map(service => (
+                        <li key={service.id} 
+                            onClick={() => handleSelectService(service)}
+                            className={`p-3 rounded-lg cursor-pointer transition-colors flex justify-between items-center ${selectedService?.id === service.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+                        >
+                            <span>{service.name}</span>
+                            <div className="flex items-center gap-2">
+                                <button onClick={(e) => { e.stopPropagation(); handleOpenServiceModal(service);}} className="p-1 rounded-full hover:bg-gray-300"><Edit size={16}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service);}} className="p-1 rounded-full hover:bg-gray-300"><Trash2 size={16}/></button>
+                                {selectedService?.id === service.id && <ChevronRight size={20}/>}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
-        {isLoadingServices ? (
-            <div className="text-center p-4">Đang tải...</div>
-        ) : (
-            <ul className="space-y-2 overflow-y-auto">
-                {services.map(service => (
-                    <li key={service.id} 
-                        onClick={() => handleSelectService(service)}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors flex justify-between items-center ${selectedService?.id === service.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
-                    >
-                        <span>{service.name}</span>
-                        <div className="flex items-center gap-2">
-                            <button onClick={(e) => { e.stopPropagation(); handleOpenServiceModal(service);}} className="p-1 rounded-full hover:bg-gray-300"><Edit size={16}/></button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service);}} className="p-1 rounded-full hover:bg-gray-300"><Trash2 size={16}/></button>
-                            {selectedService?.id === service.id && <ChevronRight size={20}/>}
-                        </div>
-                    </li>
-                ))}
-            </ul>
-        )}
-      </div>
+      )}
 
       {/* Brands Column */}
-      <div className="w-2/3 bg-white shadow-md rounded-lg p-4 flex flex-col">
+      <div className={`${isServicesVisible ? 'w-3/4' : 'w-full'} bg-white shadow-md rounded-lg p-4 flex flex-col transition-all duration-300`}>
         <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
-                {selectedService ? `Loại & Bảo hành cho "${selectedService.name}"` : "Tất cả Loại & Bảo hành"}
-            </h2>
+            <div className="flex items-center gap-4">
+                <button onClick={() => setIsServicesVisible(!isServicesVisible)} className="p-2 rounded-full hover:bg-gray-200">
+                    <ChevronsUpDown size={20} />
+                </button>
+                <h2 className="text-xl font-bold text-gray-800">
+                    {selectedService ? `Loại & Bảo hành cho "${selectedService.name}"` : "Tất cả Loại & Bảo hành"}
+                </h2>
+            </div>
             <div className="flex items-center gap-2">
                 <button onClick={handleImportClick} className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
                     <FileUp className="mr-2" size={18} /> Import Excel
@@ -344,15 +354,16 @@ export const ServiceManagementPage: React.FC = () => {
                 <table className="min-w-full">
                     <thead>
                         <tr className="bg-gray-100">
-                            {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên dịch vụ</th>}
-                            {renderSortableHeader('service_code', 'Mã DV')}
-                            {renderSortableHeader('name', 'Loại dịch vụ')}
-                            {renderSortableHeader('warranty', 'Bảo hành')}
-                            {renderSortableHeader('device_type', 'Loại máy')}
-                            {renderSortableHeader('device_brand_id', 'Thương hiệu')}
-                            {renderSortableHeader('color', 'Màu sắc')}
-                            {renderSortableHeader('price', 'Giá')}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                           {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên dịch vụ</th>}
+                           {renderSortableHeader('service_code', 'Mã DV')}
+                           {renderSortableHeader('name', 'Loại dịch vụ')}
+                           {renderSortableHeader('device_brand_id', 'Thương hiệu')}
+                           {renderSortableHeader('device_type', 'Loại máy')}
+                           {renderSortableHeader('color', 'Màu sắc')}
+                           {renderSortableHeader('price', 'Giá')}
+                           {renderSortableHeader('warranty', 'Bảo hành')}
+                           {renderSortableHeader('note', 'Ghi chú')}
+                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -361,11 +372,12 @@ export const ServiceManagementPage: React.FC = () => {
                                 {!selectedService && <td className="px-6 py-4 whitespace-nowrap">{brand.service?.name}</td>}
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.service_code}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">{brand.device_type || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{deviceBrands.find(db => db.id === brand.device_brand_id)?.name || ''}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{brand.device_type || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.color || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.price)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{brand.note || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <button onClick={() => handleOpenBrandModal(brand)} className="text-indigo-600 hover:text-indigo-900 mr-4"><Edit size={20}/></button>
                                     <button onClick={() => handleDeleteBrand(brand.id)} className="text-red-600 hover:text-red-900"><Trash2 size={20}/></button>

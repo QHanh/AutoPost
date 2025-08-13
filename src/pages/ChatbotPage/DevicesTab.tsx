@@ -4,6 +4,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { UserDevice } from '../../types/deviceTypes';
 import { userDeviceService } from '../../services/userDeviceService';
 import DeviceFormModal from '../../components/DeviceFormModal';
+import Pagination from '../../components/Pagination';
+import Filter, { FilterConfig } from '../../components/Filter';
+import deviceBrandService from '../../services/deviceBrandService';
+import { DeviceBrand } from '../../types/deviceBrand';
+import { deviceInfoService } from '../../services/deviceInfoService';
+import { deviceStorageService } from '../../services/deviceStorageService';
 
 interface DevicesTabProps {
   // Props nếu cần
@@ -22,12 +28,46 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     total: 0,
     totalPages: 1,
   });
+  const [filters, setFilters] = useState<{ [key: string]: any }>({});
+  const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [storages, setStorages] = useState<number[]>([]); // To hold unique storage capacities
 
   useEffect(() => {
     fetchUserDevices();
-  }, [sortConfig, pagination.page, pagination.limit]);
+  }, [sortConfig, pagination.page, pagination.limit, filters]);
+
+  useEffect(() => {
+    // Fetch device brands for filter options
+    const fetchBrands = async () => {
+      try {
+        const brands = await deviceBrandService.getDeviceBrands();
+        setDeviceBrands(brands);
+      } catch (error) {
+        console.error("Failed to fetch device brands for filter:", error);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  useEffect(() => {
+    // Fetch unique brands and storages for filter options
+    const fetchFilterOptions = async () => {
+      try {
+        // You would create these service methods and backend endpoints
+        const brandData = await deviceInfoService.getDistinctBrands(); 
+        setBrands(brandData);
+        // const storageData = await deviceStorageService.getDistinctCapacities();
+        // setStorages(storageData);
+      } catch (error) {
+        console.error("Failed to fetch filter options:", error);
+      }
+    };
+    fetchFilterOptions();
+  }, []);
 
   const fetchUserDevices = async () => {
+    console.log('DevicesTab: fetchUserDevices called with pagination:', pagination);
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
@@ -39,11 +79,22 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       }
       params.append('skip', ((pagination.page - 1) * pagination.limit).toString());
       params.append('limit', pagination.limit.toString());
+      
+      // Append filters to params
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value as string);
+        }
+      });
+
+      console.log('DevicesTab: API request params:', params.toString());
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/user-devices/my-devices?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
+      console.log('DevicesTab: API response:', data);
+      
       if (data.data) {
         const enrichedDevices = data.data.map((device: any) => ({
           ...device,
@@ -54,11 +105,13 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         setUserDevices(enrichedDevices);
         
         // Handle pagination metadata from the API response
-        setPagination(prev => ({
-            ...prev,
-            total: data.total || 0,
-            totalPages: data.totalPages || 1,
-        }));
+        const newPagination = {
+          ...pagination,
+          total: data.total || 0,
+          totalPages: data.totalPages || 1,
+        };
+        console.log('DevicesTab: Setting new pagination:', newPagination);
+        setPagination(prev => newPagination);
       }
     } catch (error) {
       console.error('Error fetching user devices:', error);
@@ -212,6 +265,41 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     }
   };
 
+  const handleFilterChange = (newFilters: { [key: string]: any }) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters(newFilters);
+  };
+  
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'brand',
+      label: 'Hãng',
+      type: 'select',
+      options: brands.map(brand => ({ label: brand, value: brand }))
+    },
+    {
+      key: 'inventory',
+      label: 'Tồn kho',
+      type: 'range-number',
+    },
+    {
+      key: 'price',
+      label: 'Giá',
+      type: 'range-number',
+    },
+    {
+      key: 'storage_capacity',
+      label: 'Bộ nhớ (GB)',
+      type: 'select', // Assuming you want a select for specific capacities
+      options: [ // Example storages, you should fetch this from backend
+        { label: '128 GB', value: '128' },
+        { label: '256 GB', value: '256' },
+        { label: '512 GB', value: '512' },
+        { label: '1024 GB', value: '1024' },
+      ]
+    }
+  ];
+
   const filteredDevices = userDevices.filter(device =>
     (device.deviceModel?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (device.product_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -227,10 +315,16 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    console.log('DevicesTab: handlePageChange called with', newPage);
+    setPagination(prev => {
+      const newPagination = { ...prev, page: newPage };
+      console.log('DevicesTab: Updated pagination to', newPagination);
+      return newPagination;
+    });
   };
 
   const handleLimitChange = (newLimit: number) => {
+    console.log('DevicesTab: handleLimitChange called with', newLimit);
     setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
   };
 
@@ -243,7 +337,8 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     <div className="p-4 md:p-6 lg:p-8">
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Nhập liệu</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter config={filterConfig} onFilterChange={handleFilterChange} />
           <button onClick={() => fileInputRef.current?.click()} className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
             <FileUp className="mr-2" size={18} /> Import Excel
           </button>
@@ -333,27 +428,11 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           </select>
         </div>
         
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center">
-            <button 
-              onClick={() => handlePageChange(pagination.page - 1)} 
-              disabled={pagination.page === 1}
-              className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <span className="px-4 text-sm">
-              Trang {pagination.page} / {pagination.totalPages}
-            </span>
-            <button 
-              onClick={() => handlePageChange(pagination.page + 1)} 
-              disabled={pagination.page === pagination.totalPages}
-              className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        )}
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
       <DeviceFormModal
         isOpen={isModalOpen}

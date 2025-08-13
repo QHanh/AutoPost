@@ -5,6 +5,7 @@ import { colorService } from '../../services/colorService';
 import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import ColorModal from '../../components/ColorModal';
 import { GridColDef } from '@mui/x-data-grid';
+import Pagination from '../../components/Pagination';
 
 const ColorsTab: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -183,27 +184,12 @@ const ColorsTab: React.FC = () => {
                 <option value={50}>50 / trang</option>
               </select>
             </div>
-            {pagination.totalPages > 1 && (
-              <div className="flex items-center">
-                <button 
-                  onClick={() => handlePageChange(pagination.page - 1)} 
-                  disabled={pagination.page <= 1}
-                  className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <span className="mx-2 text-sm">
-                  Trang {pagination.page} / {pagination.totalPages}
-                </span>
-                <button 
-                  onClick={() => handlePageChange(pagination.page + 1)} 
-                  disabled={pagination.page >= pagination.totalPages}
-                  className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            )}
+            
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
           </div>
         </>
       )}

@@ -25,8 +25,13 @@ class DeviceBrandService {
     return response.json();
   }
 
-  async getDeviceBrands(): Promise<DeviceBrand[]> {
-    const response = await this.makeRequest("/device-brands");
+  async getDeviceBrands(skip = 0, limit = 100, search = ''): Promise<DeviceBrand[]> {
+    const query = new URLSearchParams({
+        skip: String(skip),
+        limit: String(limit),
+        search,
+    });
+    const response = await this.makeRequest(`/device-brands?${query}`);
     return response.data;
   }
 

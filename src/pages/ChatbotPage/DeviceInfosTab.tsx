@@ -4,6 +4,8 @@ import { DeviceInfo } from '../../types/deviceTypes';
 import { deviceInfoService } from '../../services/deviceInfoService';
 import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import DeviceInfoModal from '../../components/DeviceInfoModal';
+import Pagination from '../../components/Pagination';
+import Filter, { FilterConfig } from '../../components/Filter';
 
 const DeviceInfosTab: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -12,19 +14,37 @@ const DeviceInfosTab: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<DeviceInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'model', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'brand', direction: 'asc' });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
     total: 0,
     totalPages: 0
   });
+  const [filters, setFilters] = useState<{ brand?: string }>({});
+  const [brands, setBrands] = useState<string[]>([]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchDeviceInfos();
     }
-  }, [isAuthenticated, pagination.page, pagination.limit, searchTerm, sortConfig]);
+  }, [isAuthenticated, pagination.page, pagination.limit, searchTerm, sortConfig, filters]);
+
+  useEffect(() => {
+    // Fetch brands for filter options
+    const fetchBrands = async () => {
+      try {
+        // This should be an API call to a new endpoint that returns distinct brands
+        // For now, I'll simulate it, but you should create that endpoint.
+        const allBrands = await deviceInfoService.getDistinctBrands(); 
+        setBrands(allBrands);
+      } catch (error) {
+        console.error("Failed to fetch brands for filter:", error);
+      }
+    };
+    fetchBrands();
+  }, []);
+
 
   const fetchDeviceInfos = async () => {
     setIsLoading(true);
@@ -32,7 +52,8 @@ const DeviceInfosTab: React.FC = () => {
       const filter = { 
         search: searchTerm,
         sort_by: sortConfig.key,
-        sort_order: sortConfig.direction
+        sort_order: sortConfig.direction,
+        ...filters
       };
       const pageOptions = { page: pagination.page, limit: pagination.limit };
       const result = await deviceInfoService.getDeviceInfos(filter, pageOptions);
@@ -126,14 +147,31 @@ const DeviceInfosTab: React.FC = () => {
     });
   };
 
+  const handleFilterChange = (newFilters: { [key: string]: any }) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters(newFilters);
+  };
+  
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'brand',
+      label: 'Hãng',
+      type: 'select',
+      options: brands.map(brand => ({ label: brand, value: brand })),
+    }
+  ];
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Quản lý thông tin thiết bị</h2>
-        <button onClick={handleCreate} className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center">
-          <Plus size={20} className="mr-2" />
-          Thêm thông tin thiết bị
-        </button>
+        <div className="flex items-center gap-2">
+          <Filter config={filterConfig} onFilterChange={handleFilterChange} />
+          <button onClick={handleCreate} className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center">
+            <Plus size={20} className="mr-2" />
+            Thêm thông tin thiết bị
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -158,7 +196,15 @@ const DeviceInfosTab: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('brand')}>
+                  <div className="flex items-center">
+                    Thương hiệu
+                    {sortConfig.key === 'brand' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    ) : <ChevronsUpDown size={16} />}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('model')}>
                   <div className="flex items-center">
                     Model
                     {sortConfig.key === 'model' ? (
@@ -166,15 +212,7 @@ const DeviceInfosTab: React.FC = () => {
                     ) : <ChevronsUpDown size={16} />}
                   </div>
                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('brand')}>
-                   <div className="flex items-center">
-                    Thương hiệu
-                    {sortConfig.key === 'brand' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-                    ) : <ChevronsUpDown size={16} />}
-                  </div>
-                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('release_date')}>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('release_date')}>
                    <div className="flex items-center">
                     Ngày ra mắt
                     {sortConfig.key === 'release_date' ? (
@@ -203,8 +241,8 @@ const DeviceInfosTab: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {deviceInfos.map((info) => (
                 <tr key={info.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{info.model}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.brand}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{info.brand}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.model}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.release_date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.screen}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.chip_ram}</td>
@@ -242,27 +280,11 @@ const DeviceInfosTab: React.FC = () => {
           </select>
         </div>
         
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center">
-            <button 
-              onClick={() => handlePageChange(pagination.page - 1)} 
-              disabled={pagination.page === 1}
-              className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <span className="px-4 text-sm">
-              Trang {pagination.page} / {pagination.totalPages}
-            </span>
-            <button 
-              onClick={() => handlePageChange(pagination.page + 1)} 
-              disabled={pagination.page === pagination.totalPages}
-              className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        )}
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       <DeviceInfoModal 

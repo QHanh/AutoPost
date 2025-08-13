@@ -88,4 +88,14 @@ export const deviceInfoService = {
     const data = await response.json();
     return data.data;
   },
+
+  async getDistinctBrands(): Promise<string[]> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/brands`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch distinct brands');
+    const data = await response.json();
+    return data.data;
+  },
 }; 

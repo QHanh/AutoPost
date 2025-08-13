@@ -9,12 +9,20 @@ interface SearchableSelectProps {
     creatable?: boolean;
     onEdit?: (id: string, name: string) => void;
     onDelete?: (id: string) => void;
+    onSearch?: (term: string) => Promise<{ id: string, name: string }[]>;
 }
 
-export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder, creatable = false, onDelete, onEdit }) => {
+export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder, creatable = false, onDelete, onEdit, onSearch }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [internalOptions, setInternalOptions] = useState(options);
+    const [isLoading, setIsLoading] = useState(false);
     const selectRef = useRef<HTMLDivElement>(null);
+    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        setInternalOptions(options);
+    }, [options]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -27,6 +35,29 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    const handleSearch = (term: string) => {
+        if (!onSearch) return;
+        
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        setSearchTerm(term);
+        setIsLoading(true);
+
+        debounceTimeoutRef.current = setTimeout(async () => {
+            try {
+                const newOptions = await onSearch(term);
+                setInternalOptions(newOptions);
+            } catch (error) {
+                console.error("Failed to search:", error);
+                setInternalOptions([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 300); // 300ms debounce
+    };
 
     // Handling for creatable select
     const [inputValue, setInputValue] = useState('');
@@ -42,7 +73,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
         }
     }, [value, options, creatable]);
     
-    const showCreateOption = creatable && inputValue && !options.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
+    const showCreateOption = creatable && inputValue && !internalOptions.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
 
     useEffect(() => {
         if (!creatable) return;
@@ -52,7 +83,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                 if (creatable && showCreateOption) {
                     onChange(inputValue);
                 } else {
-                    const selectedOption = options.find(option => option.id === value);
+                    const selectedOption = internalOptions.find(option => option.id === value);
                     if (selectedOption) {
                         setInputValue(selectedOption.name);
                     } else if (creatable) {
@@ -67,11 +98,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [selectRef, inputValue, value, creatable, onChange, options, showCreateOption]);
+    }, [selectRef, inputValue, value, creatable, onChange, internalOptions, showCreateOption]);
 
     const handleSelectOption = (option: { id: string, name: string }) => {
         onChange(option.id);
-        setInputValue(option.name);
+        if (creatable) {
+            setInputValue(option.name);
+        }
         setIsOpen(false);
     };
     
@@ -90,11 +123,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
         setSearchTerm('');
     };
 
-    const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes((creatable ? inputValue : searchTerm).toLowerCase())
-    );
+    const filteredOptions = onSearch 
+        ? internalOptions 
+        : options.filter(option =>
+            option.name.toLowerCase().includes((creatable ? inputValue : searchTerm).toLowerCase())
+        );
     
-    const selectedOption = options.find(option => option.id === value);
+    const selectedOption = internalOptions.find(option => option.id === value);
 
     if (creatable) {
         return (
@@ -104,7 +139,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                     className="w-full p-2 border rounded-md"
                     placeholder={placeholder}
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    onChange={(e) => {
+                        setInputValue(e.target.value);
+                        if (onSearch) {
+                            handleSearch(e.target.value);
+                        }
+                    }}
                     onFocus={() => setIsOpen(true)}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && showCreateOption) {
@@ -116,58 +156,64 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                 {isOpen && (
                     <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
                         <ul>
-                            {filteredOptions.map(option => (
-                                <li
-                                    key={option.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                                    onMouseDown={(e) => {
-                                        if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
-                                          return; 
-                                        }
-                                        handleSelectOption(option);
-                                    }}
-                                >
-                                    <span>{option.name}</span>
-                                    <div className="flex items-center">
-                                        {onEdit && (
-                                            <button
-                                                className="control-btn p-1 text-blue-500 hover:text-blue-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onEdit(option.id, option.name);
-                                                    setIsOpen(false);
-                                                }}
-                                                title="Sửa"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                        )}
-                                        {onDelete && (
-                                            <button
-                                                className="control-btn p-1 text-red-500 hover:text-red-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onDelete(option.id);
-                                                    setIsOpen(false);
-                                                }}
-                                                title="Xóa"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                            {showCreateOption && (
-                                <li
-                                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                                    onMouseDown={() => handleCreateOption(inputValue)}
-                                >
-                                    Tạo mới "{inputValue}"
-                                </li>
-                            )}
-                            {!showCreateOption && filteredOptions.length === 0 && (
-                                 <li className="p-2 text-gray-500">Không có lựa chọn</li>
+                            {isLoading ? (
+                                <li className="p-2 text-gray-500">Đang tìm kiếm...</li>
+                            ) : (
+                                <>
+                                    {filteredOptions.map(option => (
+                                        <li
+                                            key={option.id}
+                                            className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                            onMouseDown={(e) => {
+                                                if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
+                                                  return; 
+                                                }
+                                                handleSelectOption(option);
+                                            }}
+                                        >
+                                            <span>{option.name}</span>
+                                            <div className="flex items-center">
+                                                {onEdit && (
+                                                    <button
+                                                        className="control-btn p-1 text-blue-500 hover:text-blue-700"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onEdit(option.id, option.name);
+                                                            setIsOpen(false);
+                                                        }}
+                                                        title="Sửa"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                )}
+                                                {onDelete && (
+                                                    <button
+                                                        className="control-btn p-1 text-red-500 hover:text-red-700"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onDelete(option.id);
+                                                            setIsOpen(false);
+                                                        }}
+                                                        title="Xóa"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                    {showCreateOption && (
+                                        <li
+                                            className="p-2 hover:bg-gray-100 cursor-pointer"
+                                            onMouseDown={() => handleCreateOption(inputValue)}
+                                        >
+                                            Tạo mới "{inputValue}"
+                                        </li>
+                                    )}
+                                    {!showCreateOption && filteredOptions.length === 0 && (
+                                         <li className="p-2 text-gray-500">Không có lựa chọn</li>
+                                    )}
+                                </>
                             )}
                         </ul>
                     </div>
@@ -192,11 +238,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, val
                         className="w-full p-2 border-b"
                         placeholder="Search..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => onSearch ? handleSearch(e.target.value) : setSearchTerm(e.target.value)}
                         autoFocus
                     />
                     <ul>
-                        {filteredOptions.length > 0 ? (
+                        {isLoading ? (
+                             <li className="p-2 text-gray-500">Đang tìm kiếm...</li>
+                        ) : filteredOptions.length > 0 ? (
                             filteredOptions.map(option => (
                                 <li
                                     key={option.id}
