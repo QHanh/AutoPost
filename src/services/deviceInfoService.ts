@@ -98,4 +98,37 @@ export const deviceInfoService = {
     const data = await response.json();
     return data.data;
   },
+
+  async exportTemplate(): Promise<void> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/export-template`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to export template');
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mau_import_thiet_bi.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  async importDeviceInfos(file: File): Promise<any> {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/import`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Import failed' }));
+      throw new Error(errorData.detail);
+    }
+    return response.json();
+  },
 }; 

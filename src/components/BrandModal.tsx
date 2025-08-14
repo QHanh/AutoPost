@@ -323,11 +323,11 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         </div>
 
         {/* Form Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-4">
           {/* Service Name Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <Smartphone size={18} className="mr-2 text-blue-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <Smartphone size={16} className="mr-2 text-blue-600" />
               Loại {selectedService ? `cho "${selectedService.name}"` : ''} <span className="text-red-500 ml-1">*</span>
             </label>
             <div className="mt-2">
@@ -336,11 +336,11 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                   type="text"
                   value={currentBrand?.name || ''}
                   onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="Nhập tên loại dịch vụ"
                 />
               ) : !isAddingNewTypeName ? (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <div className="flex-1">
                     <SearchableSelect
                       options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))}
@@ -359,21 +359,21 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                   <button
                     type="button"
                     onClick={() => setIsAddingNewTypeName(true)}
-                    className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                     title="Thêm loại mới"
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                     <span>Mới</span>
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newTypeName}
                     onChange={(e) => setNewTypeName(e.target.value)}
                     placeholder="Tên loại mới"
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     autoFocus
                   />
                   <button
@@ -386,17 +386,17 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                       setIsAddingNewTypeName(false);
                       setNewTypeName('');
                     }}
-                    className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <Check size={16} />
+                    <Check size={14} />
                     <span>Lưu</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAddingNewTypeName(false)}
-                    className="px-4 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <X size={16} />
+                    <X size={14} />
                     <span>Hủy</span>
                   </button>
                 </div>
@@ -405,14 +405,14 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
 
           {/* Device Brand Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <Smartphone size={18} className="mr-2 text-purple-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <Smartphone size={16} className="mr-2 text-purple-600" />
               Thương hiệu điện thoại
             </label>
             <div className="mt-2">
               {!isAddingNewBrand ? (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <div className="flex-1">
                     <SearchableSelect
                       options={deviceBrands.map(brand => ({ id: brand.id, name: brand.name }))}
@@ -429,21 +429,21 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                   <button
                     type="button"
                     onClick={() => setIsAddingNewBrand(true)}
-                    className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                     title="Thêm thương hiệu mới"
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                     <span>Mới</span>
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newDeviceBrand}
                     onChange={(e) => setNewDeviceBrand(e.target.value)}
                     placeholder="Tên thương hiệu mới"
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     autoFocus
                   />
                   <button
@@ -459,17 +459,17 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                         console.error('Failed to create device brand:', error);
                       }
                     }}
-                    className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <Check size={16} />
+                    <Check size={14} />
                     <span>Lưu</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAddingNewBrand(false)}
-                    className="px-4 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <X size={16} />
+                    <X size={14} />
                     <span>Hủy</span>
                   </button>
                 </div>
@@ -478,9 +478,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
           
           {/* Device Type Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <Smartphone size={18} className="mr-2 text-indigo-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <Smartphone size={16} className="mr-2 text-indigo-600" />
               Loại máy
             </label>
             <SearchableSelect
@@ -493,13 +493,13 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
           
           {/* Color Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <Palette size={18} className="mr-2 text-pink-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <Palette size={16} className="mr-2 text-pink-600" />
               Màu sắc
             </label>
             <select
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 value={selectedColor}
                 onChange={handleColorChange}
                 disabled={!selectedDeviceId}
@@ -518,9 +518,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
 
           {/* Price Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <DollarSign size={18} className="mr-2 text-green-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <DollarSign size={16} className="mr-2 text-green-600" />
               Giá
             </label>
             <input
@@ -528,19 +528,19 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                 value={formatPrice(currentBrand?.price || '')}
                 onChange={handlePriceChange}
                 placeholder="Nhập giá (VD: 500.000)"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
             />
           </div>
 
           {/* Warranty Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <Shield size={18} className="mr-2 text-orange-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <Shield size={16} className="mr-2 text-orange-600" />
               Bảo hành
             </label>
             <div className="mt-2">
               {!isAddingNewWarranty ? (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <div className="flex-1">
                     <SearchableSelect
                       options={(warrantyServices || []).map(ws => ({ id: ws.id, name: ws.value }))}
@@ -557,21 +557,21 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                   <button
                     type="button"
                     onClick={() => setIsAddingNewWarranty(true)}
-                    className="px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                     title="Thêm bảo hành mới"
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                     <span>Mới</span>
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newWarrantyService}
                     onChange={(e) => setNewWarrantyService(e.target.value)}
                     placeholder="Thông tin bảo hành mới"
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                     autoFocus
                   />
                   <button
@@ -587,17 +587,17 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                         console.error('Failed to create warranty service:', error);
                       }
                     }}
-                    className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <Check size={16} />
+                    <Check size={14} />
                     <span>Lưu</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAddingNewWarranty(false)}
-                    className="px-4 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
                   >
-                    <X size={16} />
+                    <X size={14} />
                     <span>Hủy</span>
                   </button>
                 </div>
@@ -606,30 +606,30 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
 
           {/* Note Section */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <FileText size={18} className="mr-2 text-teal-600" />
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+              <FileText size={16} className="mr-2 text-teal-600" />
               Ghi chú
             </label>
             <textarea
                 value={currentBrand?.note || ''}
                 onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, note: e.target.value } : null)}
                 placeholder="Ghi chú thêm (VD: Áp dụng cho máy còn tem, điều kiện đặc biệt...)"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 resize-none"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 resize-none"
                 rows={3}
             />
           </div>
 
           {/* Conditions Section */}
           {selectedService && selectedService.conditions && selectedService.conditions.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-              <label className="block text-sm font-semibold text-blue-700 mb-3 flex items-center">
-                <Shield size={18} className="mr-2 text-blue-600" />
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200">
+              <label className="block text-sm font-semibold text-blue-700 mb-2 flex items-center">
+                <Shield size={16} className="mr-2 text-blue-600" />
                 Điều kiện áp dụng
               </label>
-              <div className="mt-3 space-y-3">
+              <div className="mt-2 space-y-2">
                 {selectedService.conditions.map((condition, index) => (
-                  <div key={index} className="flex items-center p-3 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors duration-200">
+                  <div key={index} className="flex items-center p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors duration-200">
                     <input
                       id={`condition-${index}`}
                       type="checkbox"
@@ -648,9 +648,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                           return { ...prev, note: newNotes.join(', ') };
                         });
                       }}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors duration-200"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors duration-200"
                     />
-                    <label htmlFor={`condition-${index}`} className="ml-3 block text-sm text-blue-800 font-medium cursor-pointer hover:text-blue-900 transition-colors duration-200">
+                    <label htmlFor={`condition-${index}`} className="ml-2 block text-sm text-blue-800 font-medium cursor-pointer hover:text-blue-900 transition-colors duration-200">
                       {condition}
                     </label>
                   </div>
@@ -662,17 +662,17 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-gray-50 px-6 py-4 rounded-b-xl border-t border-gray-200">
-          <div className="flex justify-end gap-3">
+        <div className="bg-gray-50 px-4 py-3 rounded-b-xl border-t border-gray-200">
+          <div className="flex justify-end gap-2">
             <button 
               onClick={onClose} 
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
             >
               Hủy
             </button>
             <button 
               onClick={handleSave} 
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg transform hover:scale-105"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg transform hover:scale-105"
             >
               {currentBrand?.id ? 'Cập nhật' : 'Tạo mới'}
             </button>

@@ -167,7 +167,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           }
         }
         
-        // Show results to user
+        // Show results to user only if there are errors
         if (errors.length > 0) {
           let errorMessage = `Đã thêm ${results.length} thiết bị thành công.\n`;
           errorMessage += `Có ${errors.length} lỗi:\n`;
@@ -175,17 +175,16 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
             errorMessage += `${index + 1}. Màu ${err.colorId}: ${err.error}\n`;
           });
           alert(errorMessage);
-        } else {
-          alert(`Đã thêm ${results.length} thiết bị thành công.`);
         }
+        // Removed success notification for successful multi-color creation
       } else if (device.id) {
         // Update existing device
         await userDeviceService.updateUserDevice(device.id, device);
-        alert('Cập nhật thiết bị thành công.');
+        // Removed success notification
       } else {
         // Single device creation (fallback)
         await userDeviceService.addUserDevice(device);
-        alert('Thêm thiết bị thành công.');
+        // Removed success notification
       }
       
       fetchUserDevices();
@@ -240,18 +239,21 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       try {
         const result = await userDeviceService.importFromExcel(file);
         
-        // Create a detailed message with success and error information
-        let message = `Import thành công: ${result.success} dòng, thất bại: ${result.error} dòng.`;
-        
-        // Add detailed error messages if there are any
-        if (result.errors && result.errors.length > 0) {
-          message += '\n\nChi tiết lỗi:';
-          result.errors.forEach((error: string) => {
-            message += `\n${error}`;
-          });
+        // Only show message if there are errors
+        if (result.error > 0) {
+          let message = `Import thành công: ${result.success} dòng, thất bại: ${result.error} dòng.`;
+          
+          // Add detailed error messages if there are any
+          if (result.errors && result.errors.length > 0) {
+            message += '\n\nChi tiết lỗi:';
+            result.errors.forEach((error: string) => {
+              message += `\n${error}`;
+            });
+          }
+          
+          alert(message);
         }
-        
-        alert(message);
+        // Removed success notification for successful import
         fetchUserDevices();
       } catch (error) {
         console.error('Error importing from Excel:', error);

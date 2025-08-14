@@ -27,7 +27,7 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, onS
       } else {
         savedService = await serviceService.createService({ name: currentService.name, description: currentService.description || '', conditions: currentService.conditions });
       }
-      Swal.fire('Thành công', 'Lưu dịch vụ thành công!', 'success');
+      // Removed success notification
       onSave(savedService);
       onClose();
     } catch (error) {

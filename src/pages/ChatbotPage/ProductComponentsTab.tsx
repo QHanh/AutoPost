@@ -159,7 +159,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       }
 
       const result = await response.json();
-      alert(`Import thành công! ${result.created_count} linh kiện được tạo, ${result.updated_count} linh kiện được cập nhật.`);
+      // Removed success notification
       fetchProductComponents(); // Refresh the list
     } catch (error) {
       console.error('Error importing product components:', error);
@@ -269,7 +269,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         
         // Nếu người dùng không nhập mã sản phẩm, hiển thị mã được tạo tự động
         if (!formData.product_code && result.product_code) {
-          alert(`Linh kiện đã được tạo với mã: ${result.product_code}`);
+          // Removed success notification
         }
       }
       
@@ -300,8 +300,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         // Cập nhật state ngay lập tức để UI phản hồi nhanh
         setProductComponents(prev => prev.filter(pc => pc.id !== id));
         
-        // Hiển thị thông báo thành công
-        alert('Đã xóa linh kiện thành công!');
+        // Removed success notification
         
         // Sau đó load lại dữ liệu để đảm bảo đồng bộ với server
         await fetchProductComponents();

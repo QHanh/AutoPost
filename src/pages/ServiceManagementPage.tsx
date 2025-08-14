@@ -3,13 +3,14 @@ import { serviceService } from '../services/serviceService.js';
 import { brandService } from '../services/brandService.js';
 import { Service } from '../types/Service.js';
 import { Brand } from '../types/Brand.js';
-import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical } from 'lucide-react';
 import Swal from 'sweetalert2';
 import deviceBrandService from '../services/deviceBrandService';
 import { DeviceBrand } from '../types/deviceBrand';
 import { ServiceModal } from '../components/ServiceModal';
 import { BrandModal } from '../components/BrandModal';
 import { ExportModal } from '../components/ExportModal';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 type SortConfig = {
     key: keyof Brand;
@@ -33,6 +34,7 @@ export const ServiceManagementPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
     const [isServicesVisible, setIsServicesVisible] = useState(true);
+    const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
 
 
     // Helper function to format price as Vietnamese currency
@@ -53,9 +55,23 @@ export const ServiceManagementPage: React.FC = () => {
         try {
             setIsLoadingServices(true);
             const data = await serviceService.getAllServices();
-            setServices(data);
-            if (data && data.length > 0 && !selectedService) {
-                handleSelectService(data[0]);
+            const storedOrder = localStorage.getItem('serviceOrder');
+            if (storedOrder) {
+                const orderedIds = JSON.parse(storedOrder) as string[];
+                const serviceMap = new Map(data.map((s: Service) => [s.id, s]));
+                const orderedServices = orderedIds.map(id => serviceMap.get(id)).filter((s): s is Service => !!s);
+                const remainingServices = data.filter((s: Service) => !orderedIds.includes(s.id));
+                const finalServices = [...orderedServices, ...remainingServices];
+                setServices(finalServices);
+
+                if (finalServices.length > 0 && !selectedService) {
+                    handleSelectService(finalServices[0]);
+                }
+            } else {
+                setServices(data);
+                if (data && data.length > 0 && !selectedService) {
+                    handleSelectService(data[0]);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch services", error);
@@ -85,6 +101,19 @@ export const ServiceManagementPage: React.FC = () => {
         } finally {
             setIsLoadingBrands(false);
         }
+    };
+
+    const onDragEnd = (result: DropResult) => {
+        const { source, destination } = result;
+        if (!destination) return;
+
+        const reorderedServices = Array.from(services);
+        const [removed] = reorderedServices.splice(source.index, 1);
+        reorderedServices.splice(destination.index, 0, removed);
+
+        setServices(reorderedServices);
+        const orderedIds = reorderedServices.map(s => s.id);
+        localStorage.setItem('serviceOrder', JSON.stringify(orderedIds));
     };
 
     useEffect(() => {
@@ -141,7 +170,6 @@ export const ServiceManagementPage: React.FC = () => {
             setExportModalOpen(false);
             await brandService.exportBrands(Array.from(selectedServicesForExport));
             setSelectedServicesForExport(new Set());
-            Swal.fire('Thành công', 'Xuất Excel thành công!', 'success');
         } catch (error) {
             console.error('Export error:', error);
             Swal.fire('Lỗi', 'Có lỗi xảy ra khi xuất Excel.', 'error');
@@ -176,7 +204,6 @@ export const ServiceManagementPage: React.FC = () => {
             if (result.isConfirmed) {
                 try {
                     await serviceService.deleteService(service.id);
-                    Swal.fire('Đã xóa!', 'Dịch vụ đã được xóa.', 'success');
                     fetchServices();
                     if(selectedService?.id === service.id){
                         setSelectedService(null);
@@ -211,13 +238,19 @@ export const ServiceManagementPage: React.FC = () => {
             if (result.isConfirmed) {
                 try {
                     await brandService.deleteBrand(brandId);
-                    Swal.fire('Đã xóa!', 'Loại đã được xóa.', 'success');
                     fetchBrands(selectedService?.id || '');
                 } catch (error) {
                     Swal.fire('Lỗi', 'Không thể xóa loại.', 'error');
                 }
             }
         });
+    };
+
+    const toggleNoteExpansion = (brandId: string) => {
+        setExpandedNotes(prev => ({
+            ...prev,
+            [brandId]: !prev[brandId]
+        }));
     };
 
     const requestSort = (key: keyof Brand) => {
@@ -260,18 +293,20 @@ export const ServiceManagementPage: React.FC = () => {
 
         try {
             const result = await brandService.importBrands(file);
-            Swal.fire({
-                title: 'Kết quả Import',
-                html: `
-                    Tổng cộng: ${result.data.total}<br/>
-                    Thành công: ${result.data.success}<br/>
-                    Lỗi: ${result.data.error}<br/>
-                    Tạo mới: ${result.data.created_count}<br/>
-                    Cập nhật: ${result.data.updated_count}<br/>
-                    ${result.data.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${result.data.errors.join('<br/>')}`: ''}
-                `,
-                icon: result.data.error > 0 ? 'warning' : 'success'
-            });
+            if (result.data.error > 0) {
+                Swal.fire({
+                    title: 'Kết quả Import',
+                    html: `
+                        Tổng cộng: ${result.data.total}<br/>
+                        Thành công: ${result.data.success}<br/>
+                        Lỗi: ${result.data.error}<br/>
+                        Tạo mới: ${result.data.created_count}<br/>
+                        Cập nhật: ${result.data.updated_count}<br/>
+                        ${result.data.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${result.data.errors.join('<br/>')}`: ''}
+                    `,
+                    icon: 'warning'
+                });
+            }
             fetchServices();
             if (selectedService) {
                 fetchBrands(selectedService.id);
@@ -301,21 +336,40 @@ export const ServiceManagementPage: React.FC = () => {
             {isLoadingServices ? (
                 <div className="text-center p-4">Đang tải...</div>
             ) : (
-                <ul className="space-y-2 overflow-y-auto">
-                    {services.map(service => (
-                        <li key={service.id} 
-                            onClick={() => handleSelectService(service)}
-                            className={`p-3 rounded-lg cursor-pointer transition-colors flex justify-between items-center ${selectedService?.id === service.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
-                        >
-                            <span>{service.name}</span>
-                            <div className="flex items-center gap-2">
-                                <button onClick={(e) => { e.stopPropagation(); handleOpenServiceModal(service);}} className="p-1 rounded-full hover:bg-gray-300"><Edit size={16}/></button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service);}} className="p-1 rounded-full hover:bg-gray-300"><Trash2 size={16}/></button>
-                                {selectedService?.id === service.id && <ChevronRight size={20}/>}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="services-list">
+                        {(provided: any) => (
+                            <ul ref={provided.innerRef} {...provided.droppableProps} className="space-y-2 overflow-y-auto">
+                                {services.map((service, index) => (
+                                    <Draggable key={service.id} draggableId={service.id} index={index}>
+                                        {(provided: any, snapshot: any) => (
+                                            <li
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                
+                                                className={`p-3 rounded-lg cursor-pointer transition-colors flex justify-between items-center ${selectedService?.id === service.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'} ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                                onClick={() => handleSelectService(service)}
+                                            >
+                                                <div className="flex items-center">
+                                                    <div {...provided.dragHandleProps} className="mr-2 cursor-grab active:cursor-grabbing">
+                                                        <GripVertical size={16} />
+                                                    </div>
+                                                    <span>{service.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleOpenServiceModal(service);}} className="p-1 rounded-full hover:bg-gray-300"><Edit size={16}/></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteService(service);}} className="p-1 rounded-full hover:bg-gray-300"><Trash2 size={16}/></button>
+                                                    {selectedService?.id === service.id && <ChevronRight size={20}/>}
+                                                </div>
+                                            </li>
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </ul>
+                        )}
+                    </Droppable>
+                </DragDropContext>
             )}
         </div>
       )}
@@ -377,7 +431,23 @@ export const ServiceManagementPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.color || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.price)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">{brand.note || ''}</td>
+                                <td className="px-6 py-4" style={{ maxWidth: '250px' }}>
+                                    {brand.note && brand.note.length > 20 ? (
+                                        <div className="whitespace-normal break-words">
+                                            {expandedNotes[brand.id] ? brand.note : `${brand.note.substring(0, 20)}...`}
+                                            <button
+                                                onClick={() => toggleNoteExpansion(brand.id)}
+                                                className="text-blue-500 hover:text-blue-700 text-xs ml-1"
+                                            >
+                                                {expandedNotes[brand.id] ? 'Thu gọn' : 'Xem thêm'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="whitespace-normal break-words">
+                                            {brand.note || ''}
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                     <button onClick={() => handleOpenBrandModal(brand)} className="text-indigo-600 hover:text-indigo-900 mr-4"><Edit size={20}/></button>
                                     <button onClick={() => handleDeleteBrand(brand.id)} className="text-red-600 hover:text-red-900"><Trash2 size={20}/></button>
