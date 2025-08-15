@@ -108,5 +108,15 @@ export const productComponentService = {
   // Delete property
   deleteProperty: async (id: string) => {
     return await apiDelete(`/properties/${id}`);
-  }
+  },
+
+  // Get filter options for product components
+  getFilterOptions: async () => {
+    return await apiGet<{
+      categories: string[];
+      property_keys: string[];
+      property_values: { [key: string]: string[] };
+      trademarks: string[];
+    }>('/product-components/filter-options');
+  },
 };

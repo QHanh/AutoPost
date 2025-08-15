@@ -128,9 +128,10 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
     }
   }, [formData.device_info_id, isOpen]);
 
-  const filteredDeviceInfos = deviceInfos.filter(info =>
-    info.model.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Remove local filtering - use backend search results directly
+  // const filteredDeviceInfos = deviceInfos.filter(info =>
+  //   info.model.toLowerCase().includes(searchTerm.toLowerCase())
+  // );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -200,8 +201,10 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
               </div>
               <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-                {filteredDeviceInfos.length > 0 ? (
-                  filteredDeviceInfos.map(info => (
+                {isLoading ? (
+                  <div className="px-3 py-2 text-gray-500">Đang tìm kiếm...</div>
+                ) : deviceInfos.length > 0 ? (
+                  deviceInfos.map(info => (
                     <div
                       key={info.id}
                       onClick={() => {
@@ -214,8 +217,10 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                       {info.model}
                     </div>
                   ))
-                ) : (
+                ) : searchTerm.length > 0 ? (
                   <div className="px-3 py-2 text-gray-500">Không tìm thấy thiết bị</div>
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">Nhập tên thiết bị để tìm kiếm</div>
                 )}
               </div>
             </div>

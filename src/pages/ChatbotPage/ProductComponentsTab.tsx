@@ -1,8 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
+import Pagination from '../../components/Pagination';
+import Filter, { FilterConfig } from '../../components/Filter';
+
+// Component hiển thị mô tả với tính năng "Xem thêm"
+const DescriptionDisplay: React.FC<{ description: string | null | undefined }> = ({ description }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (!description) return <span className="text-gray-400">N/A</span>;
+  
+  if (description.length <= 20) {
+    return <span>{description}</span>;
+  }
+  
+  return (
+    <div>
+      {isExpanded ? (
+        <div>
+          <span>{description}</span>
+          <button
+            onClick={() => setIsExpanded(false)}
+            className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
+          >
+            Thu gọn
+          </button>
+        </div>
+      ) : (
+        <div>
+          <span>{description.substring(0, 20)}...</span>
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
+          >
+            Xem thêm
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Hàm format tiền tệ
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+};
 
 interface ProductComponentsTabProps {
   isAuthenticated: boolean;
@@ -29,16 +78,31 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     stock: 0,
     amount: 0,
     properties: '',
+    category: '',
+    guarantee: '',
+    description: '',
+    product_photo: '',
+    product_link: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Filter states
+  const [filters, setFilters] = useState<{ [key: string]: any }>({});
+  const [filterOptions, setFilterOptions] = useState({
+    categories: [] as string[],
+    propertyKeys: [] as string[],
+    propertyValues: {} as { [key: string]: string[] },
+    trademarks: [] as string[],
+  });
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchProductComponents();
       fetchCategories();
       fetchProperties();
+      fetchFilterOptions();
     }
-  }, [isAuthenticated, sortConfig, pagination.page, pagination.limit]);
+  }, [isAuthenticated, sortConfig, pagination.page, pagination.limit, filters]);
 
   const fetchProductComponents = async () => {
     try {
@@ -53,19 +117,18 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       );
       console.log('Product components response:', response);
       
-      // Backend returns array directly, not in data property
-      const components = Array.isArray(response) ? response : response.data || [];
+      // Backend now returns paginated response with data and pagination info
+      const components = response.data || [];
       console.log('Setting product components:', components);
       setProductComponents(components);
       
-      // If response has pagination info, use it; otherwise set defaults
-      if (!Array.isArray(response)) {
-        setPagination(prev => ({
-          ...prev,
-          total: response.total || 0,
-          totalPages: response.totalPages || 1,
-        }));
-      }
+      // Update pagination info from backend response
+      setPagination(prev => ({
+        ...prev,
+        total: response.total || 0,
+        totalPages: response.total_pages || 1,
+        page: response.page || 1,
+      }));
     } catch (error) {
       console.error('Error fetching product components:', error);
       alert('Có lỗi xảy ra khi tải dữ liệu linh kiện. Vui lòng thử lại.');
@@ -94,6 +157,62 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     } catch (error) {
       console.error('Error fetching properties:', error);
     }
+  };
+
+  const fetchFilterOptions = async () => {
+    try {
+      console.log('Fetching filter options...');
+      const response = await productComponentService.getFilterOptions();
+      console.log('Filter options response:', response);
+      setFilterOptions({
+        categories: response.categories || [],
+        propertyKeys: response.property_keys || [],
+        propertyValues: response.property_values || {},
+        trademarks: response.trademarks || [],
+      });
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+    }
+  };
+
+  // Filter configuration
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'category',
+      label: 'Danh Mục',
+      type: 'select',
+      options: filterOptions.categories.map(category => ({ label: category, value: category }))
+    },
+    {
+      key: 'property_key',
+      label: 'Thuộc Tính',
+      type: 'select',
+      options: filterOptions.propertyKeys.map(key => ({ label: key, value: key }))
+    },
+    {
+      key: 'property_value',
+      label: 'Giá Trị Thuộc Tính',
+      type: 'select',
+      options: filters.property_key && filterOptions.propertyValues[filters.property_key] 
+        ? filterOptions.propertyValues[filters.property_key].map(value => ({ label: value, value }))
+        : []
+    },
+    {
+      key: 'trademark',
+      label: 'Thương Hiệu',
+      type: 'select',
+      options: filterOptions.trademarks.map(trademark => ({ label: trademark, value: trademark }))
+    },
+    {
+      key: 'price_range',
+      label: 'Khoảng Giá',
+      type: 'range-number'
+    }
+  ];
+
+  const handleFilterChange = (newFilters: { [key: string]: any }) => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters(newFilters);
   };
 
   // Export product components to Excel
@@ -202,7 +321,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         description: productComponent.description || '',
         product_photo: productComponent.product_photo || '',
         product_link: productComponent.product_link || '',
-        category_id: productComponent.category_id || '',
+        category: productComponent.category || '',
         properties: productComponent.properties || '',
       });
     } else {
@@ -213,6 +332,11 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         stock: 0,
         amount: 0,
         properties: '',
+        category: '',
+        guarantee: '',
+        description: '',
+        product_photo: '',
+        product_link: '',
       });
     }
     console.log('Checking if categories need to be fetched...');
@@ -263,7 +387,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           description: formData.description || undefined,
           product_photo: formData.product_photo || undefined,
           product_link: formData.product_link || undefined,
-          category_id: formData.category_id || undefined,
+          category: formData.category || undefined,
           properties: formData.properties || undefined,
         };
         
@@ -335,53 +459,74 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       <ChevronsUpDown className="ml-1 h-4 w-4" />;
   };
 
-  const filteredProductComponents = productComponents.filter(pc =>
-    pc.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pc.product_code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductComponents = productComponents.filter(pc => {
+    // Search term filter
+    const matchesSearch = pc.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         pc.product_code.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Category filter
+    if (filters.category && pc.category !== filters.category) return false;
+    
+    // Trademark filter
+    if (filters.trademark && pc.trademark !== filters.trademark) return false;
+    
+    // Property filter
+    if (filters.property_key && filters.property_value) {
+      try {
+        const properties = JSON.parse(pc.properties || '[]');
+        const hasProperty = properties.some((prop: any) => 
+          prop.key === filters.property_key && 
+          prop.values && 
+          prop.values.includes(filters.property_value)
+        );
+        if (!hasProperty) return false;
+      } catch (e) {
+        return false;
+      }
+    }
+    
+    // Price range filter
+    if (filters.price_range_min || filters.price_range_max) {
+      const price = pc.amount;
+      if (filters.price_range_min && price < Number(filters.price_range_min)) return false;
+      if (filters.price_range_max && price > Number(filters.price_range_max)) return false;
+    }
+    
+    return true;
+  });
 
   if (!isAuthenticated) {
     return <div className="p-6 text-center">Vui lòng đăng nhập để xem nội dung này.</div>;
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Quản lý Linh Kiện</h2>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition duration-200"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Thêm Linh Kiện
-        </button>
-      </div>
-
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên hoặc mã sản phẩm..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex space-x-2">
+    <div className="p-4 bg-gray-50 min-h-screen">
+      <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
+        <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
+        <div className="flex items-center gap-2">
+          <Filter config={filterConfig} onFilterChange={handleFilterChange} />
           <button
             onClick={handleExport}
-            className="flex items-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition duration-200"
+            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center"
           >
-            <Download className="mr-2 h-5 w-5" />
+            <Download size={20} className="mr-2" />
             Xuất Excel
           </button>
           <button
             onClick={triggerFileInput}
-            className="flex items-center bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md transition duration-200"
+            className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center"
           >
-            <Upload className="mr-2 h-5 w-5" />
+            <Upload size={20} className="mr-2" />
             Nhập Excel
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center"
+          >
+            <Plus size={20} className="mr-2" />
+            Thêm Linh Kiện
           </button>
           <input
             type="file"
@@ -393,17 +538,35 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên hoặc mã sản phẩm..."
+            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span className="ml-2 text-gray-600">Đang tải dữ liệu...</span>
+        </div>
+      ) : (
+        <div className="bg-white shadow-md rounded-lg overflow-auto max-h-[70vh]">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('product_code')}
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-end">
                     Mã SP
                     {renderSortIcon('product_code')}
                   </div>
@@ -418,14 +581,20 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                     {renderSortIcon('product_name')}
                   </div>
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Danh Mục
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Thuộc Tính
+                </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('stock')}
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('amount')}
                 >
-                  <div className="flex items-center">
-                    Tồn Kho
-                    {renderSortIcon('stock')}
+                  <div className="flex items-center justify-end">
+                    Giá Tiền
+                    {renderSortIcon('amount')}
                   </div>
                 </th>
                 <th 
@@ -439,10 +608,26 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Danh Mục
+                  Bảo Hành
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('stock')}
+                >
+                  <div className="flex items-center justify-end">
+                    Tồn Kho
+                    {renderSortIcon('stock')}
+                  </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Thuộc Tính
+                  Mô Tả Sản Phẩm
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ảnh Sản Phẩm
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Link Sản Phẩm
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Hành Động
@@ -450,30 +635,21 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
+              {filteredProductComponents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                      <span className="ml-2 text-gray-600">Đang tải dữ liệu...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredProductComponents.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
                     Không có dữ liệu linh kiện nào
                   </td>
                 </tr>
               ) : (
                 filteredProductComponents.map((productComponent) => (
                   <tr key={productComponent.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.product_code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                       {productComponent.product_code}
+                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{productComponent.product_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.stock}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.trademark || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {productComponent.category ? productComponent.category.name : 'N/A'}
+                      {typeof productComponent.category === 'string' ? productComponent.category : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {productComponent.properties ? (
@@ -495,19 +671,46 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                         })()
                       ) : 'N/A'}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                       {formatCurrency(productComponent.amount)}
+                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.trademark || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {productComponent.guarantee || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                       {productComponent.stock}
+                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <DescriptionDisplay description={productComponent.description} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {productComponent.product_photo ? (
+                        <a href={productComponent.product_photo} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Xem ảnh
+                        </a>
+                      ) : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {productComponent.product_link ? (
+                        <a href={productComponent.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Xem liên kết
+                        </a>
+                      ) : 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
                         onClick={() => handleOpenModal(productComponent)}
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
-                        <Edit size={18} />
+                        <Edit size={20} />
                       </button>
                       <button 
                         onClick={() => handleDeleteProductComponent(productComponent.id)}
                         className="text-red-600 hover:text-red-900"
                         disabled={isLoading}
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                       </button>
                     </td>
                   </tr>
@@ -516,42 +719,26 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             </tbody>
           </table>
         </div>
-        
-        <div className="flex justify-between items-center p-4 bg-gray-50">
-          <div>
-            <select
-              value={pagination.limit}
-              onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="px-3 py-1 rounded-lg bg-gray-200"
-            >
-              <option value={10}>10 / trang</option>
-              <option value={20}>20 / trang</option>
-              <option value={50}>50 / trang</option>
-            </select>
-          </div>
-          
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center">
-              <button 
-                onClick={() => handlePageChange(pagination.page - 1)} 
-                disabled={pagination.page === 1}
-                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="px-4 text-sm">
-                Trang {pagination.page} / {pagination.totalPages}
-              </span>
-              <button 
-                onClick={() => handlePageChange(pagination.page + 1)} 
-                disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
+      )}
+      
+      <div className="flex justify-between items-center mt-4">
+        <div>
+          <select
+            value={pagination.limit}
+            onChange={(e) => handleLimitChange(Number(e.target.value))}
+            className="px-3 py-1 rounded-lg bg-gray-200"
+          >
+            <option value={10}>10 / trang</option>
+            <option value={20}>20 / trang</option>
+            <option value={50}>50 / trang</option>
+          </select>
         </div>
+        
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Modal for Create/Update Product Component */}
@@ -643,19 +830,13 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Danh Mục</label>
-                    <select
+                    <input
+                      type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      value={formData.category_id || ''}
-                      onChange={(e) => setFormData({...formData, category_id: e.target.value || undefined})}
-                    >
-                      <option value="">Chọn danh mục</option>
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>{category.name}</option>
-                      ))}
-                    </select>
-                    {categories.length === 0 && (
-                      <p className="text-sm text-gray-500 mt-2">Đang tải danh mục...</p>
-                    )}
+                      value={formData.category || ''}
+                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      placeholder="Nhập tên danh mục"
+                    />
                   </div>
                   
                   <div>

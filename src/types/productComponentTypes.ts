@@ -10,12 +10,10 @@ export interface ProductComponent {
   product_photo?: string;
   product_link?: string;
   user_id: string;
-  category_id?: string;
+  category?: string;
   properties?: string;
   created_at: string;
   updated_at: string;
-  category?: Category;
-  property_ids?: string[];
 }
 
 export interface Category {
@@ -50,7 +48,7 @@ export interface ProductComponentCreate {
   product_photo?: string;
   product_link?: string;
   user_id?: string;
-  category_id?: string;
+  category?: string;
   properties?: string;
 }
 
@@ -64,7 +62,7 @@ export interface ProductComponentUpdate {
   description?: string;
   product_photo?: string;
   product_link?: string;
-  category_id?: string;
+  category?: string;
   properties?: string;
 }
 
