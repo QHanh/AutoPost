@@ -20,7 +20,6 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
   const [newPropertyKey, setNewPropertyKey] = useState('');
   const [newPropertyValues, setNewPropertyValues] = useState(['']);
   const [expandedPropertyId, setExpandedPropertyId] = useState<string | null>(null);
-  const [internalSelectedValues, setInternalSelectedValues] = useState<Record<string, string[]>>({});
 
   // Parse selected properties from JSON string
   let parsedSelectedProperties: any[] = [];
@@ -32,18 +31,7 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
 
   // Get available properties (those not already selected)
   const selectedPropertyKeys = parsedSelectedProperties.map((prop: any) => prop.key);
-  const availableProperties = properties.filter(property => !selectedPropertyKeys.includes(property.key));
-
-  // Update internalSelectedValues when selectedProperties prop changes
-  useEffect(() => {
-    const newSelectedValues: Record<string, string[]> = {};
-    parsedSelectedProperties.forEach((prop: any) => {
-      if (prop.values) {
-        newSelectedValues[prop.key] = prop.values;
-      }
-    });
-    setInternalSelectedValues(newSelectedValues);
-  }, [selectedProperties]);
+  const availableProperties = properties.filter(property => !selectedPropertyKeys.includes(property.key) || property.id === expandedPropertyId);
 
   const handleAddNewValueField = () => {
     setNewPropertyValues([...newPropertyValues, '']);
@@ -78,60 +66,42 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
   };
 
   const handleCheckboxChange = (propertyKey: string, value: string, checked: boolean) => {
-    // Lấy danh sách thuộc tính đã chọn hiện tại
-    let updatedProperties = [...parsedSelectedProperties];
-    
-    // Tìm thuộc tính trong danh sách đã chọn
-    const existingPropIndex = updatedProperties.findIndex((p: any) => p.key === propertyKey);
-    
-    if (checked) {
-      // Nếu checkbox được chọn
-      if (existingPropIndex !== -1) {
-        // Thuộc tính đã tồn tại, thêm giá trị mới vào
-        const existingValues = updatedProperties[existingPropIndex].values || [];
-        if (!existingValues.includes(value)) {
-          updatedProperties[existingPropIndex].values = [...existingValues, value];
-        }
-      } else {
-        // Thuộc tính chưa tồn tại, tạo mới
-        updatedProperties.push({ key: propertyKey, values: [value] });
-      }
-    } else {
-      // Nếu checkbox bị bỏ chọn
-      if (existingPropIndex !== -1) {
-        // Lọc bỏ giá trị này khỏi thuộc tính
-        const existingValues = updatedProperties[existingPropIndex].values || [];
-        const newValues = existingValues.filter((v: string) => v !== value);
-        
-        if (newValues.length === 0) {
-          // Nếu không còn giá trị nào, xóa thuộc tính này
-          updatedProperties = updatedProperties.filter((_, index) => index !== existingPropIndex);
-        } else {
-          // Cập nhật danh sách giá trị
-          updatedProperties[existingPropIndex].values = newValues;
-        }
-      }
+    let currentProperties: { key: string, values: string[] }[] = [];
+    try {
+        currentProperties = selectedProperties ? JSON.parse(selectedProperties) : [];
+    } catch (e) {
+        currentProperties = [];
     }
-    
-    // Cập nhật internal state
-    const newSelectedValues: Record<string, string[]> = {};
-    updatedProperties.forEach((prop: any) => {
-      if (prop.values && prop.values.length > 0) {
-        newSelectedValues[prop.key] = prop.values;
-      }
-    });
-    
-    setInternalSelectedValues(newSelectedValues);
-    
-    // Cập nhật properties JSON string
-    onPropertiesChange(JSON.stringify(updatedProperties));
-  };
 
-  const handleValueSelect = (propertyKey: string, value: string) => {
-    // Sử dụng handleCheckboxChange để xử lý logic
-    const currentValues = internalSelectedValues[propertyKey] || [];
-    const isCurrentlySelected = currentValues.includes(value);
-    handleCheckboxChange(propertyKey, value, !isCurrentlySelected);
+    const propExists = currentProperties.some(p => p.key === propertyKey);
+
+    let newProperties;
+
+    if (checked) {
+        if (propExists) {
+            newProperties = currentProperties.map(prop => {
+                if (prop.key === propertyKey) {
+                    const newValues = prop.values.includes(value) ? prop.values : [...prop.values, value];
+                    return { ...prop, values: newValues };
+                }
+                return prop;
+            });
+        } else {
+            newProperties = [...currentProperties, { key: propertyKey, values: [value] }];
+        }
+    } else {
+        newProperties = currentProperties
+            .map(prop => {
+                if (prop.key === propertyKey) {
+                    const newValues = prop.values.filter(v => v !== value);
+                    return { ...prop, values: newValues };
+                }
+                return prop;
+            })
+            .filter(prop => prop.values.length > 0);
+    }
+
+    onPropertiesChange(JSON.stringify(newProperties));
   };
 
   return (
@@ -213,13 +183,6 @@ const PropertySelector: React.FC<PropertySelectorProps> = (props) => {
                         ];
                         onPropertiesChange(JSON.stringify(updatedProperties));
                       }
-                      
-                      // Cập nhật internal state
-                      const newSelectedValues = {
-                        ...internalSelectedValues,
-                        [property.key]: [...(property.values || [])]
-                      };
-                      setInternalSelectedValues(newSelectedValues);
                     }}
                     className="text-xs bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center"
                   >

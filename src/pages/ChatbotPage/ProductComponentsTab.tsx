@@ -27,6 +27,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     product_code: '',
     product_name: '',
     stock: 0,
+    amount: 0,
     properties: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -197,6 +198,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         trademark: productComponent.trademark || '',
         guarantee: productComponent.guarantee || '',
         stock: productComponent.stock,
+        amount: productComponent.amount,
         description: productComponent.description || '',
         product_photo: productComponent.product_photo || '',
         product_link: productComponent.product_link || '',
@@ -209,6 +211,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         product_code: '',
         product_name: '',
         stock: 0,
+        amount: 0,
         properties: '',
       });
     }
@@ -237,6 +240,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     const errors: Record<string, string> = {};
     if (!formData.product_name) errors.product_name = 'Tên sản phẩm là bắt buộc';
     if (formData.stock === undefined || formData.stock < 0) errors.stock = 'Tồn kho phải lớn hơn hoặc bằng 0';
+    if (formData.amount === undefined || formData.amount < 0) errors.amount = 'Giá tiền phải lớn hơn hoặc bằng 0';
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -255,6 +259,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           trademark: formData.trademark || undefined,
           guarantee: formData.guarantee || undefined,
           stock: formData.stock,
+          amount: formData.amount,
           description: formData.description || undefined,
           product_photo: formData.product_photo || undefined,
           product_link: formData.product_link || undefined,
@@ -586,6 +591,19 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                     {formErrors.product_name && <p className="text-red-500 text-xs mt-2">{formErrors.product_name}</p>}
                   </div>
                   
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Giá Tiền *</label>
+                    <input
+                      type="number"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.amount ? 'border-red-500' : 'border-gray-300'}`}
+                      value={formData.amount}
+                      onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})}
+                      placeholder="0"
+                      min="0"
+                    />
+                    {formErrors.amount && <p className="text-red-500 text-xs mt-2">{formErrors.amount}</p>}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tồn Kho *</label>
                     <input
