@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Smartphone, Plus, Trash2, Edit, Save, X, Search, Database, FileDown, FileUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface DeviceInfo {
   id: string;
@@ -66,6 +67,7 @@ export const ChatbotPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddingDevice, setIsAddingDevice] = useState(false);
   const [isEditingDevice, setIsEditingDevice] = useState<string | null>(null);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
   
   const [newDevice, setNewDevice] = useState<UserDevice>({
     device_info_id: '',
@@ -392,6 +394,7 @@ export const ChatbotPage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsImportingExcel(true);
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -426,6 +429,7 @@ export const ChatbotPage: React.FC = () => {
       console.error('Lỗi khi import Excel:', error);
       alert('Có lỗi xảy ra khi nhập dữ liệu Excel');
     } finally {
+      setIsImportingExcel(false);
       // Reset input file
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -485,10 +489,24 @@ export const ChatbotPage: React.FC = () => {
               {/* Nút Import Excel */}
               <button
                 onClick={triggerFileInput}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                disabled={isImportingExcel}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  isImportingExcel 
+                    ? 'bg-amber-400 cursor-not-allowed' 
+                    : 'bg-amber-600 hover:bg-amber-700'
+                } text-white`}
                 title="Nhập dữ liệu từ Excel"
               >
-                <FileUp size={18} /> Nhập Excel
+                {isImportingExcel ? (
+                  <>
+                    <LoadingSpinner size="sm" text="" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <FileUp size={18} /> Nhập Excel
+                  </>
+                )}
               </button>
               
              

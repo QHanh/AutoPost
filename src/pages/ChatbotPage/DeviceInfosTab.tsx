@@ -6,12 +6,14 @@ import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight, Chevrons
 import DeviceInfoModal from '../../components/DeviceInfoModal';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const DeviceInfosTab: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const [deviceInfos, setDeviceInfos] = useState<DeviceInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<DeviceInfo | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -141,8 +143,8 @@ const DeviceInfosTab: React.FC = () => {
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setIsImportingExcel(true);
       try {
-        setIsLoading(true);
         const result = await deviceInfoService.importDeviceInfos(file);
         const importResult = result.data; // Lấy kết quả từ object lồng nhau
         let message = `Import hoàn tất:\n- Tạo mới: ${importResult.created_count}\n- Cập nhật: ${importResult.updated_count}\n- Lỗi: ${importResult.error}`;
@@ -155,10 +157,10 @@ const DeviceInfosTab: React.FC = () => {
         console.error('Error importing from Excel:', error);
         alert('Có lỗi xảy ra khi import file.');
       } finally {
+        setIsImportingExcel(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        setIsLoading(false);
       }
     }
   };
@@ -208,9 +210,26 @@ const DeviceInfosTab: React.FC = () => {
         <h2 className="text-2xl font-bold">Quản lý thông tin thiết bị</h2>
         <div className="flex items-center gap-2">
           <Filter config={filterConfig} onFilterChange={handleFilterChange} />
-          <button onClick={handleTriggerImport} className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center">
-            <FileUp size={20} className="mr-2" />
-            Import Excel
+          <button 
+            onClick={handleTriggerImport} 
+            disabled={isImportingExcel}
+            className={`px-4 py-2 rounded-lg flex items-center ${
+              isImportingExcel 
+                ? 'bg-green-400 cursor-not-allowed' 
+                : 'bg-green-500 hover:bg-green-600'
+            } text-white`}
+          >
+            {isImportingExcel ? (
+              <>
+                <LoadingSpinner size="sm" text="" />
+                Đang xử lý...
+              </>
+            ) : (
+              <>
+                <FileUp size={20} className="mr-2" />
+                Import Excel
+              </>
+            )}
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
           <button onClick={handleExportTemplate} className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center">

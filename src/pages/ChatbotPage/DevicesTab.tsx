@@ -10,6 +10,7 @@ import deviceBrandService from '../../services/deviceBrandService';
 import { DeviceBrand } from '../../types/deviceBrand';
 import { deviceInfoService } from '../../services/deviceInfoService';
 import { deviceStorageService } from '../../services/deviceStorageService';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface DevicesTabProps {
   // Props nếu cần
@@ -32,6 +33,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [storages, setStorages] = useState<number[]>([]); // To hold unique storage capacities
+  const [isImportingExcel, setIsImportingExcel] = useState(false);
 
   useEffect(() => {
     fetchUserDevices();
@@ -236,6 +238,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setIsImportingExcel(true);
       try {
         const result = await userDeviceService.importFromExcel(file);
         
@@ -259,6 +262,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         console.error('Error importing from Excel:', error);
         alert('Có lỗi xảy ra khi import file.');
       } finally {
+        setIsImportingExcel(false);
         // Reset the file input to allow re-uploading the same file
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -341,8 +345,25 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         <h2 className="text-2xl font-bold text-gray-800">Nhập liệu</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Filter config={filterConfig} onFilterChange={handleFilterChange} />
-          <button onClick={() => fileInputRef.current?.click()} className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-            <FileUp className="mr-2" size={18} /> Import Excel
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isImportingExcel}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              isImportingExcel 
+                ? 'bg-green-400 cursor-not-allowed' 
+                : 'bg-green-500 hover:bg-green-600'
+            } text-white`}
+          >
+            {isImportingExcel ? (
+              <>
+                <LoadingSpinner size="sm" text="" />
+                Đang xử lý...
+              </>
+            ) : (
+              <>
+                <FileUp className="mr-2" size={18} /> Import Excel
+              </>
+            )}
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
           <button onClick={handleExport} className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">

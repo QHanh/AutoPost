@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter as FilterIcon, X } from 'lucide-react';
 
 export interface FilterOption {
@@ -22,7 +22,25 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{ [key: string]: any }>({});
 
+  // Debug config changes
+  useEffect(() => {
+    console.log('Filter component received new config:', config);
+    console.log('Config property_value options:', config.find(c => c.key === 'property_value')?.options);
+  }, [config]);
+
+  // Don't reset activeFilters when config changes to prevent dropdown from closing
+  useEffect(() => {
+    console.log('Filter config changed, but keeping activeFilters to prevent dropdown from closing');
+    console.log('Current activeFilters:', activeFilters);
+    console.log('New config:', config);
+    console.log('Config property_value options length:', config.find(c => c.key === 'property_value')?.options?.length || 0);
+    // Only reset if config is completely different (not just property_value options)
+    // This prevents the dropdown from closing when user selects property_key
+  }, [config]);
+
   const handleFilterChange = (filterKey: string, value: any, subKey?: 'min' | 'max') => {
+    console.log(`Filter change: ${filterKey} = ${value} (subKey: ${subKey})`);
+    console.log('Current activeFilters before change:', activeFilters);
     setActiveFilters(prev => {
       const newFilters = { ...prev };
       if (subKey) {
@@ -46,6 +64,16 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
           newFilters[filterKey] = value;
         }
       }
+      console.log('New active filters:', newFilters);
+      
+      // Don't call onFilterChange immediately when property_key changes
+      // This prevents page reload every time user selects a property
+      // User must click "Apply" button to actually apply the filters
+      if (filterKey === 'property_key') {
+        console.log('Property key changed but NOT calling onFilterChange immediately to prevent page reload');
+        console.log('User must click Apply button to apply filters');
+      }
+      
       return newFilters;
     });
   };
@@ -61,26 +89,39 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
         flattenedFilters[key] = value;
       }
     });
+    console.log('=== APPLYING FILTERS ===');
+    console.log('Active filters before applying:', activeFilters);
+    console.log('Flattened filters:', flattenedFilters);
+    console.log('Calling onFilterChange from applyFilters');
     onFilterChange(flattenedFilters);
+    console.log('=== END APPLYING FILTERS ===');
     setIsOpen(false);
   };
 
   const resetFilters = () => {
+    console.log('=== RESETTING FILTERS ===');
+    console.log('Active filters before reset:', activeFilters);
     setActiveFilters({});
+    console.log('Calling onFilterChange from resetFilters');
     onFilterChange({});
+    console.log('=== END RESETTING FILTERS ===');
   };
 
   const getActiveFilterCount = () => {
-    return Object.values(activeFilters).reduce((count, value) => {
+    const count = Object.values(activeFilters).reduce((count, value) => {
         if (typeof value === 'object' && value !== null) {
             return count + (value.min ? 1 : 0) + (value.max ? 1 : 0);
         }
         return count + 1;
     }, 0);
+    console.log('Active filter count:', count, 'Filters:', activeFilters);
+    return count;
   };
 
   return (
     <div className="relative">
+      {console.log('Filter component rendering with config:', config)}
+      {console.log('Filter component rendering with activeFilters:', activeFilters)}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -96,6 +137,7 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
 
       {isOpen && (
         <div className="absolute z-10 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+          {console.log('Filter dropdown is open, rendering with config:', config)}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Bộ lọc</h3>
             <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-700">
@@ -104,24 +146,39 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
           </div>
 
           <div className="space-y-4">
+            {console.log('Rendering filter config:', config)}
             {config.map(item => (
               <div key={item.key}>
                 <label className="block text-sm font-medium text-gray-700 capitalize">
                   {item.label}
                 </label>
                 {item.type === 'select' && (
-                  <select
-                    value={activeFilters[item.key] || ''}
-                    onChange={(e) => handleFilterChange(item.key, e.target.value)}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                  >
-                    <option value="">Tất cả</option>
-                    {Array.isArray(item.options) && item.options.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                  <div>
+                    {console.log(`Rendering select for ${item.key}:`, item.options)}
+                    {console.log(`Active filter for ${item.key}:`, activeFilters[item.key])}
+                    <select
+                      value={activeFilters[item.key] || ''}
+                      onChange={(e) => handleFilterChange(item.key, e.target.value)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    >
+                      <option value="">
+                        {!Array.isArray(item.options) || item.options.length === 0 
+                          ? 'Vui lòng chọn thuộc tính trước' 
+                          : 'Tất cả'
+                        }
                       </option>
-                    ))}
-                  </select>
+                      {Array.isArray(item.options) && item.options.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {!Array.isArray(item.options) || item.options.length === 0 ? (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Vui lòng chọn một thuộc tính trước để xem các giá trị
+                      </p>
+                    ) : null}
+                  </div>
                 )}
                 {item.type === 'range-number' && (
                   <div className="flex items-center gap-2 mt-1">

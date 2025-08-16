@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
@@ -96,13 +96,33 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   });
 
   useEffect(() => {
+    console.log('=== MAIN USE EFFECT ===');
+    console.log('isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
+      console.log('Calling fetch functions...');
       fetchProductComponents();
       fetchCategories();
       fetchProperties();
       fetchFilterOptions();
     }
-  }, [isAuthenticated, sortConfig, pagination.page, pagination.limit, filters]);
+    console.log('=== END MAIN USE EFFECT ===');
+  }, [isAuthenticated, sortConfig, pagination.page, pagination.limit]);
+
+  // Separate useEffect for filters to avoid infinite loop
+  // But don't call API immediately - only when user applies filters
+  useEffect(() => {
+    console.log('=== FILTERS USE EFFECT ===');
+    console.log('Filters changed:', filters);
+    console.log('Filters object reference:', filters);
+    console.log('Filters object keys:', Object.keys(filters));
+    console.log('Filters object values:', Object.values(filters));
+    console.log('isAuthenticated:', isAuthenticated);
+    // Don't call fetchProductComponents immediately when filters change
+    // This prevents page reload every time user selects a property
+    // API will be called when user clicks "Apply" button in Filter component
+    console.log('Filters changed but NOT calling API immediately to prevent page reload');
+    console.log('=== END FILTERS USE EFFECT ===');
+  }, [filters]);
 
   const fetchProductComponents = async () => {
     try {
@@ -161,58 +181,123 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
 
   const fetchFilterOptions = async () => {
     try {
-      console.log('Fetching filter options...');
+      console.log('=== FETCHING FILTER OPTIONS ===');
       const response = await productComponentService.getFilterOptions();
       console.log('Filter options response:', response);
-      setFilterOptions({
+      console.log('Response type:', typeof response);
+      console.log('Response property_values type:', typeof response.property_values);
+      console.log('Response property_values:', response.property_values);
+      console.log('Response property_values keys:', Object.keys(response.property_values || {}));
+      console.log('Response property_values for COMBO:', response.property_values?.['COMBO']);
+      
+      const newFilterOptions = {
         categories: response.categories || [],
         propertyKeys: response.property_keys || [],
         propertyValues: response.property_values || {},
         trademarks: response.trademarks || [],
-      });
+      };
+      
+      console.log('Setting filter options:', newFilterOptions);
+      console.log('Property values after setting:', newFilterOptions.propertyValues);
+      console.log('Property values keys:', Object.keys(newFilterOptions.propertyValues));
+      console.log('Property values for COMBO after setting:', newFilterOptions.propertyValues['COMBO']);
+      console.log('=== END FETCHING FILTER OPTIONS ===');
+      setFilterOptions(newFilterOptions);
     } catch (error) {
       console.error('Error fetching filter options:', error);
     }
   };
 
-  // Filter configuration
-  const filterConfig: FilterConfig[] = [
-    {
-      key: 'category',
-      label: 'Danh Mục',
-      type: 'select',
-      options: filterOptions.categories.map(category => ({ label: category, value: category }))
-    },
-    {
-      key: 'property_key',
-      label: 'Thuộc Tính',
-      type: 'select',
-      options: filterOptions.propertyKeys.map(key => ({ label: key, value: key }))
-    },
-    {
-      key: 'property_value',
-      label: 'Giá Trị Thuộc Tính',
-      type: 'select',
-      options: filters.property_key && filterOptions.propertyValues[filters.property_key] 
-        ? filterOptions.propertyValues[filters.property_key].map(value => ({ label: value, value }))
-        : []
-    },
-    {
-      key: 'trademark',
-      label: 'Thương Hiệu',
-      type: 'select',
-      options: filterOptions.trademarks.map(trademark => ({ label: trademark, value: trademark }))
-    },
-    {
-      key: 'price_range',
-      label: 'Khoảng Giá',
-      type: 'range-number'
-    }
-  ];
+  // Filter configuration - using useState instead of useMemo to ensure updates
+  const [filterConfig, setFilterConfig] = useState<FilterConfig[]>([]);
+
+  // Update filter config when filters or filterOptions change
+  useEffect(() => {
+    console.log('=== UPDATING FILTER CONFIG ===');
+    console.log('Updating filter config with:', { filters, filterOptions });
+    console.log('Property key in filters:', filters.property_key);
+    console.log('Property values in filterOptions:', filterOptions.propertyValues);
+    console.log('Property values for selected key:', filters.property_key ? filterOptions.propertyValues[filters.property_key] : 'No key selected');
+    console.log('Property values for COMBO in useEffect:', filterOptions.propertyValues['COMBO']);
+    console.log('Filters object reference:', filters);
+    console.log('FilterOptions object reference:', filterOptions);
+    console.log('Filters object keys:', Object.keys(filters));
+    console.log('Filters object values:', Object.values(filters));
+    
+    const propertyValueOptions = filters.property_key && filterOptions.propertyValues[filters.property_key] 
+      ? filterOptions.propertyValues[filters.property_key].map(value => ({ label: value, value }))
+      : [];
+    
+    console.log('Property value options calculated:', propertyValueOptions);
+    console.log('Property value options length:', propertyValueOptions.length);
+    
+    const newFilterConfig: FilterConfig[] = [
+      {
+        key: 'category',
+        label: 'Danh Mục',
+        type: 'select' as const,
+        options: filterOptions.categories.map(category => ({ label: category, value: category }))
+      },
+      {
+        key: 'property_key',
+        label: 'Thuộc Tính',
+        type: 'select' as const,
+        options: filterOptions.propertyKeys.map(key => ({ label: key, value: key }))
+      },
+      {
+        key: 'property_value',
+        label: 'Giá Trị Thuộc Tính',
+        type: 'select' as const,
+        options: propertyValueOptions
+      },
+      {
+        key: 'trademark',
+        label: 'Thương Hiệu',
+        type: 'select' as const,
+        options: filterOptions.trademarks.map(trademark => ({ label: trademark, value: trademark }))
+      },
+      {
+        key: 'price_range',
+        label: 'Khoảng Giá',
+        type: 'range-number' as const
+      }
+    ];
+    
+    console.log('New filter config:', newFilterConfig);
+    console.log('New filter config property_value options:', newFilterConfig[2].options);
+    console.log('=== END UPDATING FILTER CONFIG ===');
+    setFilterConfig(newFilterConfig);
+  }, [filters, filterOptions]);  
+
+  // Debug filter configuration
+  console.log('=== FILTER DEBUG ===');
+  console.log('Current filters:', filters);
+  console.log('Filter options:', filterOptions);
+  console.log('Property key selected:', filters.property_key);
+  console.log('Property values for selected key:', filters.property_key ? filterOptions.propertyValues[filters.property_key] : 'No key selected');
+  console.log('All property values keys:', Object.keys(filterOptions.propertyValues));
+  console.log('Property values for COMBO:', filterOptions.propertyValues['COMBO']);
+  console.log('Property values for COMBO (type):', typeof filterOptions.propertyValues['COMBO']);
+  console.log('Property values for COMBO (length):', filterOptions.propertyValues['COMBO']?.length);
+  console.log('Filter config property_value options:', filterConfig[2]?.options || 'No config yet');
+  console.log('Filter config length:', filterConfig.length);
+  console.log('=== END FILTER DEBUG ===');
 
   const handleFilterChange = (newFilters: { [key: string]: any }) => {
+    console.log('=== HANDLE FILTER CHANGE ===');
+    console.log('Filter change - old filters:', filters);
+    console.log('Filter change - new filters:', newFilters);
+    console.log('Old property_key:', filters.property_key);
+    console.log('New property_key:', newFilters.property_key);
+    console.log('Old filters object reference:', filters);
+    
     setPagination(prev => ({ ...prev, page: 1 }));
+    
+    // Always set filters, regardless of change
+    console.log('Setting filters to:', newFilters);
     setFilters(newFilters);
+    
+    console.log('=== END HANDLE FILTER CHANGE ===');
   };
 
   // Export product components to Excel
@@ -501,12 +586,27 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     return <div className="p-6 text-center">Vui lòng đăng nhập để xem nội dung này.</div>;
   }
 
+  // Debug rendering
+  console.log('=== RENDERING PRODUCT COMPONENTS TAB ===');
+  console.log('Filter key:', `filter-${filters.property_key || 'none'}-${filterConfig[2]?.options?.length || 0}`);
+  console.log('Filter config:', filterConfig);
+  console.log('Filter config length:', filterConfig.length);
+  console.log('Filters object reference in render:', filters);
+  console.log('Filters object keys in render:', Object.keys(filters));
+  console.log('Filters object values in render:', Object.values(filters));
+  console.log('FilterOptions object reference in render:', filterOptions);
+  console.log('=== END RENDERING PRODUCT COMPONENTS TAB ===');
+
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
         <div className="flex items-center gap-2">
-          <Filter config={filterConfig} onFilterChange={handleFilterChange} />
+          <Filter 
+            key={`filter-${filters.property_key || 'none'}-${filterConfig.length > 0 ? filterConfig[2]?.options?.length || 0 : 'no-config'}`}
+            config={filterConfig} 
+            onFilterChange={handleFilterChange} 
+          />
           <button
             onClick={handleExport}
             className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center"
