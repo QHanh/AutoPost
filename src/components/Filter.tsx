@@ -9,8 +9,9 @@ export interface FilterOption {
 export interface FilterConfig {
   key: string;
   label: string;
-  type: 'select' | 'range-number';
+  type: 'select' | 'range-number' | 'property-inputs';
   options?: FilterOption[];
+  propertyValues?: { [key: string]: string[] }; // For property-inputs type
 }
 
 interface FilterProps {
@@ -21,6 +22,7 @@ interface FilterProps {
 const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{ [key: string]: any }>({});
+  const [showAllProperties, setShowAllProperties] = useState(false);
 
   // Debug config changes
   useEffect(() => {
@@ -66,37 +68,15 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
       }
       console.log('New active filters:', newFilters);
       
-      // Don't call onFilterChange immediately when property_key changes
-      // This prevents page reload every time user selects a property
-      // User must click "Apply" button to actually apply the filters
-      if (filterKey === 'property_key') {
-        console.log('Property key changed but NOT calling onFilterChange immediately to prevent page reload');
-        console.log('User must click Apply button to apply filters');
-      }
+      // Call onFilterChange immediately for all filter changes
+      // This will trigger API call with new filters
+      onFilterChange(newFilters);
       
       return newFilters;
     });
   };
 
-  const applyFilters = () => {
-    // Flatten the filters for the API call
-    const flattenedFilters: { [key: string]: string } = {};
-    Object.entries(activeFilters).forEach(([key, value]) => {
-      if (typeof value === 'object' && value !== null) {
-        if (value.min) flattenedFilters[`${key}_min`] = value.min;
-        if (value.max) flattenedFilters[`${key}_max`] = value.max;
-      } else {
-        flattenedFilters[key] = value;
-      }
-    });
-    console.log('=== APPLYING FILTERS ===');
-    console.log('Active filters before applying:', activeFilters);
-    console.log('Flattened filters:', flattenedFilters);
-    console.log('Calling onFilterChange from applyFilters');
-    onFilterChange(flattenedFilters);
-    console.log('=== END APPLYING FILTERS ===');
-    setIsOpen(false);
-  };
+  // applyFilters method removed - filters are now applied automatically
 
   const resetFilters = () => {
     console.log('=== RESETTING FILTERS ===');
@@ -120,8 +100,8 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
 
   return (
     <div className="relative">
-      {console.log('Filter component rendering with config:', config)}
-      {console.log('Filter component rendering with activeFilters:', activeFilters)}
+      {/* {console.log('Filter component rendering with config:', config)}
+      {console.log('Filter component rendering with activeFilters:', activeFilters)} */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -137,7 +117,7 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
 
       {isOpen && (
         <div className="absolute z-10 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
-          {console.log('Filter dropdown is open, rendering with config:', config)}
+          {/* {console.log('Filter dropdown is open, rendering with config:', config)} */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Bộ lọc</h3>
             <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-700">
@@ -146,7 +126,7 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
           </div>
 
           <div className="space-y-4">
-            {console.log('Rendering filter config:', config)}
+            {/* {console.log('Rendering filter config:', config)} */}
             {config.map(item => (
               <div key={item.key}>
                 <label className="block text-sm font-medium text-gray-700 capitalize">
@@ -154,8 +134,8 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
                 </label>
                 {item.type === 'select' && (
                   <div>
-                    {console.log(`Rendering select for ${item.key}:`, item.options)}
-                    {console.log(`Active filter for ${item.key}:`, activeFilters[item.key])}
+                    {/* {console.log(`Rendering select for ${item.key}:`, item.options)}
+                    {console.log(`Active filter for ${item.key}:`, activeFilters[item.key])} */}
                     <select
                       value={activeFilters[item.key] || ''}
                       onChange={(e) => handleFilterChange(item.key, e.target.value)}
@@ -198,22 +178,64 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
                     />
                   </div>
                 )}
+                {item.type === 'property-inputs' && (
+                  <div className="mt-1 space-y-2">
+                    {item.propertyValues && (() => {
+                      const propertyKeys = Object.keys(item.propertyValues);
+                      const displayedKeys = showAllProperties ? propertyKeys : propertyKeys.slice(0, 3);
+                      const hasMore = propertyKeys.length > 3;
+                      
+                      return (
+                        <>
+                          {displayedKeys.map((propertyKey) => (
+                            <div key={propertyKey} className="flex flex-col">
+                              <label className="text-xs font-medium text-gray-600 mb-1">
+                                {propertyKey}
+                              </label>
+                              <select
+                                value={activeFilters[`${item.key}_${propertyKey}`] || ''}
+                                onChange={(e) => handleFilterChange(`${item.key}_${propertyKey}`, e.target.value)}
+                                className="block w-full pl-2 pr-8 py-1 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+                              >
+                                <option value="">Tất cả</option>
+                                {item.propertyValues?.[propertyKey]?.map((value) => (
+                                  <option key={value} value={value}>
+                                    {value}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                          
+                          {hasMore && (
+                            <button
+                              onClick={() => setShowAllProperties(!showAllProperties)}
+                              className="text-xs text-blue-600 hover:text-blue-800 underline mt-2"
+                            >
+                              {showAllProperties ? 'Thu gọn' : `Xem thêm (${propertyKeys.length - 3})`}
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
+                    {(!item.propertyValues || Object.keys(item.propertyValues).length === 0) && (
+                      <p className="text-xs text-gray-500">
+                        Không có thuộc tính nào
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
-          <div className="mt-6 flex justify-between">
+          <div className="mt-6 flex justify-end">
             <button
               onClick={resetFilters}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
             >
               Reset
-            </button>
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-            >
-              Áp dụng
             </button>
           </div>
         </div>

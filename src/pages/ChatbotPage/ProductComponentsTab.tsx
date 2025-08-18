@@ -108,8 +108,22 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     console.log('=== END MAIN USE EFFECT ===');
   }, [isAuthenticated, sortConfig, pagination.page, pagination.limit]);
 
-  // Separate useEffect for filters to avoid infinite loop
-  // But don't call API immediately - only when user applies filters
+  // Separate useEffect for search term to trigger search with debounce
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Reset to first page when searching
+      setPagination(prev => ({ ...prev, page: 1 }));
+      
+      // Add debounce for search
+      const timeoutId = setTimeout(() => {
+        fetchProductComponents();
+      }, 500); // Wait 500ms after user stops typing
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm]);
+
+  // Separate useEffect for filters to call API when filters change
   useEffect(() => {
     console.log('=== FILTERS USE EFFECT ===');
     console.log('Filters changed:', filters);
@@ -117,10 +131,12 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     console.log('Filters object keys:', Object.keys(filters));
     console.log('Filters object values:', Object.values(filters));
     console.log('isAuthenticated:', isAuthenticated);
-    // Don't call fetchProductComponents immediately when filters change
-    // This prevents page reload every time user selects a property
-    // API will be called when user clicks "Apply" button in Filter component
-    console.log('Filters changed but NOT calling API immediately to prevent page reload');
+    if (isAuthenticated) {
+      // Reset to first page when filters change
+      setPagination(prev => ({ ...prev, page: 1 }));
+      // Call API with new filters
+      fetchProductComponents();
+    }
     console.log('=== END FILTERS USE EFFECT ===');
   }, [filters]);
 
@@ -128,12 +144,15 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     try {
       setIsLoading(true);
       console.log('Fetching product components with pagination:', pagination);
+      console.log('Search term:', searchTerm);
+      console.log('Active filters:', filters);
       const response = await productComponentService.getAllProductComponents(
         pagination.page,
         pagination.limit,
-        undefined, // search term
+        searchTerm || undefined, // search term
         sortConfig?.key,
-        sortConfig?.direction
+        sortConfig?.direction,
+        filters // pass filters to backend
       );
       console.log('Product components response:', response);
       
@@ -215,21 +234,12 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   useEffect(() => {
     console.log('=== UPDATING FILTER CONFIG ===');
     console.log('Updating filter config with:', { filters, filterOptions });
-    console.log('Property key in filters:', filters.property_key);
     console.log('Property values in filterOptions:', filterOptions.propertyValues);
-    console.log('Property values for selected key:', filters.property_key ? filterOptions.propertyValues[filters.property_key] : 'No key selected');
     console.log('Property values for COMBO in useEffect:', filterOptions.propertyValues['COMBO']);
     console.log('Filters object reference:', filters);
     console.log('FilterOptions object reference:', filterOptions);
     console.log('Filters object keys:', Object.keys(filters));
     console.log('Filters object values:', Object.values(filters));
-    
-    const propertyValueOptions = filters.property_key && filterOptions.propertyValues[filters.property_key] 
-      ? filterOptions.propertyValues[filters.property_key].map(value => ({ label: value, value }))
-      : [];
-    
-    console.log('Property value options calculated:', propertyValueOptions);
-    console.log('Property value options length:', propertyValueOptions.length);
     
     const newFilterConfig: FilterConfig[] = [
       {
@@ -239,16 +249,10 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         options: filterOptions.categories.map(category => ({ label: category, value: category }))
       },
       {
-        key: 'property_key',
+        key: 'property',
         label: 'Thuộc Tính',
-        type: 'select' as const,
-        options: filterOptions.propertyKeys.map(key => ({ label: key, value: key }))
-      },
-      {
-        key: 'property_value',
-        label: 'Giá Trị Thuộc Tính',
-        type: 'select' as const,
-        options: propertyValueOptions
+        type: 'property-inputs' as const,
+        propertyValues: filterOptions.propertyValues
       },
       {
         key: 'trademark',
@@ -264,7 +268,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     ];
     
     console.log('New filter config:', newFilterConfig);
-    console.log('New filter config property_value options:', newFilterConfig[2].options);
     console.log('=== END UPDATING FILTER CONFIG ===');
     setFilterConfig(newFilterConfig);
   }, [filters, filterOptions]);  
@@ -273,13 +276,11 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   console.log('=== FILTER DEBUG ===');
   console.log('Current filters:', filters);
   console.log('Filter options:', filterOptions);
-  console.log('Property key selected:', filters.property_key);
-  console.log('Property values for selected key:', filters.property_key ? filterOptions.propertyValues[filters.property_key] : 'No key selected');
+  console.log('Property filters:', Object.keys(filters).filter(key => key.startsWith('property_')));
   console.log('All property values keys:', Object.keys(filterOptions.propertyValues));
   console.log('Property values for COMBO:', filterOptions.propertyValues['COMBO']);
   console.log('Property values for COMBO (type):', typeof filterOptions.propertyValues['COMBO']);
   console.log('Property values for COMBO (length):', filterOptions.propertyValues['COMBO']?.length);
-  console.log('Filter config property_value options:', filterConfig[2]?.options || 'No config yet');
   console.log('Filter config length:', filterConfig.length);
   console.log('=== END FILTER DEBUG ===');
 
@@ -544,43 +545,8 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       <ChevronsUpDown className="ml-1 h-4 w-4" />;
   };
 
-  const filteredProductComponents = productComponents.filter(pc => {
-    // Search term filter
-    const matchesSearch = pc.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pc.product_code.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!matchesSearch) return false;
-    
-    // Category filter
-    if (filters.category && pc.category !== filters.category) return false;
-    
-    // Trademark filter
-    if (filters.trademark && pc.trademark !== filters.trademark) return false;
-    
-    // Property filter
-    if (filters.property_key && filters.property_value) {
-      try {
-        const properties = JSON.parse(pc.properties || '[]');
-        const hasProperty = properties.some((prop: any) => 
-          prop.key === filters.property_key && 
-          prop.values && 
-          prop.values.includes(filters.property_value)
-        );
-        if (!hasProperty) return false;
-      } catch (e) {
-        return false;
-      }
-    }
-    
-    // Price range filter
-    if (filters.price_range_min || filters.price_range_max) {
-      const price = pc.amount;
-      if (filters.price_range_min && price < Number(filters.price_range_min)) return false;
-      if (filters.price_range_max && price > Number(filters.price_range_max)) return false;
-    }
-    
-    return true;
-  });
+  // No need for client-side filtering since search is now handled by backend
+  // The productComponents state now contains the filtered results from backend
 
   if (!isAuthenticated) {
     return <div className="p-6 text-center">Vui lòng đăng nhập để xem nội dung này.</div>;
@@ -588,7 +554,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
 
   // Debug rendering
   console.log('=== RENDERING PRODUCT COMPONENTS TAB ===');
-  console.log('Filter key:', `filter-${filters.property_key || 'none'}-${filterConfig[2]?.options?.length || 0}`);
+  console.log('Filter key:', `filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`);
   console.log('Filter config:', filterConfig);
   console.log('Filter config length:', filterConfig.length);
   console.log('Filters object reference in render:', filters);
@@ -602,11 +568,11 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
         <div className="flex items-center gap-2">
-          <Filter 
-            key={`filter-${filters.property_key || 'none'}-${filterConfig.length > 0 ? filterConfig[2]?.options?.length || 0 : 'no-config'}`}
-            config={filterConfig} 
-            onFilterChange={handleFilterChange} 
-          />
+                  <Filter 
+          key={`filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`}
+          config={filterConfig} 
+          onFilterChange={handleFilterChange} 
+        />
           <button
             onClick={handleExport}
             className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center"
@@ -648,7 +614,20 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
+        {searchTerm && (
+          <div className="mt-2 text-sm text-gray-600">
+            Tìm kiếm: "{searchTerm}" - Tìm thấy {pagination.total} kết quả
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -735,14 +714,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProductComponents.length === 0 ? (
+              {productComponents.length === 0 ? (
                 <tr>
                   <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
-                    Không có dữ liệu linh kiện nào
+                    {searchTerm ? `Không tìm thấy kết quả nào cho "${searchTerm}"` : 'Không có dữ liệu linh kiện nào'}
                   </td>
                 </tr>
               ) : (
-                filteredProductComponents.map((productComponent) => (
+                productComponents.map((productComponent) => (
                   <tr key={productComponent.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
                        {productComponent.product_code}

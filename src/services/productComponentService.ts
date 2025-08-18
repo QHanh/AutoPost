@@ -19,7 +19,8 @@ export const productComponentService = {
     limit: number = 10,
     searchTerm?: string,
     sortKey?: string,
-    sortDirection?: 'ascending' | 'descending'
+    sortDirection?: 'ascending' | 'descending',
+    filters?: { [key: string]: any }
   ) => {
     const params = new URLSearchParams({
       skip: String((page - 1) * limit),
@@ -27,7 +28,6 @@ export const productComponentService = {
     });
 
     if (searchTerm) {
-      // Backend doesn't support search yet, but we'll keep this for future
       params.append('search', searchTerm);
     }
     if (sortKey) {
@@ -35,6 +35,22 @@ export const productComponentService = {
     }
     if (sortDirection) {
       params.append('sort_order', sortDirection === 'descending' ? 'desc' : 'asc');
+    }
+
+    // Add filters to query parameters
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          // Handle property filters (property_COMBO, property_RAM, etc.)
+          if (key.startsWith('property_')) {
+            params.append(key, String(value));
+          } else if (key === 'price_range_min' || key === 'price_range_max') {
+            params.append(key, String(value));
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
     }
 
     return await apiGet<ProductComponent[]>(`/product-components?${params.toString()}`);
