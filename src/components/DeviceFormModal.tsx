@@ -20,6 +20,7 @@ interface DeviceFormData extends Partial<UserDevice> {
 const defaultFormData: DeviceFormData = {
   product_code: '',
   price: 0,
+  wholesale_price: 0,
   inventory: 1,
   device_condition: 'Mới',
   device_type: 'Mới',
@@ -144,11 +145,13 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '');
-    if (/^\d*$/.test(rawValue)) {
-      const numericValue = parseInt(rawValue) || 0;
-      setFormData(prev => ({ ...prev, price: numericValue }));
-    }
+    const value = e.target.value.replace(/[^\d]/g, '');
+    setFormData(prev => ({ ...prev, price: value ? parseInt(value) : 0 }));
+  };
+
+  const handleWholesalePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d]/g, '');
+    setFormData(prev => ({ ...prev, wholesale_price: value ? parseInt(value) : 0 }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -365,7 +368,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
               />
             </div>
           </div>
-          {/* Hàng 3: Giá, Tồn kho, Bảo hành */}
+          {/* Hàng 3: Giá, Giá bán buôn, Tồn kho */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Giá</label>
@@ -374,6 +377,16 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 name="price"
                 value={formatPrice(formData.price || 0)}
                 onChange={handlePriceChange}
+                className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Giá bán buôn</label>
+              <input
+                type="text"
+                name="wholesale_price"
+                value={formatPrice(formData.wholesale_price || 0)}
+                onChange={handleWholesalePriceChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
             </div>
@@ -387,6 +400,9 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
             </div>
+          </div>
+          {/* Hàng 4: Bảo hành, Ghi chú */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Bảo hành</label>
               <input
@@ -397,10 +413,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
             </div>
-          </div>
-          {/* Hàng 4: Ghi chú (chiếm 3 cột) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Ghi chú</label>
               <textarea
                 name="notes"

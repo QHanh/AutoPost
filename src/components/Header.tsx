@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users, Home, DollarSign, LogOut, Lightbulb, Video, Menu, X, Smartphone, Building2 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import Swal from 'sweetalert2';
 import autopostLogo from '../assets/autopost.png';
@@ -67,6 +67,9 @@ export const Header: React.FC<HeaderProps> = () => {
             </Link>
             <Link to="/chatbot-tabs" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/chatbot-tabs') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>
               <Users size={16} /> Quản lý thiết bị
+            </Link>
+            <Link to="/api-integration" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/api-integration') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>
+              <Building2 size={16} /> API
             </Link>
           </div>
         </>

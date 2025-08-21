@@ -66,7 +66,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof ProductComponent; direction: 'ascending' | 'descending' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -344,7 +343,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     if (!file) return;
 
     try {
-      setIsImporting(true);
       const token = localStorage.getItem('auth_token');
       if (!token) {
         console.error('No auth token found');
@@ -373,7 +371,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       console.error('Error importing product components:', error);
       alert('Import thất bại! Vui lòng kiểm tra lại file và thử lại.');
     } finally {
-      setIsImporting(false);
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -586,19 +583,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           <button
             onClick={triggerFileInput}
             className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center"
-            disabled={isImporting}
           >
-            {isImporting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Đang Import...
-              </>
-            ) : (
-              <>
-                <Upload size={20} className="mr-2" />
-                Nhập Excel
-              </>
-            )}
+            <Upload size={20} className="mr-2" />
+            Nhập Excel
           </button>
           <button
             onClick={() => handleOpenModal()}

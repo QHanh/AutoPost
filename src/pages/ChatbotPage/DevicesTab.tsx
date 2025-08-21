@@ -22,7 +22,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<UserDevice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity'; direction: 'ascending' | 'descending' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price'; direction: 'ascending' | 'descending' } | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -120,7 +120,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     }
   };
 
-  const handleSort = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity') => {
+  const handleSort = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price') => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -294,6 +294,11 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       type: 'range-number',
     },
     {
+      key: 'wholesale_price',
+      label: 'Giá bán buôn',
+      type: 'range-number',
+    },
+    {
       key: 'storage_capacity',
       label: 'Bộ nhớ (GB)',
       type: 'select', // Assuming you want a select for specific capacities
@@ -313,7 +318,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
 
   const paginatedDevices = filteredDevices;
 
-  const renderSortIcon = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity') => {
+  const renderSortIcon = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price') => {
     if (!sortConfig || sortConfig.key !== key) {
       return <ChevronsUpDown className="ml-2 h-4 w-4" />;
     }
@@ -397,6 +402,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
                 { key: 'deviceModel', label: 'Thiết bị' },
                 { key: 'inventory', label: 'Tồn kho' },
                 { key: 'price', label: 'Giá' },
+                { key: 'wholesale_price', label: 'Giá bán buôn' },
                 { key: 'colorName', label: 'Màu sắc' },
                 { key: 'storageCapacity', label: 'Bộ nhớ' },
                 { key: 'device_type', label: 'Loại thiết bị' },
@@ -422,6 +428,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.deviceModel}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.inventory}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPrice(device.price)} đ</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPrice(device.wholesale_price || 0)} đ</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.colorName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.storageCapacity} GB</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.device_type}</td>

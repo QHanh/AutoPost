@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText } from 'lucide-react';
 
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
+import DocumentsTab from './ChatbotPage/DocumentsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
@@ -14,7 +15,7 @@ import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 
 const ChatbotPageWithTabs: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat' | 'product-components'>('devices');
+  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'documents' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat' | 'product-components'>('devices');
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -34,6 +35,8 @@ const ChatbotPageWithTabs: React.FC = () => {
       //   return <StorageTab />;
       case 'settings':
         return <SettingsTab />;
+      case 'documents':
+        return <DocumentsTab />;
       case 'device-colors':
         return <DeviceColorsTab />;
       case 'device-infos':
@@ -93,12 +96,6 @@ const ChatbotPageWithTabs: React.FC = () => {
                     <span>Thiết bị - Dung lượng</span>
                 </div>
             </li>
-            {/* <li className={`p-4 cursor-pointer ${activeTab === 'settings' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('settings')}>
-              <div className="flex items-center">
-                <Settings className="mr-2" />
-                <span>Cài đặt</span>
-              </div>
-            </li> */}
             <li className={`p-4 cursor-pointer ${activeTab === 'product-components' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('product-components')}>
                 <div className="flex items-center">
                     <Package className="mr-2" />
@@ -110,6 +107,18 @@ const ChatbotPageWithTabs: React.FC = () => {
                     <MessageSquare className="mr-2" />
                     <span>Chat</span>
                 </div>
+            </li>
+            <li className={`p-4 cursor-pointer ${activeTab === 'documents' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('documents')}>
+              <div className="flex items-center">
+                <FileText className="mr-2" />
+                <span>Tài liệu</span>
+              </div>
+            </li>
+                        <li className={`p-4 cursor-pointer ${activeTab === 'settings' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('settings')}>
+              <div className="flex items-center">
+                <Settings className="mr-2" />
+                <span>Cài đặt</span>
+              </div>
             </li>
           </ul>
         </nav>

@@ -17,6 +17,7 @@ import { usePlatforms } from './hooks/usePlatforms';
 import { usePosts } from './hooks/usePosts';
 import { useAuth } from './hooks/useAuth';
 import { ServiceManagementPage } from './pages/ServiceManagementPage';
+import ApiIntegrationPage from './pages/ApiIntegrationPage';
 
 import { ChatBot } from './components/ChatBot';
 import { ZaloButton } from './components/ZaloButton';
@@ -148,6 +149,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ChatbotPageWithTabs />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/api-integration" 
+          element={
+            <ProtectedRoute>
+              <ApiIntegrationPage />
             </ProtectedRoute>
           } 
         />

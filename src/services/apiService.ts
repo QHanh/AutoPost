@@ -153,7 +153,18 @@ export const apiDelete = async <T>(endpoint: string): Promise<any> => {
     throw new Error(errorData.detail || `Error: ${response.status}`);
   }
 
-  return await response.json();
+  // Handle 204 No Content (successful deletion with no response body)
+  if (response.status === 204) {
+    return { success: true, message: 'Deleted successfully' };
+  }
+
+  // For other successful responses, try to parse JSON
+  try {
+    return await response.json();
+  } catch (error) {
+    // If response is empty or not JSON, return success
+    return { success: true };
+  }
 };
 
 export const apiPostFormData = async <T>(endpoint: string, formData: FormData): Promise<any> => {
@@ -198,13 +209,35 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
 
 export const chatbot = async (query: string) => {
     try {
-        const response = await apiClient.post('/chatbot/chatbot/chat', { 
+        const response = await apiClient.post('/chatbot/chat', { 
             query,
             llm_provider: 'google_genai'
         });
         return response.data.data;
     } catch (error) {
         // Re-throw the error so it can be handled by the calling function
+        throw error;
+    }
+};
+
+// --- Chatbot Subscription and API Key Services ---
+
+export const getMyApiKey = async (): Promise<{ api_key: string; scopes: string[]; is_active: boolean }> => {
+    try {
+        const response = await apiClient.get('/chatbot-subscriptions/my-api-key');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching API key:", error);
+        throw error;
+    }
+};
+
+export const regenerateMyApiKey = async (): Promise<{ api_key: string; scopes: string[]; is_active: boolean }> => {
+    try {
+        const response = await apiClient.post('/chatbot-subscriptions/my-api-key/regenerate');
+        return response.data;
+    } catch (error) {
+        console.error("Error regenerating API key:", error);
         throw error;
     }
 };

@@ -41,6 +41,7 @@ export interface UserDevice {
   device_type: string;
   battery_condition: string;
   price: number;
+  wholesale_price?: number;
   inventory: number;
   notes?: string;
   created_at: string;
