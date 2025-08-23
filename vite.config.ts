@@ -21,6 +21,7 @@ export default defineConfig({
       port: 5174
     }
   },
+  appType: 'spa', // Thêm dòng này để xử lý SPA routing
   build: {
     sourcemap: false,
     rollupOptions: {

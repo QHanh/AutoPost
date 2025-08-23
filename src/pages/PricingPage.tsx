@@ -198,6 +198,10 @@ export const PricingPage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('auth_token');
+      console.log('=== STARTING FETCH DATA ===');
+      console.log('isAuthenticated:', isAuthenticated);
+      console.log('token:', token ? 'exists' : 'null');
+      
       try {
         setLoading(true);
         const videoPlansPromise = api.get<VideoPlan[]>('/api/v1/subscriptions/plans', token);
@@ -205,10 +209,24 @@ export const PricingPage: React.FC = () => {
         
         const promises: [Promise<any>, Promise<any>, Promise<any> | null] = [videoPlansPromise, chatbotPlansPromise, null];
         if (isAuthenticated && token) {
-          promises[2] = api.get<MySubscriptions>('/api/v1/subscriptions/me', token);
+          console.log('User is authenticated, fetching subscriptions...');
+          // Lấy cả video và chatbot subscriptions
+          const videoSubsPromise = api.get<MySubscriptions>('/api/v1/subscriptions/me', token);
+          const chatbotSubsPromise = api.get<any>('/api/v1/chatbot-subscriptions/me', token);
+          promises[2] = Promise.all([videoSubsPromise, chatbotSubsPromise]);
+        } else {
+          console.log('User not authenticated or no token, skipping subscriptions fetch');
         }
 
         const [videoPlansResponse, chatbotPlansResponse, currentSubsResponse] = await Promise.all(promises);
+
+        console.log('=== DEBUG API RESPONSES ===');
+        console.log('Video plans response:', videoPlansResponse);
+        console.log('Chatbot plans response:', chatbotPlansResponse);
+        console.log('Current subscriptions response:', currentSubsResponse);
+        console.log('Is array?', Array.isArray(currentSubsResponse?.data));
+        console.log('Response data type:', typeof currentSubsResponse?.data);
+        console.log('================================');
 
         // Process Video Plans
         if (videoPlansResponse && Array.isArray(videoPlansResponse.data)) {
@@ -229,8 +247,32 @@ export const PricingPage: React.FC = () => {
         }
         
         // Process Subscriptions
-        if (currentSubsResponse && currentSubsResponse.data) {
-          setCurrentSubs(currentSubsResponse.data);
+        if (currentSubsResponse) {
+          try {
+            // API trả về array với 2 elements: [videoResponse, chatbotResponse]
+            const [videoSubs, chatbotSubs] = currentSubsResponse;
+            
+            // videoSubs.data chứa MySubscriptionsRead object với cả video và chatbot
+            // chatbotSubs.data chứa UserChatbotSubscriptionRead object hoặc null
+            const combinedSubs: MySubscriptions = {
+              video_subscription: videoSubs?.data?.video_subscription || null,
+              chatbot_subscription: videoSubs?.data?.chatbot_subscription || chatbotSubs?.data || null
+            };
+            
+            setCurrentSubs(combinedSubs);
+          } catch (error) {
+            console.error('Error processing subscriptions:', error);
+            setCurrentSubs({
+              video_subscription: null,
+              chatbot_subscription: null
+            });
+          }
+        } else {
+          // Không có response (user chưa đăng nhập), set empty state
+          setCurrentSubs({
+            video_subscription: null,
+            chatbot_subscription: null
+          });
         }
         
       } catch (err: any) {
@@ -300,6 +342,7 @@ export const PricingPage: React.FC = () => {
           }
 
           if (response.status === 201 || response.status === 200) {
+            // Hiển thị mã QR cho cả video và chatbot
             setSelectedPlan(plan);
             setIsQrModalOpen(true);
           }
@@ -366,9 +409,40 @@ export const PricingPage: React.FC = () => {
 
   const plansToDisplay = serviceType === 'video' ? videoPlans : chatbotPlans;
   const featureRows = serviceType === 'video' ? videoFeatureRows : chatbotFeatureRows;
+  
+  // Lấy subscription hiện tại dựa trên loại dịch vụ
   const currentSub = serviceType === 'video' ? currentSubs?.video_subscription : currentSubs?.chatbot_subscription;
-  // FIX: Normalize the current plan object to avoid property access errors
   const currentPlanDetails = currentSub ? ('subscription_plan' in currentSub ? currentSub.subscription_plan : currentSub.plan) : null;
+  
+  // Kiểm tra xem user có subscription đang chờ phê duyệt không
+  const hasPendingSubscription = serviceType === 'chatbot' && 
+                               currentSubs?.chatbot_subscription && 
+                               !currentSubs.chatbot_subscription.is_active;
+  
+  // Kiểm tra xem user có subscription active không
+  const hasActiveSubscription = currentSub && currentSub.is_active;
+  
+  // Kiểm tra xem plan hiện tại có phải là plan đang sử dụng không
+  const isCurrentPlan = (plan: Plan) => {
+    if (!currentPlanDetails) return false;
+    return plan.id === currentPlanDetails.id;
+  };
+  
+  // Kiểm tra xem có thể đăng ký plan này không
+  const canSubscribeToPlan = (plan: Plan) => {
+    if (isSubscribing === plan.id) return false; // Đang xử lý
+    if (isCurrentPlan(plan)) return false; // Đã là gói hiện tại
+    if (hasPendingSubscription) return false; // Đang chờ phê duyệt
+    return true;
+  };
+  
+  // Debug log để xem dữ liệu
+  console.log('Current service type:', serviceType);
+  console.log('Current subscriptions:', currentSubs);
+  console.log('Current subscription for service type:', currentSub);
+  console.log('Current plan details:', currentPlanDetails);
+  console.log('Video subscription details:', currentSubs?.video_subscription);
+  console.log('Chatbot subscription details:', currentSubs?.chatbot_subscription);
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">Đang tải bảng giá...</div>;
@@ -406,24 +480,72 @@ export const PricingPage: React.FC = () => {
             </button>
           </div>
 
-          {/* --- UPDATED: Logic hiển thị gói hiện tại --- */}
-          {isAuthenticated && currentSub && currentPlanDetails && (
-            <>
-              {currentSub.is_active ? (
-                // Gói đã được kích hoạt
-                <div className="inline-block bg-green-100 text-green-800 rounded-full px-4 py-2">
-                  Gói hiện tại của bạn: <span className="font-bold">{currentPlanDetails.name}</span>
-                  {currentSub.end_date && (
-                    <> (Hết hạn: {new Date(currentSub.end_date).toLocaleDateString('vi-VN')})</>
+          {/* Tổng quan subscriptions */}
+          {isAuthenticated && (
+            <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">📊 Tổng quan gói đăng ký của bạn</h3>
+              {console.log('=== RENDERING SUBSCRIPTIONS OVERVIEW ===')}
+              {console.log('isAuthenticated:', isAuthenticated)}
+              {console.log('currentSubs in render:', currentSubs)}
+              {console.log('currentSubs?.video_subscription:', currentSubs?.video_subscription)}
+              {console.log('currentSubs?.chatbot_subscription:', currentSubs?.chatbot_subscription)}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Gói Video */}
+                <div className="text-center">
+                  <Video className="inline mr-2 text-blue-600" size={20} />
+                  <span className="font-medium text-gray-700">Gói Video:</span>
+                  {currentSubs?.video_subscription ? (
+                    <div className="mt-1">
+                      {console.log('Rendering video subscription:', currentSubs.video_subscription)}
+                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
+                        currentSubs.video_subscription.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {currentSubs.video_subscription.subscription_plan?.name || 'Không xác định'}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {currentSubs.video_subscription.is_active ? 'Đang hoạt động' : 'Không hoạt động'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-sm mt-1">
+                      {console.log('No video subscription found')}
+                      Chưa có gói
+                    </div>
                   )}
                 </div>
-              ) : (
-                // Gói đang chờ phê duyệt
-                <div className="inline-block bg-yellow-100 text-yellow-800 rounded-full px-4 py-2">
-                  Gói đã đăng ký: <span className="font-bold">{currentPlanDetails.name}</span> (Trạng thái: Đang chờ phê duyệt)
+                
+                {/* Gói Chatbot */}
+                <div className="text-center">
+                  <Bot className="inline mr-2 text-purple-600" size={20} />
+                  <span className="font-medium text-gray-700">Gói Chatbot:</span>
+                  {currentSubs?.chatbot_subscription ? (
+                    <div className="mt-1">
+                      {console.log('Rendering chatbot subscription:', currentSubs.chatbot_subscription)}
+                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
+                        currentSubs.chatbot_subscription.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {currentSubs.chatbot_subscription.plan?.name || 'Không xác định'}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {currentSubs.chatbot_subscription.is_active ? 'Đang hoạt động' : 'Chờ phê duyệt'}
+                        {currentSubs.chatbot_subscription.months_subscribed && (
+                          <> • {currentSubs.chatbot_subscription.months_subscribed} tháng</>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-sm mt-1">
+                      {console.log('No chatbot subscription found')}
+                      Chưa có gói
+                    </div>
+                  )}
                 </div>
-              )}
-            </>
+              </div>
+            </div>
           )}
         </div>
         
@@ -480,10 +602,13 @@ export const PricingPage: React.FC = () => {
                     
                     <button 
                       onClick={() => handleSelectPlan(plan)}
-                      disabled={isSubscribing === plan.id || (!!currentPlanDetails && currentPlanDetails.id === plan.id)}
+                      disabled={!canSubscribeToPlan(plan)}
                       className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                      {isSubscribing === plan.id ? 'Đang xử lý...' : (currentPlanDetails && currentPlanDetails.id === plan.id ? 'Gói hiện tại' : 'Chọn gói này')}
+                      {isSubscribing === plan.id ? 'Đang xử lý...' : 
+                       isCurrentPlan(plan) ? 'Gói hiện tại' :
+                       hasPendingSubscription ? 'Đang chờ phê duyệt' :
+                       'Chọn gói này'}
                     </button>
                   </div>
                 </div>
@@ -552,8 +677,16 @@ export const PricingPage: React.FC = () => {
             className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full m-4 transform transition-all duration-300 scale-95 animate-in fade-in-0 zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">Thanh toán cho gói "{selectedPlan.name}"</h2>
-            <p className="text-gray-600 mb-4">Vui lòng quét mã QR để thanh toán</p>
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">
+              Thanh toán cho gói "{selectedPlan.name}" 
+              {serviceType === 'chatbot' && ` (${selectedMonths} tháng)`}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {serviceType === 'chatbot' 
+                ? 'Vui lòng quét mã QR để thanh toán. Gói sẽ được admin phê duyệt sau khi thanh toán.'
+                : 'Vui lòng quét mã QR để thanh toán'
+              }
+            </p>
             
             <img 
               src="/assets/qr-bank.jpg" 
@@ -564,16 +697,30 @@ export const PricingPage: React.FC = () => {
             
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <p className="text-lg text-gray-700 mb-2">
-                    Số tiền cần chuyển: <span className="font-bold text-blue-600 text-xl">{formatPrice('price' in selectedPlan ? selectedPlan.price : selectedPlan.monthly_price * selectedMonths)}</span>
+                    Số tiền cần chuyển: <span className="font-bold text-blue-600 text-xl">
+                    {serviceType === 'chatbot' && 'monthly_price' in selectedPlan 
+                      ? formatPrice(selectedPlan.monthly_price * selectedMonths)
+                      : formatPrice('price' in selectedPlan ? selectedPlan.price : 0)
+                    }</span>
                 </p>
                 <p className="text-gray-600">
                     Nội dung chuyển khoản: <br/>
-                    <strong className="text-red-600 text-lg tracking-wider bg-red-100 px-2 py-1 rounded">[SỐ ĐIỆN THOẠI CỦA BẠN]</strong>
+                    <strong className="text-red-600 text-lg tracking-wider bg-red-100 px-2 py-1 rounded">
+                      {serviceType === 'chatbot' ? 'CHATBOT_' : ''}[SỐ ĐIỆN THOẠI CỦA BẠN]
+                    </strong>
                 </p>
+                {serviceType === 'chatbot' && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    <strong>Lưu ý:</strong> Sau khi thanh toán, gói chatbot sẽ được admin phê duyệt trong vòng 24h.
+                  </p>
+                )}
             </div>
             
             <p className="text-sm text-gray-500 mt-4">
-                Sau khi chuyển khoản, hệ thống sẽ tự động kích hoạt gói trong vòng 1-3 phút.
+                {serviceType === 'chatbot' 
+                  ? 'Sau khi chuyển khoản, gói chatbot sẽ được admin phê duyệt trong vòng 24h.'
+                  : 'Sau khi chuyển khoản, hệ thống sẽ tự động kích hoạt gói trong vòng 1-3 phút.'
+                }
             </p>
 
             <button 

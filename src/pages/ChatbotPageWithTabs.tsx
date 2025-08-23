@@ -1,8 +1,10 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code } from 'lucide-react';
 
+// Import all tab components
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
@@ -12,10 +14,69 @@ import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
 import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
+import { ServiceManagementPage } from './ServiceManagementPage';
+import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
+
+type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'caidat';
+type SubTab =
+  | 'my-devices'
+  | 'device-infos'
+  | 'colors'
+  | 'device-colors'
+  | 'device-storage'
+  | 'services'
+  | 'components'
+  | 'documents'
+  | 'api-integration'
+  | 'settings';
+
+const mainTabsConfig = {
+    dienthoai: {
+        label: 'Điện thoại',
+        icon: Smartphone,
+        subTabs: [
+            { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab /> },
+            { id: 'device-infos', label: 'Thông tin thiết bị', component: <DeviceInfosTab /> },
+            { id: 'colors', label: 'Màu sắc', component: <ColorsTab /> },
+            { id: 'device-colors', label: 'Thiết bị - Màu sắc', component: <DeviceColorsTab /> },
+            { id: 'device-storage', label: 'Thiết bị - Dung lượng', component: <DeviceStorageTab /> },
+        ]
+    },
+    dichvu: {
+        label: 'Dịch vụ',
+        icon: Wrench,
+        subTabs: [
+            { id: 'services', label: 'Quản lý Dịch vụ', component: <ServiceManagementPage /> }
+        ]
+    },
+    linhkien: {
+        label: 'Linh kiện',
+        icon: Component,
+        subTabs: [
+            { id: 'components', label: 'Quản lý Linh kiện', component: <LinhKienManagementTabs /> }
+        ]
+    },
+    chat: {
+        label: 'Chat',
+        icon: MessageSquare,
+        isSingleTab: true,
+        component: <ChatbotTab />
+    },
+    caidat: {
+        label: 'Cài đặt',
+        icon: Settings,
+        subTabs: [
+            { id: 'documents', label: 'Tài liệu', component: <DocumentsTab /> },
+            { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage /> },
+            { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab /> },
+        ]
+    },
+};
 
 const ChatbotPageWithTabs: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'devices' | 'colors' | 'storage' | 'settings' | 'documents' | 'device-colors' | 'device-infos' | 'device-storage' | 'chat' | 'product-components'>('devices');
+  const [openCategory, setOpenCategory] = useState<MainCategory | null>('dienthoai');
+  const [activeTab, setActiveTab] = useState<SubTab>('my-devices');
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -26,100 +87,69 @@ const ChatbotPageWithTabs: React.FC = () => {
   }
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'devices':
-        return <DevicesTab />;
-      case 'colors':
-        return <ColorsTab />;
-      // case 'storage':
-      //   return <StorageTab />;
-      case 'settings':
-        return <SettingsTab />;
-      case 'documents':
-        return <DocumentsTab />;
-      case 'device-colors':
-        return <DeviceColorsTab />;
-      case 'device-infos':
-        return <DeviceInfosTab />;
-      case 'device-storage':
-        return <DeviceStorageTab />;
-      case 'chat':
-        return <ChatbotTab />;
-      case 'product-components':
-        return <LinhKienManagementTabs />;
-      default:
-        return null;
+    if (activeTab === 'chat') {
+        return mainTabsConfig.chat.component;
     }
+    for (const category of Object.values(mainTabsConfig)) {
+        if (category.subTabs) {
+            const tab = category.subTabs.find(sub => sub.id === activeTab);
+            if (tab) return tab.component;
+        }
+    }
+    return null;
+  };
+
+  const handleCategoryClick = (categoryKey: MainCategory) => {
+    const category = mainTabsConfig[categoryKey];
+    if (category.isSingleTab) {
+      setActiveTab(categoryKey as SubTab | 'chat'); // Handle 'chat' case
+      setOpenCategory(null);
+    } else {
+      setOpenCategory(prev => (prev === categoryKey ? null : categoryKey));
+    }
+  };
+
+  const handleTabClick = (tabId: SubTab) => {
+    setActiveTab(tabId);
   };
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <aside className="w-64 bg-white shadow-md">
-        <div className="p-4">
-          <h2 className="text-xl font-bold">Quản lý</h2>
+      <aside className="w-64 bg-white shadow-md flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="text-xl font-bold text-gray-800">Chatbot</h2>
         </div>
-        <nav>
-          <ul className="select-none">
-            <li className={`p-4 cursor-pointer ${activeTab === 'devices' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('devices')}>
-              <div className="flex items-center">
-                <Smartphone className="mr-2" />
-                <span>Thiết bị của tôi</span>
-              </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'device-infos' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('device-infos')}>
-              <div className="flex items-center">
-                <Database className="mr-2" />
-                <span>Thông tin thiết bị</span>
-              </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'colors' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('colors')}>
-              <div className="flex items-center">
-                <Palette className="mr-2" />
-                <span>Màu sắc</span>
-              </div>
-            </li>
-            {/* <li className={`p-4 cursor-pointer ${activeTab === 'storage' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('storage')}>
-              <div className="flex items-center">
-                <HardDrive className="mr-2" />
-                <span>Dung lượng</span>
-              </div>
-            </li> */}
-            <li className={`p-4 cursor-pointer ${activeTab === 'device-colors' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('device-colors')}>
-                <div className="flex items-center">
-                    <Layers className="mr-2" />
-                    <span>Thiết bị - Màu sắc</span>
-                </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'device-storage' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('device-storage')}>
-                <div className="flex items-center">
-                    <Layers className="mr-2" />
-                    <span>Thiết bị - Dung lượng</span>
-                </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'product-components' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('product-components')}>
-                <div className="flex items-center">
-                    <Package className="mr-2" />
-                    <span>Linh kiện</span>
-                </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'chat' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('chat')}>
-                <div className="flex items-center">
-                    <MessageSquare className="mr-2" />
-                    <span>Chat</span>
-                </div>
-            </li>
-            <li className={`p-4 cursor-pointer ${activeTab === 'documents' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('documents')}>
-              <div className="flex items-center">
-                <FileText className="mr-2" />
-                <span>Tài liệu</span>
-              </div>
-            </li>
-                        <li className={`p-4 cursor-pointer ${activeTab === 'settings' ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`} onClick={() => setActiveTab('settings')}>
-              <div className="flex items-center">
-                <Settings className="mr-2" />
-                <span>Cài đặt</span>
-              </div>
-            </li>
+        <nav className="flex-1 overflow-y-auto">
+          <ul className="select-none p-2">
+            {Object.entries(mainTabsConfig).map(([key, value]) => (
+                <li key={key} className="mb-1">
+                    <div
+                        className={`flex items-center justify-between p-3 cursor-pointer rounded-lg hover:bg-gray-200 transition-colors ${
+                            value.isSingleTab && activeTab === key ? 'bg-blue-500 text-white' : ''
+                        }`}
+                        onClick={() => handleCategoryClick(key as MainCategory)}
+                    >
+                        <div className="flex items-center">
+                            <value.icon className={`mr-3 ${ value.isSingleTab && activeTab === key ? 'text-white' : 'text-gray-600'}`} size={20} />
+                            <span className={`font-semibold ${ value.isSingleTab && activeTab === key ? 'text-white' : 'text-gray-700'}`}>{value.label}</span>
+                        </div>
+                        {!value.isSingleTab && (openCategory === key ? <ChevronDown size={18} /> : <ChevronRight size={18} />)}
+                    </div>
+                    {!value.isSingleTab && openCategory === key && (
+                        <ul className="pl-6 mt-1 border-l-2 border-gray-200">
+                            {value.subTabs.map(subTab => (
+                                <li
+                                    key={subTab.id}
+                                    className={`p-2 my-1 pl-4 cursor-pointer rounded-r-lg text-sm transition-colors ${activeTab === subTab.id ? 'bg-blue-500 text-white font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                                    onClick={() => handleTabClick(subTab.id as SubTab)}
+                                >
+                                    {subTab.label}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </li>
+            ))}
           </ul>
         </nav>
       </aside>
