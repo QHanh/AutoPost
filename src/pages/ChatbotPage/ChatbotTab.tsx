@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { chatbot } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
@@ -11,6 +11,7 @@ interface Message {
 
 const ChatbotTab: React.FC = () => {
   const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>(() => {
     const savedMessages = localStorage.getItem('chatbotMessages');
     return savedMessages ? JSON.parse(savedMessages) : [];
@@ -18,8 +19,16 @@ const ChatbotTab: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   useEffect(() => {
     localStorage.setItem('chatbotMessages', JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
 
   const clearChat = () => {
@@ -87,6 +96,7 @@ const ChatbotTab: React.FC = () => {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
       </div>
       <form onSubmit={handleSendMessage} className="flex space-x-2">

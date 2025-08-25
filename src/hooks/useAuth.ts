@@ -58,7 +58,7 @@ export const useAuth = () => {
   const sendVerificationCode = async (email: string) => {
     try {
       const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/api/v1/users/send-verification-code`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/registration/send-verification-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export const useAuth = () => {
         throw new Error('"miễn phí" subscription plan not found.');
       }
 
-      const response = await fetch(`${apiBaseUrl}/api/v1/users/register`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/registration/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

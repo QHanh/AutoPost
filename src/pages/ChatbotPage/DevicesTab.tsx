@@ -11,6 +11,7 @@ import { DeviceBrand } from '../../types/deviceBrand';
 import { deviceInfoService } from '../../services/deviceInfoService';
 import { deviceStorageService } from '../../services/deviceStorageService';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import Swal from 'sweetalert2';
 
 interface DevicesTabProps {
   // Props nếu cần
@@ -242,21 +243,22 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       try {
         const result = await userDeviceService.importFromExcel(file);
         
-        // Only show message if there are errors
-        if (result.error > 0) {
-          let message = `Import thành công: ${result.success} dòng, thất bại: ${result.error} dòng.`;
-          
-          // Add detailed error messages if there are any
-          if (result.errors && result.errors.length > 0) {
-            message += '\n\nChi tiết lỗi:';
-            result.errors.forEach((error: string) => {
-              message += `\n${error}`;
-            });
-          }
-          
-          alert(message);
-        }
-        // Removed success notification for successful import
+        // Luôn hiển thị thông báo kết quả import
+        const icon = result.error > 0 ? 'warning' : 'success';
+        const title = result.error > 0 ? 'Kết quả Import' : 'Import Thành công';
+        
+        Swal.fire({
+          title: title,
+          html: `
+            Tổng cộng: ${result.total}<br/>
+            Thành công: ${result.success}<br/>
+            Lỗi: ${result.error}<br/>
+            Tạo mới: ${result.created_count}<br/>
+            Cập nhật: ${result.updated_count}<br/>
+            ${result.errors && result.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${result.errors.join('<br/>')}` : ''}
+          `,
+          icon: icon
+        });
         fetchUserDevices();
       } catch (error) {
         console.error('Error importing from Excel:', error);
@@ -346,6 +348,17 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
+      {/* Loading overlay toàn màn hình khi import */}
+      {isImportingExcel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mb-4"></div>
+            <p className="text-lg font-semibold text-gray-700">Đang import dữ liệu...</p>
+            <p className="text-sm text-gray-500">Vui lòng chờ trong giây lát</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Nhập liệu</h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -393,9 +406,9 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto relative max-h-[calc(100vh-300px)]">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
             <tr>
               {[ 
                 { key: 'product_code', label: 'Mã sản phẩm' },

@@ -5,6 +5,7 @@ import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Categ
 import PropertySelector from '../../components/PropertySelector';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
+import Swal from 'sweetalert2';
 
 // Component hiển thị mô tả với tính năng "Xem thêm"
 const DescriptionDisplay: React.FC<{ description: string | null | undefined }> = ({ description }) => {
@@ -342,6 +343,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Hiển thị loading toàn màn hình
+    setIsLoading(true);
+    
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -360,18 +364,40 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         body: formData,
       });
 
+      const result = await response.json();
+      console.log('Import response:', result);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${result.message || 'Unknown error'}`);
       }
 
-      const result = await response.json();
-      // Removed success notification
+      // Xử lý response từ backend
+      const importData = result.data || result; // Backend có thể trả về trực tiếp hoặc trong .data
+      
+      // Hiển thị thông báo kết quả import
+      const icon = importData.error > 0 ? 'warning' : 'success';
+      const title = importData.error > 0 ? 'Kết quả Import' : 'Import Thành công';
+      
+      Swal.fire({
+        title: title,
+        html: `
+          Tổng cộng: ${importData.total}<br/>
+          Thành công: ${importData.success}<br/>
+          Lỗi: ${importData.error}<br/>
+          Tạo mới: ${importData.created_count}<br/>
+          Cập nhật: ${importData.updated_count}<br/>
+          ${importData.errors && importData.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${importData.errors.join('<br/>')}` : ''}
+        `,
+        icon: icon
+      });
+      
       fetchProductComponents(); // Refresh the list
     } catch (error) {
       console.error('Error importing product components:', error);
-      alert('Import thất bại! Vui lòng kiểm tra lại file và thử lại.');
+      Swal.fire('Import Thất bại', 'Có lỗi xảy ra trong quá trình import. Vui lòng kiểm tra lại file và thử lại.', 'error');
     } finally {
-      // Reset file input
+      // Ẩn loading và reset file input
+      setIsLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -565,6 +591,17 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
+      {/* Loading overlay toàn màn hình khi import */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-lg font-semibold text-gray-700">Đang import dữ liệu...</p>
+            <p className="text-sm text-gray-500">Vui lòng chờ trong giây lát</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
         <div className="flex items-center gap-2">
@@ -575,21 +612,24 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         />
           <button
             onClick={handleExport}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center"
+            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
           >
             <Download size={20} className="mr-2" />
             Xuất Excel
           </button>
           <button
             onClick={triggerFileInput}
-            className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center"
+            className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
           >
             <Upload size={20} className="mr-2" />
             Nhập Excel
           </button>
           <button
             onClick={() => handleOpenModal()}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center"
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
           >
             <Plus size={20} className="mr-2" />
             Thêm Linh Kiện
@@ -636,9 +676,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           <span className="ml-2 text-gray-600">Đang tải dữ liệu...</span>
         </div>
       ) : (
-        <div className="bg-white shadow-md rounded-lg overflow-auto max-h-[70vh]">
+        <div className="bg-white shadow-md rounded-lg overflow-auto max-h-[70vh] relative">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
                 <th 
                   scope="col" 

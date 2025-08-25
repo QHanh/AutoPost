@@ -261,9 +261,9 @@ const DeviceInfosTab: React.FC = () => {
           <Loader className="animate-spin text-blue-500" size={40} />
         </div>
       ) : (
-        <div className="bg-white shadow-md rounded-lg overflow-auto max-h-[70vh]">
+        <div className="bg-white shadow-md rounded-lg overflow-auto max-h-[70vh] relative">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('brand')}>
                   <div className="flex items-center">

@@ -6,10 +6,9 @@ const LinhKienManagementTabs: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
   return (
-    
-      
+    <div className="w-full">
       <ProductComponentsTab isAuthenticated={isAuthenticated} />
-    
+    </div>
   );
 };
 
