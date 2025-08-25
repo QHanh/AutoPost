@@ -150,9 +150,9 @@ const ColorsTab: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-auto max-h-[70vh] bg-white rounded-lg shadow">
+          <div className="overflow-auto max-h-[70vh] bg-white rounded-lg shadow relative">
             <table className="min-w-full">
-              <thead className="bg-gray-100 sticky top-0">
+              <thead className="sticky top-0 z-10 bg-gray-100 shadow-sm">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên màu</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>

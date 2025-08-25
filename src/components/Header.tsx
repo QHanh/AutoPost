@@ -14,6 +14,7 @@ export const Header: React.FC<HeaderProps> = () => {
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
   
@@ -35,7 +36,23 @@ export const Header: React.FC<HeaderProps> = () => {
 
   React.useEffect(() => {
     setIsMenuOpen(false);
+    setIsProfileMenuOpen(false);
   }, [location.pathname]);
+
+  // Đóng profile menu khi click ra ngoài
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isProfileMenuOpen && !target.closest('.profile-menu-container')) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileMenuOpen]);
 
   const navLinks = (
     <>
@@ -97,26 +114,41 @@ export const Header: React.FC<HeaderProps> = () => {
             {isAuthenticated ? (
               <div className="hidden md:flex items-center gap-4 ml-4">
                 {/* User Avatar & Name */}
-                <div className="relative group">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md">
+                <div className="relative profile-menu-container">
+                  <button 
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     {user?.full_name?.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-20 hidden group-hover:block">
-                      <div className="py-1">
-                        <div className="px-4 py-2">
-                            <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                            <p className="text-sm text-gray-500">{user?.email}</p>
+                  </button>
+                  {isProfileMenuOpen && (
+                    <div className="absolute right-0 mt-3 w-56 bg-white rounded-md shadow-lg z-20 border border-gray-200">
+                        <div className="py-2">
+                          <div className="px-4 py-3">
+                              <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                              <p className="text-sm text-gray-500">{user?.email}</p>
+                          </div>
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <NavLink 
+                            to="/accounts" 
+                            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                            onClick={() => setIsProfileMenuOpen(false)}
+                          >
+                              <Building2 size={16}/> Cấu hình
+                          </NavLink>
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <button 
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              handleLogout();
+                            }} 
+                            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-100 hover:text-red-700 flex items-center gap-2 transition-colors"
+                          >
+                            <LogOut size={16}/> Đăng xuất
+                          </button>
                         </div>
-                        <div className="border-t border-gray-200 my-1"></div>
-                        <NavLink to="/accounts" className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                            <Building2 size={16}/> Cấu hình
-                        </NavLink>
-                        <div className="border-t border-gray-200 my-1"></div>
-                        <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-100 hover:text-red-700 flex items-center gap-2">
-                          <LogOut size={16}/> Đăng xuất
-                        </button>
-                      </div>
-                  </div>
+                    </div>
+                  )}
                 </div>
                  <button onClick={handleLogout} className="p-2 rounded-md text-gray-700 hover:bg-gray-100">
                    <LogOut size={20} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Brand } from '../types/Brand';
 import { DeviceBrand } from '../types/deviceBrand';
-import { SearchableSelect } from './SearchableSelect';
+import SearchableSelect from './SearchableSelect';
 import { Plus, Trash2, Smartphone, Palette, DollarSign, Shield, FileText, Check, X, Edit3 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
@@ -46,6 +46,19 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }
   }, [isOpen, selectedService]);
 
+  // Đảm bảo selectedDeviceId vẫn hợp lệ khi deviceOptions thay đổi
+  useEffect(() => {
+    if (selectedDeviceId && deviceOptions.length > 0) {
+      const deviceExists = deviceOptions.find(d => d.id === selectedDeviceId);
+      if (!deviceExists) {
+        console.log('Selected device no longer exists in deviceOptions, resetting...');
+        setSelectedDeviceId('');
+        setSelectedColor('');
+        setColorOptions([]);
+      }
+    }
+  }, [deviceOptions, selectedDeviceId]);
+
   const fetchInitialData = async () => {
     // Fetch initial options for Device Types (Loại máy)
     const deviceInfosRes = await deviceApiService.getDeviceInfos({}, { limit: 20 });
@@ -56,10 +69,31 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
     // --- Handle Edit Mode ---
     if (currentBrand) {
+        // Handle Device Brand for editing - phải xử lý trước để filter device options
+        if (currentBrand.device_brand_id) {
+            const isBrandInList = deviceBrandsData.some(b => b.id === currentBrand.device_brand_id);
+            if (!isBrandInList) {
+                const brandData = await deviceBrandService.getDeviceBrand(currentBrand.device_brand_id);
+                if (brandData) deviceBrandsData.unshift(brandData);
+            }
+            setSelectedDeviceBrand(currentBrand.device_brand_id);
+            
+            // Filter device options theo thương hiệu đã chọn bằng API
+            const selectedBrand = deviceBrandsData.find(b => b.id === currentBrand.device_brand_id);
+            if (selectedBrand) {
+                const res = await deviceApiService.getDeviceInfos({ brand: selectedBrand.name }, { limit: 100 });
+                deviceOptionsData = res.devices.map(d => ({ 
+                    id: String(d.id), 
+                    name: String(d.model) 
+                }));
+            }
+        }
+
         // Handle Device Type for editing
         if (currentBrand.device_type) {
             const isDeviceInList = deviceOptionsData.some(d => d.name === currentBrand.device_type);
             if (!isDeviceInList) {
+                // Nếu device không có trong danh sách đã filter, search thêm
                 const res = await deviceApiService.getDeviceInfos({ search: currentBrand.device_type }, { limit: 1 });
                 if (res.devices.length > 0) {
                     const device = res.devices[0];
@@ -77,16 +111,6 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                     if (foundColor) setSelectedColor(foundColor.id);
                 }
             }
-        }
-
-        // Handle Device Brand for editing
-        if (currentBrand.device_brand_id) {
-            const isBrandInList = deviceBrandsData.some(b => b.id === currentBrand.device_brand_id);
-            if (!isBrandInList) {
-                const brandData = await deviceBrandService.getDeviceBrand(currentBrand.device_brand_id);
-                if (brandData) deviceBrandsData.unshift(brandData);
-            }
-            setSelectedDeviceBrand(currentBrand.device_brand_id);
         }
     }
     
@@ -116,9 +140,62 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }
   };
 
+  const handleDeviceBrandChange = async (brandId: string) => {
+    setSelectedDeviceBrand(brandId);
+    
+    // Reset device selection khi thay đổi thương hiệu
+    setSelectedDeviceId('');
+    setColorOptions([]);
+    setSelectedColor('');
+    
+    if (brandId) {
+      // Lấy thông tin thương hiệu để lấy tên
+      const selectedBrand = deviceBrands.find(b => b.id === brandId);
+      if (selectedBrand) {
+        console.log('Selected brand:', selectedBrand);
+        
+        // Debug: Lấy tất cả devices để kiểm tra brand field
+        const allDevices = await deviceApiService.getDeviceInfos({}, { limit: 100 });
+        console.log('All devices with brands:', allDevices.devices.map(d => ({ model: d.model, brand: d.brand })));
+        
+        // Sử dụng API filter theo brand
+        const res = await deviceApiService.getDeviceInfos({ brand: selectedBrand.name }, { limit: 100 });
+        console.log('API response with brand filter:', res);
+        
+        const deviceOptionsData = res.devices.map(d => ({ 
+          id: String(d.id), 
+          name: String(d.model) 
+        }));
+        setDeviceOptions(deviceOptionsData);
+        console.log('Filtered devices for brand:', selectedBrand.name, ':', deviceOptionsData);
+      }
+    } else {
+      // Nếu không chọn thương hiệu, hiển thị tất cả máy
+      const res = await deviceApiService.getDeviceInfos({}, { limit: 20 });
+      const deviceOptionsData = res.devices.map(d => ({ 
+        id: String(d.id), 
+        name: String(d.model) 
+      }));
+      setDeviceOptions(deviceOptionsData);
+      console.log('All devices loaded:', deviceOptionsData);
+    }
+  };
+
   const handleSearchDeviceInfos = async (term: string) => {
-    const res = await deviceApiService.getDeviceInfos({ search: term }, { limit: 20 });
-    return res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
+    console.log('Searching for:', term, 'with selected brand:', selectedDeviceBrand);
+    
+    // Khi search, KHÔNG filter theo thương hiệu đã chọn
+    // Chỉ search theo term, để user có thể tìm máy khác thương hiệu
+    const searchParams: any = { search: term };
+    
+    const res = await deviceApiService.getDeviceInfos(searchParams, { limit: 20 });
+    const devices = res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
+    console.log('Search results for term:', term, 'devices:', devices); // Debug log
+    
+    // Cập nhật deviceOptions với kết quả tìm kiếm
+    setDeviceOptions(devices);
+    
+    return devices;
   };
 
   const handleSearchDeviceBrands = async (term: string) => {
@@ -127,6 +204,16 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   };
 
   const handleDeviceChange = async (deviceId: string) => {
+    console.log('handleDeviceChange called with deviceId:', deviceId); // Debug log
+    console.log('Current deviceOptions:', deviceOptions); // Debug log
+    
+    // Kiểm tra xem deviceId có tồn tại trong deviceOptions không
+    const selectedDevice = deviceOptions.find(d => d.id === deviceId);
+    if (!selectedDevice) {
+      console.error('Selected device not found in deviceOptions:', deviceId, deviceOptions);
+      return;
+    }
+    
     setSelectedDeviceId(deviceId);
     setSelectedColor('');
     setColorOptions([]);
@@ -159,7 +246,21 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         return;
     }
 
-    const deviceName = deviceOptions.find(d => d.id === selectedDeviceId)?.name || '';
+    // Lấy tên thiết bị từ selectedDeviceId
+    const selectedDevice = deviceOptions.find(d => d.id === selectedDeviceId);
+    const deviceName = selectedDevice?.name || '';
+    
+    console.log('Save - selectedDeviceId:', selectedDeviceId);
+    console.log('Save - selectedDevice:', selectedDevice);
+    console.log('Save - deviceName:', deviceName);
+    console.log('Save - deviceOptions:', deviceOptions);
+    
+    // Kiểm tra xem có chọn thiết bị không
+    if (!selectedDeviceId || !deviceName) {
+        Swal.fire('Lỗi', 'Vui lòng chọn loại máy.', 'error');
+        return;
+    }
+    
     const deviceBrandId = selectedDeviceBrand || undefined;
 
     if (selectedColor === 'all' && colorOptions.length > 0) {
@@ -417,9 +518,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                     <SearchableSelect
                       options={deviceBrands.map(brand => ({ id: brand.id, name: brand.name }))}
                       value={selectedDeviceBrand}
-                      onChange={(value) => {
-                        setSelectedDeviceBrand(value);
-                      }}
+                      onChange={handleDeviceBrandChange}
                       placeholder="Chọn thương hiệu"
                       onDelete={handleDeleteDeviceBrand}
                       onEdit={handleEditDeviceBrand}
@@ -482,14 +581,26 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
               <Smartphone size={16} className="mr-2 text-indigo-600" />
               Loại máy
+              {selectedDeviceBrand && (
+                <span className="ml-2 text-xs text-gray-500">
+                  (Đã filter theo thương hiệu: {deviceBrands.find(b => b.id === selectedDeviceBrand)?.name})
+                </span>
+              )}
             </label>
             <SearchableSelect
+                key={`device-select-${selectedDeviceBrand}-${deviceOptions.length}`}
                 options={deviceOptions}
                 value={selectedDeviceId}
                 onChange={handleDeviceChange}
-                placeholder="Chọn loại máy"
+                placeholder={selectedDeviceBrand ? "Chọn loại máy từ thương hiệu đã chọn" : "Chọn loại máy"}
                 onSearch={handleSearchDeviceInfos}
             />
+            {selectedDeviceBrand && deviceOptions.length === 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                Không tìm thấy thiết bị nào cho thương hiệu "{deviceBrands.find(b => b.id === selectedDeviceBrand)?.name}". 
+                Bạn có thể search để tìm thiết bị khác.
+              </p>
+            )}
           </div>
           
           {/* Color Section */}

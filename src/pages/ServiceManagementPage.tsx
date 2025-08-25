@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { serviceService } from '../services/serviceService.js';
-import { brandService } from '../services/brandService.js';
-import { Service } from '../types/Service.js';
-import { Brand } from '../types/Brand.js';
+import { serviceService } from '../services/serviceService';
+import { brandService } from '../services/brandService';
+import { Service } from '../types/Service';
+import { Brand } from '../types/Brand';
 import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical } from 'lucide-react';
 import Swal from 'sweetalert2';
 import deviceBrandService from '../services/deviceBrandService';
@@ -275,7 +275,7 @@ export const ServiceManagementPage: React.FC = () => {
 
     const renderSortableHeader = (key: keyof Brand, title: string) => (
         <th 
-            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer bg-gray-100"
             onClick={() => requestSort(key)}
         >
             <div className="flex items-center">
@@ -296,20 +296,24 @@ export const ServiceManagementPage: React.FC = () => {
         setIsImportingExcel(true);
         try {
             const result = await brandService.importBrands(file);
-            if (result.data.error > 0) {
-                Swal.fire({
-                    title: 'Kết quả Import',
-                    html: `
-                        Tổng cộng: ${result.data.total}<br/>
-                        Thành công: ${result.data.success}<br/>
-                        Lỗi: ${result.data.error}<br/>
-                        Tạo mới: ${result.data.created_count}<br/>
-                        Cập nhật: ${result.data.updated_count}<br/>
-                        ${result.data.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${result.data.errors.join('<br/>')}`: ''}
-                    `,
-                    icon: 'warning'
-                });
-            }
+            
+            // Luôn hiển thị thông báo kết quả import
+            const icon = result.data.error > 0 ? 'warning' : 'success';
+            const title = result.data.error > 0 ? 'Kết quả Import' : 'Import Thành công';
+            
+            Swal.fire({
+                title: title,
+                html: `
+                    Tổng cộng: ${result.data.total}<br/>
+                    Thành công: ${result.data.success}<br/>
+                    Lỗi: ${result.data.error}<br/>
+                    Tạo mới: ${result.data.created_count}<br/>
+                    Cập nhật: ${result.data.updated_count}<br/>
+                    ${result.data.errors.length > 0 ? `<strong>Lỗi:</strong><br/>${result.data.errors.join('<br/>')}`: ''}
+                `,
+                icon: icon
+            });
+            
             fetchServices();
             if (selectedService) {
                 fetchBrands(selectedService.id);
@@ -425,11 +429,11 @@ export const ServiceManagementPage: React.FC = () => {
         {isLoadingBrands ? (
             <div className="text-center p-4">Đang tải...</div>
         ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto relative max-h-[calc(100vh-200px)]">
                 <table className="min-w-full">
-                    <thead>
-                        <tr className="bg-gray-100">
-                           {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên dịch vụ</th>}
+                    <thead className="sticky top-0 z-10">
+                        <tr className="bg-gray-100 shadow-sm">
+                           {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Tên dịch vụ</th>}
                            {renderSortableHeader('service_code', 'Mã DV')}
                            {renderSortableHeader('name', 'Loại dịch vụ')}
                            {renderSortableHeader('device_brand_id', 'Thương hiệu')}
@@ -438,7 +442,7 @@ export const ServiceManagementPage: React.FC = () => {
                            {renderSortableHeader('price', 'Giá')}
                            {renderSortableHeader('warranty', 'Bảo hành')}
                            {renderSortableHeader('note', 'Ghi chú')}
-                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Hành động</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">

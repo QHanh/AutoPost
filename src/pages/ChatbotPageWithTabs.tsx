@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot } from 'lucide-react';
 
 // Import all tab components
 import DevicesTab from './ChatbotPage/DevicesTab';
@@ -16,19 +16,26 @@ import ChatbotTab from './ChatbotPage/ChatbotTab';
 import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 import { ServiceManagementPage } from './ServiceManagementPage';
 import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
+import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
+import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
+import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
-type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'caidat';
+type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'caidat'; // Added 'chatbot-linhkien'
 type SubTab =
   | 'my-devices'
-  | 'device-infos'
+  | 'device-info'
   | 'colors'
   | 'device-colors'
   | 'device-storage'
   | 'services'
   | 'components'
   | 'documents'
-  | 'api-integration'
-  | 'settings';
+  | 'api-integration' // Added
+  | 'settings'
+  | 'chat' // Added for single tab
+  | 'dichvu' // Added for single tab
+  | 'linhkien' // Added for single tab
+  | 'chatbot-linhkien'; // Added for single tab
 
 const mainTabsConfig = {
     dienthoai: {
@@ -36,7 +43,7 @@ const mainTabsConfig = {
         icon: Smartphone,
         subTabs: [
             { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab /> },
-            { id: 'device-infos', label: 'Thông tin thiết bị', component: <DeviceInfosTab /> },
+            { id: 'device-info', label: 'Thông tin thiết bị', component: <DeviceInfosTab /> },
             { id: 'colors', label: 'Màu sắc', component: <ColorsTab /> },
             { id: 'device-colors', label: 'Thiết bị - Màu sắc', component: <DeviceColorsTab /> },
             { id: 'device-storage', label: 'Thiết bị - Dung lượng', component: <DeviceStorageTab /> },
@@ -44,30 +51,34 @@ const mainTabsConfig = {
     },
     dichvu: {
         label: 'Dịch vụ',
-        icon: Wrench,
-        subTabs: [
-            { id: 'services', label: 'Quản lý Dịch vụ', component: <ServiceManagementPage /> }
-        ]
+        icon: Settings,
+        isSingleTab: true,
+        component: <ErrorBoundary><ServiceManagementPage /></ErrorBoundary>
     },
     linhkien: {
         label: 'Linh kiện',
         icon: Component,
-        subTabs: [
-            { id: 'components', label: 'Quản lý Linh kiện', component: <LinhKienManagementTabs /> }
-        ]
+        isSingleTab: true,
+        component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} /></ErrorBoundary>
     },
-    chat: {
+    chat: { // New main category
         label: 'Chat',
         icon: MessageSquare,
         isSingleTab: true,
-        component: <ChatbotTab />
+        component: <ErrorBoundary><ChatbotTab /></ErrorBoundary>
+    },
+    'chatbot-linhkien': { // Added new category
+        label: 'Chatbot Linh Kiện Hoàng Mai',
+        icon: Bot,
+        isSingleTab: true,
+        component: <ErrorBoundary><ChatbotLinhKienTab /></ErrorBoundary>
     },
     caidat: {
         label: 'Cài đặt',
         icon: Settings,
         subTabs: [
             { id: 'documents', label: 'Tài liệu', component: <DocumentsTab /> },
-            { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage /> },
+            { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage /> }, // Added
             { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab /> },
         ]
     },
@@ -87,13 +98,27 @@ const ChatbotPageWithTabs: React.FC = () => {
   }
 
   const renderTabContent = () => {
+    // Xử lý các tab đơn lẻ trước
     if (activeTab === 'chat') {
         return mainTabsConfig.chat.component;
     }
+    if (activeTab === 'dichvu') {
+        return mainTabsConfig.dichvu.component;
+    }
+    if (activeTab === 'linhkien') {
+        return mainTabsConfig.linhkien.component;
+    }
+    if (activeTab === 'chatbot-linhkien') {
+        return mainTabsConfig['chatbot-linhkien'].component;
+    }
+    
+    // Xử lý các sub-tabs
     for (const category of Object.values(mainTabsConfig)) {
         if (category.subTabs) {
             const tab = category.subTabs.find(sub => sub.id === activeTab);
-            if (tab) return tab.component;
+            if (tab) {
+                return tab.component;
+            }
         }
     }
     return null;
@@ -101,8 +126,18 @@ const ChatbotPageWithTabs: React.FC = () => {
 
   const handleCategoryClick = (categoryKey: MainCategory) => {
     const category = mainTabsConfig[categoryKey];
+    
     if (category.isSingleTab) {
-      setActiveTab(categoryKey as SubTab | 'chat'); // Handle 'chat' case
+      // Xử lý các tab đơn lẻ
+      if (categoryKey === 'chat') {
+        setActiveTab('chat');
+      } else if (categoryKey === 'dichvu') {
+        setActiveTab('dichvu');
+      } else if (categoryKey === 'linhkien') {
+        setActiveTab('linhkien');
+      } else if (categoryKey === 'chatbot-linhkien') {
+        setActiveTab('chatbot-linhkien');
+      }
       setOpenCategory(null);
     } else {
       setOpenCategory(prev => (prev === categoryKey ? null : categoryKey));

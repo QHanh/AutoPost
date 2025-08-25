@@ -27,6 +27,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.20.1",
     "react-toastify": "^11.0.5",
+    "remark-gfm": "^4.0.1",
     "sweetalert2": "^11.22.2"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MessageSquare, X, Send, Bot, User as UserIcon, Loader2, Key, RefreshCw, Users, BrainCircuit } from 'lucide-react'; // Renamed User to avoid conflict
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface Message {
   role: 'user' | 'model';
@@ -194,8 +195,19 @@ export const ChatBot: React.FC = () => {
                              {mode === 'ai' ? <Bot size={20} /> : <Users size={20}/>}
                            </div>
                         )}
-                        <div className={`px-4 py-2 rounded-2xl max-w-xs break-words shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`}>
-                          {msg.text}
+                        <div className={`px-4 py-2 rounded-2xl break-words shadow-sm ${
+                          msg.role === 'user' 
+                            ? 'bg-blue-600 text-white rounded-br-none max-w-xs' 
+                            : 'bg-white text-gray-800 border rounded-bl-none max-w-md'
+                        }`}>
+                          {msg.role === 'model' ? (
+                            <MarkdownRenderer 
+                              content={msg.text} 
+                              className="text-gray-800"
+                            />
+                          ) : (
+                            <span className="text-white">{msg.text}</span>
+                          )}
                         </div>
                         {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 shrink-0"><UserIcon size={20} /></div>}
                       </div>
@@ -205,7 +217,7 @@ export const ChatBot: React.FC = () => {
                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 ${mode === 'ai' ? 'bg-blue-500' : 'bg-green-500'}`}>
                            {mode === 'ai' ? <Bot size={20} /> : <Users size={20}/>}
                          </div>
-                         <div className="px-4 py-2 rounded-2xl bg-white text-gray-800 border rounded-bl-none shadow-sm">
+                         <div className="px-4 py-2 rounded-2xl bg-white text-gray-800 border rounded-bl-none shadow-sm max-w-md">
                            <Loader2 className="animate-spin" size={20} />
                          </div>
                        </div>

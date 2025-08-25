@@ -288,7 +288,7 @@ export const PricingPage: React.FC = () => {
         console.error("Critical error when loading data:", err);
         // Chỉ set error nếu không load được plans (critical)
         if (videoPlans.length === 0 && chatbotPlans.length === 0) {
-          setError(err.message || "Không thể tải dữ liệu bảng giá.");
+        setError(err.message || "Không thể tải dữ liệu bảng giá.");
         } else {
           // Nếu đã load được plans nhưng không load được subscriptions, chỉ log warning
           console.warn("Failed to load some data, but plans are available:", err);
@@ -647,8 +647,8 @@ export const PricingPage: React.FC = () => {
                           <> • {currentSubs.chatbot_subscription.months_subscribed} tháng</>
                         )}
                       </div>
-                    </div>
-                  ) : (
+                </div>
+              ) : (
                     <div className="text-gray-500 text-sm mt-1">
                       {console.log('No chatbot subscription found')}
                       Chưa có gói
@@ -664,64 +664,64 @@ export const PricingPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {plansToDisplay.length > 0 ? (
             plansToDisplay.map((plan) => {
-              const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
-              const price = 'price' in plan ? plan.price : plan.monthly_price;
-              return (
-                <div
-                  key={plan.id}
-                  className={`relative bg-white rounded-2xl shadow-xl border-2 ${uiDetails.color} overflow-hidden transform hover:scale-105 transition-all duration-300 ${
-                    uiDetails.popular ? 'ring-4 ring-purple-200' : ''
-                  }`}
-                >
-                  {uiDetails.popular && (
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-center py-2 text-sm font-bold">
-                      Phổ biến nhất
-                    </div>
-                  )}
-                  
-                  <div className={`${uiDetails.bgColor} p-8 ${uiDetails.popular ? 'pt-12' : ''}`}>
-                    <div className="text-center">
-                      <div className="h-8 mb-4 flex items-center justify-center">
-                        <div className="relative">
-                          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
-                            {uiDetails.icon}
-                          </div>
-                          <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name?.toUpperCase()}</h3>
+            const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
+            const price = 'price' in plan ? plan.price : plan.monthly_price;
+            return (
+              <div
+                key={plan.id}
+                className={`relative bg-white rounded-2xl shadow-xl border-2 ${uiDetails.color} overflow-hidden transform hover:scale-105 transition-all duration-300 ${
+                  uiDetails.popular ? 'ring-4 ring-purple-200' : ''
+                }`}
+              >
+                {uiDetails.popular && (
+                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-center py-2 text-sm font-bold">
+                    Phổ biến nhất
+                  </div>
+                )}
+                
+                <div className={`${uiDetails.bgColor} p-8 ${uiDetails.popular ? 'pt-12' : ''}`}>
+                  <div className="text-center">
+                    <div className="h-8 mb-4 flex items-center justify-center">
+                      <div className="relative">
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
+                          {uiDetails.icon}
                         </div>
+                        <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name?.toUpperCase()}</h3>
                       </div>
-                      
-                      <div className="mb-4">
-                        <span className={`text-4xl font-bold ${uiDetails.textColor}`}>{formatPrice(price)}</span>
-                        <span className="text-gray-600 text-lg">{formatDuration(plan)}</span>
-                      </div>
-                      
-                      {serviceType === 'chatbot' && (
-                          <div className="my-4">
-                              <label className="text-sm font-medium text-gray-700">Số tháng:</label>
-                              <select 
-                                  value={selectedMonths} 
-                                  onChange={(e) => setSelectedMonths(Number(e.target.value))}
-                                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                              >
-                                  {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} tháng</option>)}
-                              </select>
-                          </div>
-                      )}
-                      
-                      <p className="text-gray-600 mb-6 h-10">
-                        {plan.description?.split(', ')[0] || ''}
-                      </p>
-                      
-                      <button 
-                        onClick={() => handleSelectPlan(plan)}
+                    </div>
+                    
+                    <div className="mb-4">
+                      <span className={`text-4xl font-bold ${uiDetails.textColor}`}>{formatPrice(price)}</span>
+                      <span className="text-gray-600 text-lg">{formatDuration(plan)}</span>
+                    </div>
+                    
+                    {serviceType === 'chatbot' && (
+                        <div className="my-4">
+                            <label className="text-sm font-medium text-gray-700">Số tháng:</label>
+                            <select 
+                                value={selectedMonths} 
+                                onChange={(e) => setSelectedMonths(Number(e.target.value))}
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            >
+                                {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} tháng</option>)}
+                            </select>
+                        </div>
+                    )}
+                    
+                    <p className="text-gray-600 mb-6 h-10">
+                      {plan.description?.split(', ')[0] || ''}
+                    </p>
+                    
+                    <button 
+                      onClick={() => handleSelectPlan(plan)}
                         disabled={!canSubscribeToPlan(plan)}
-                        className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
-                      >
+                      className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
+                    >
                         {isSubscribing === plan.id ? 'Đang xử lý...' : 
                          isCurrentPlan(plan) ? 'Gói hiện tại' :
                          hasPendingSubscription ? 'Đang chờ phê duyệt' :
                          'Chọn gói này'}
-                      </button>
+                    </button>
                     </div>
                   </div>
                 </div>

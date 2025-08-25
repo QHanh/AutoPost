@@ -1,6 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 
+// Custom hook to manage debounce
+const useDebounce = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+};
+
 interface SearchableSelectProps {
     options: { id: string; name: string }[];
     value: string;
@@ -12,287 +29,298 @@ interface SearchableSelectProps {
     onSearch?: (term: string) => Promise<{ id: string, name: string }[]>;
 }
 
-export const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder, creatable = false, onDelete, onEdit, onSearch }) => {
+export const SearchableSelectComponent: React.FC<SearchableSelectProps> = ({
+    options,
+    value,
+    onChange,
+    placeholder,
+    creatable = false,
+    onDelete,
+    onEdit,
+    onSearch
+}) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const [internalOptions, setInternalOptions] = useState(options);
     const [isLoading, setIsLoading] = useState(false);
+    const [lastSearchTerm, setLastSearchTerm] = useState('');
     const selectRef = useRef<HTMLDivElement>(null);
-    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const debouncedSearchTerm = useDebounce(inputValue, 500);
+    const selectedOption = options.find(option => option.id === value);
+
+    // Effect to sync inputValue with the selected value name when not open
     useEffect(() => {
-        setInternalOptions(options);
-    }, [options]);
+        if (!isOpen) {
+            setInputValue(selectedOption?.name || (creatable && value ? value : ''));
+        }
+    }, [value, selectedOption, isOpen, creatable]);
 
+    // Effect for API search
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const handleSearch = (term: string) => {
-        if (!onSearch) return;
-        
-        if (debounceTimeoutRef.current) {
-            clearTimeout(debounceTimeoutRef.current);
+        if (!onSearch || !isOpen) {
+            return;
         }
 
-        setSearchTerm(term);
-        setIsLoading(true);
+        if (debouncedSearchTerm.trim() === '') {
+            setInternalOptions(options);
+            setIsLoading(false);
+            return;
+        }
+        
+        if (selectedOption && debouncedSearchTerm === selectedOption.name) {
+            setIsLoading(false);
+            return;
+        }
+        
+        // Nếu giá trị tìm kiếm không thay đổi, không gọi API
+        if (lastSearchTerm === debouncedSearchTerm) {
+            return;
+        }
 
-        debounceTimeoutRef.current = setTimeout(async () => {
-            try {
-                const newOptions = await onSearch(term);
+        // Tránh gọi API khi đang loading
+        if (isLoading) {
+            return;
+        }
+        
+        // Cập nhật giá trị tìm kiếm cuối cùng
+        setLastSearchTerm(debouncedSearchTerm);
+
+        setIsLoading(true);
+        onSearch(debouncedSearchTerm)
+            .then(newOptions => {
                 setInternalOptions(newOptions);
-            } catch (error) {
+                setIsOpen(true); // Đảm bảo dropdown vẫn mở sau khi tìm kiếm hoàn tất
+            })
+            .catch(error => {
                 console.error("Failed to search:", error);
                 setInternalOptions([]);
-            } finally {
+                setIsOpen(true); // Đảm bảo dropdown vẫn mở ngay cả khi có lỗi
+            })
+            .finally(() => {
                 setIsLoading(false);
-            }
-        }, 300); // 300ms debounce
-    };
+            });
+    }, [debouncedSearchTerm, isOpen, onSearch, options, selectedOption, isLoading]);
 
-    // Handling for creatable select
-    const [inputValue, setInputValue] = useState('');
+    // Effect to handle clicks outside
     useEffect(() => {
-        if (!creatable) return;
-        const selectedOption = options.find(option => option.id === value);
-        if (selectedOption) {
-            setInputValue(selectedOption.name);
-        } else if (creatable) {
-            setInputValue(value);
-        } else {
-            setInputValue('');
-        }
-    }, [value, options, creatable]);
-    
-    const showCreateOption = creatable && inputValue && !internalOptions.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
-
-    useEffect(() => {
-        if (!creatable) return;
         const handleClickOutside = (event: MouseEvent) => {
-            if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+            // Chỉ đóng dropdown khi click bên ngoài component và không phải đang loading
+            if (selectRef.current && !selectRef.current.contains(event.target as Node) && !isLoading) {
                 setIsOpen(false);
-                if (creatable && showCreateOption) {
-                    onChange(inputValue);
-                } else {
-                    const selectedOption = internalOptions.find(option => option.id === value);
-                    if (selectedOption) {
-                        setInputValue(selectedOption.name);
-                    } else if (creatable) {
-                        setInputValue(value);
-                    } else {
-                        setInputValue('');
-                    }
-                }
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [selectRef, inputValue, value, creatable, onChange, internalOptions, showCreateOption]);
+    }, [isLoading]);
 
-    const handleSelectOption = (option: { id: string, name: string }) => {
+    const handleOptionSelect = (option: { id: string, name: string }) => {
         onChange(option.id);
-        if (creatable) {
-            setInputValue(option.name);
-        }
+        setInputValue(option.name);
         setIsOpen(false);
     };
-    
-    const handleCreateOption = (newValue: string) => {
+
+    const handleCreateOption = (name: string) => {
         if (!creatable) return;
-        onChange(newValue);
+        onChange(name);
+        setInputValue(name);
+        setIsOpen(false);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value;
         setInputValue(newValue);
-        setIsOpen(false);
+        
+        // Nếu giá trị nhập vào thay đổi, đánh dấu để cần tìm kiếm lại
+        if (newValue.trim() !== lastSearchTerm.trim()) {
+            // Reset lastSearchTerm khi người dùng thay đổi input
+            // Điều này sẽ cho phép useEffect gọi API khi debouncedSearchTerm thay đổi
+            setLastSearchTerm('');
+        }
+        
+        setIsOpen(true); // Luôn mở dropdown khi người dùng nhập
     };
-    // End of creatable select handling
 
-
-    const handleSelect = (optionId: string) => {
-        onChange(optionId);
-        setIsOpen(false);
-        setSearchTerm('');
+    const handleInputFocus = () => {
+        setIsOpen(true);
     };
-
-    const filteredOptions = onSearch 
-        ? internalOptions 
-        : options.filter(option =>
-            option.name.toLowerCase().includes((creatable ? inputValue : searchTerm).toLowerCase())
-        );
     
-    const selectedOption = internalOptions.find(option => option.id === value);
+    const handleInputClick = (e: React.MouseEvent) => {
+        // Luôn mở dropdown khi click vào input, bất kể trạng thái hiện tại
+        setIsOpen(true);
+        
+        // Ngăn chặn sự kiện click lan truyền để tránh đóng dropdown
+        e.stopPropagation();
+    };
 
-    if (creatable) {
+    const filteredOptions = onSearch
+        ? internalOptions
+        : options.filter(option =>
+            option.name.toLowerCase().includes(inputValue.toLowerCase())
+        );
+
+    const showCreateOption = creatable && inputValue && !filteredOptions.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
+    const displayValue = selectedOption?.name || (creatable && value ? value : '');
+
+    if (!creatable) {
         return (
             <div className="relative" ref={selectRef}>
-                <input
-                    type="text"
-                    className="w-full p-2 border rounded-md"
-                    placeholder={placeholder}
-                    value={inputValue}
-                    onChange={(e) => {
-                        setInputValue(e.target.value);
-                        if (onSearch) {
-                            handleSearch(e.target.value);
-                        }
-                    }}
-                    onFocus={() => setIsOpen(true)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && showCreateOption) {
-                            e.preventDefault();
-                            handleCreateOption(inputValue);
-                        }
-                    }}
-                />
+                <div
+                    className="w-full p-2 border rounded-md bg-white cursor-pointer flex justify-between items-center"
+                    onClick={() => setIsOpen(!isOpen)}
+                >
+                    {selectedOption ? selectedOption.name : <span className="text-gray-500">{placeholder || 'Select...'}</span>}
+                    <svg className={`w-4 h-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
                 {isOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <div 
+                        className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <input
+                            type="text"
+                            className="w-full p-2 border-b border-gray-200"
+                            placeholder="Search..."
+                            value={inputValue}
+                            onChange={handleInputChange}
+                            onClick={(e) => handleInputClick(e)}
+                            autoFocus
+                        />
                         <ul>
                             {isLoading ? (
-                                <li className="p-2 text-gray-500">Đang tìm kiếm...</li>
+                                <li className="p-2 text-gray-500">Searching...</li>
+                            ) : filteredOptions.length > 0 ? (
+                                filteredOptions.map(option => (
+                                    <li
+                                        key={option.id}
+                                        className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                        onMouseDown={() => handleOptionSelect(option)}
+                                    >
+                                        <span>{option.name}</span>
+                                        <div className="flex items-center">
+                                            {onEdit && (
+                                                <button
+                                                    className="control-btn p-1 text-blue-500 hover:text-blue-700"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onEdit(option.id, option.name);
+                                                        setIsOpen(false);
+                                                    }}
+                                                    title="Edit"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                            )}
+                                            {onDelete && (
+                                                <button
+                                                    className="control-btn p-1 text-red-500 hover:text-red-700"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDelete(option.id);
+                                                        setIsOpen(false);
+                                                    }}
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))
                             ) : (
-                                <>
-                                    {filteredOptions.map(option => (
-                                        <li
-                                            key={option.id}
-                                            className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                                            onMouseDown={(e) => {
-                                                if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
-                                                  return; 
-                                                }
-                                                handleSelectOption(option);
-                                            }}
-                                        >
-                                            <span>{option.name}</span>
-                                            <div className="flex items-center">
-                                                {onEdit && (
-                                                    <button
-                                                        className="control-btn p-1 text-blue-500 hover:text-blue-700"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onEdit(option.id, option.name);
-                                                            setIsOpen(false);
-                                                        }}
-                                                        title="Sửa"
-                                                    >
-                                                        <Pencil size={14} />
-                                                    </button>
-                                                )}
-                                                {onDelete && (
-                                                    <button
-                                                        className="control-btn p-1 text-red-500 hover:text-red-700"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onDelete(option.id);
-                                                            setIsOpen(false);
-                                                        }}
-                                                        title="Xóa"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                    {showCreateOption && (
-                                        <li
-                                            className="p-2 hover:bg-gray-100 cursor-pointer"
-                                            onMouseDown={() => handleCreateOption(inputValue)}
-                                        >
-                                            Tạo mới "{inputValue}"
-                                        </li>
-                                    )}
-                                    {!showCreateOption && filteredOptions.length === 0 && (
-                                         <li className="p-2 text-gray-500">Không có lựa chọn</li>
-                                    )}
-                                </>
+                                <li className="p-2 text-gray-500">No options found</li>
                             )}
                         </ul>
                     </div>
                 )}
             </div>
-        )
+        );
     }
 
     return (
         <div className="relative" ref={selectRef}>
-            <div
-                className="w-full p-2 border rounded-md bg-white cursor-pointer flex justify-between items-center"
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                {selectedOption ? selectedOption.name : <span className="text-gray-500">{placeholder || 'Select...'}</span>}
-                <svg className={`w-4 h-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
+            <input
+                type="text"
+                className="w-full p-2 border rounded-md"
+                placeholder={placeholder}
+                value={inputValue}
+                onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onClick={(e) => handleInputClick(e)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && showCreateOption) {
+                        e.preventDefault();
+                        handleCreateOption(inputValue);
+                    }
+                }}
+            />
             {isOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <input
-                        type="text"
-                        className="w-full p-2 border-b"
-                        placeholder="Search..."
-                        value={searchTerm}
-                        onChange={(e) => onSearch ? handleSearch(e.target.value) : setSearchTerm(e.target.value)}
-                        autoFocus
-                    />
+                <div 
+                    className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
                     <ul>
                         {isLoading ? (
-                             <li className="p-2 text-gray-500">Đang tìm kiếm...</li>
-                        ) : filteredOptions.length > 0 ? (
-                            filteredOptions.map(option => (
-                                <li
-                                    key={option.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                                    onClick={(e) => {
-                                      if (e.target instanceof HTMLElement && e.target.closest('.control-btn')) {
-                                        return; 
-                                      }
-                                      handleSelect(option.id);
-                                    }}
-                                >
-                                    <span>{option.name}</span>
-                                    <div className="flex items-center">
-                                        {onEdit && (
-                                            <button
-                                                className="control-btn p-1 text-blue-500 hover:text-blue-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onEdit(option.id, option.name);
-                                                    setIsOpen(false);
-                                                }}
-                                                title="Sửa"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                        )}
-                                        {onDelete && (
-                                            <button
-                                                className="control-btn p-1 text-red-500 hover:text-red-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onDelete(option.id);
-                                                    setIsOpen(false);
-                                                }}
-                                                title="Xóa"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </li>
-                            ))
+                            <li className="p-2 text-gray-500">Searching...</li>
                         ) : (
-                            <li className="p-2 text-gray-500">No options found</li>
+                            <>
+                                {filteredOptions.map(option => (
+                                    <li
+                                        key={option.id}
+                                        className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                        onMouseDown={() => handleOptionSelect(option)}
+                                    >
+                                        <span>{option.name}</span>
+                                        <div className="flex items-center">
+                                            {onEdit && (
+                                                <button
+                                                    className="control-btn p-1 text-blue-500 hover:text-blue-700"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onEdit(option.id, option.name);
+                                                        setIsOpen(false);
+                                                    }}
+                                                    title="Edit"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                            )}
+                                            {onDelete && (
+                                                <button
+                                                    className="control-btn p-1 text-red-500 hover:text-red-700"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDelete(option.id);
+                                                        setIsOpen(false);
+                                                    }}
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                                {showCreateOption && (
+                                    <li
+                                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                                        onMouseDown={() => handleCreateOption(inputValue)}
+                                    >
+                                        Create "{inputValue}"
+                                    </li>
+                                )}
+                                {!showCreateOption && filteredOptions.length === 0 && (
+                                     <li className="p-2 text-gray-500">No options</li>
+                                )}
+                            </>
                         )}
                     </ul>
                 </div>
             )}
         </div>
     );
-}; 
+};
+
+export default SearchableSelectComponent;
