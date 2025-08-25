@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, RefreshCw, Plus, File, Download, AlertTriangle } from 'lucide-react';
+import { Upload, FileText, Trash2, RefreshCw } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -177,45 +177,45 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
-  const deleteAllDocuments = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ tài liệu? Hành động này không thể hoàn tác!')) {
-      return;
-    }
+  // const deleteAllDocuments = async () => {
+  //   if (!window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ tài liệu? Hành động này không thể hoàn tác!')) {
+  //     return;
+  //   }
 
-    try {
-      // Optimistic update - clear documents immediately
-      const originalDocuments = [...documents];
-      const originalSources = [...sources];
-      setDocuments([]);
-      setSources([]);
+  //   try {
+  //     // Optimistic update - clear documents immediately
+  //     const originalDocuments = [...documents];
+  //     const originalSources = [...sources];
+  //     setDocuments([]);
+  //     setSources([]);
       
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xóa tài liệu' });
-        // Restore on error
-        setDocuments(originalDocuments);
-        setSources(originalSources);
-        return;
-      }
+  //     const token = localStorage.getItem('auth_token');
+  //     if (!token) {
+  //       setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xóa tài liệu' });
+  //       // Restore on error
+  //       setDocuments(originalDocuments);
+  //       setSources(originalSources);
+  //       return;
+  //     }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/delete-all`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  //     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/delete-all`, {
+  //       method: 'DELETE',
+  //       headers: { 'Authorization': `Bearer ${token}` }
+  //     });
       
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Tất cả tài liệu đã được xóa thành công!' });
-      } else {
-        // Restore on error
-        setDocuments(originalDocuments);
-        setSources(originalSources);
-        throw new Error('Không thể xóa tài liệu');
-      }
-    } catch (error) {
-      console.error('Error deleting documents:', error);
-      setMessage({ type: 'error', text: 'Không thể xóa tài liệu. Vui lòng thử lại.' });
-    }
-  };
+  //     if (response.ok) {
+  //       setMessage({ type: 'success', text: 'Tất cả tài liệu đã được xóa thành công!' });
+  //     } else {
+  //       // Restore on error
+  //       setDocuments(originalDocuments);
+  //       setSources(originalSources);
+  //       throw new Error('Không thể xóa tài liệu');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error deleting documents:', error);
+  //     setMessage({ type: 'error', text: 'Không thể xóa tài liệu. Vui lòng thử lại.' });
+  //   }
+  // };
 
   const deleteDocumentsBySource = async (source: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả tài liệu có nguồn "${source}"? Hành động này không thể hoàn tác!`)) {
@@ -226,7 +226,7 @@ const DocumentsTab: React.FC = () => {
       // Optimistic update - remove documents with this source immediately
       const originalDocuments = [...documents];
       const originalSources = [...sources];
-      const documentsToRemove = documents.filter(doc => doc.source === source);
+      // const documentsToRemove = documents.filter(doc => doc.source === source);
       const remainingDocuments = documents.filter(doc => doc.source !== source);
       const remainingSources = sources.filter(s => s !== source);
       
@@ -270,7 +270,7 @@ const DocumentsTab: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Quản Lý Tài Liệu</h2>
-          <p className="text-gray-600">Quản lý tài liệu và dữ liệu vector cho chatbot AI</p>
+          <p className="text-gray-600">Tải lên tài liệu chứa các thông tin về của hàng của bạn, ví dụ: địa chỉ, các chính sách, hỗ trợ,...</p>
         </div>
 
         {message && (
@@ -289,7 +289,7 @@ const DocumentsTab: React.FC = () => {
             {/* Upload Text */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">Upload Văn Bản</h4>
+                <h4 className="font-medium text-gray-900">Tải lên văn bản</h4>
                 <button
                   onClick={() => setShowTextInput(!showTextInput)}
                   className="text-blue-600 hover:text-blue-800 text-sm"
@@ -315,12 +315,12 @@ const DocumentsTab: React.FC = () => {
                     {isUploading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Đang Upload...
+                        Đang tải lên...
                       </>
                     ) : (
                       <>
                         <FileText className="w-4 h-4 mr-2" />
-                        Upload Văn Bản
+                        Tải lên văn bản
                       </>
                     )}
                   </button>
@@ -330,7 +330,7 @@ const DocumentsTab: React.FC = () => {
 
             {/* Upload File */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900">Upload File</h4>
+              <h4 className="font-medium text-gray-900">Tải lên file</h4>
               <button
                 onClick={triggerFileInput}
                 disabled={isUploading}
@@ -339,12 +339,12 @@ const DocumentsTab: React.FC = () => {
                 {isUploading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Đang Upload...
+                    Đang tải lên...
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    Chọn File
+                    Chọn file
                   </>
                 )}
               </button>
@@ -362,7 +362,7 @@ const DocumentsTab: React.FC = () => {
           </div>
         </div>
 
-        {/* Documents List */}
+        {/* Documents List
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-gray-900">
@@ -445,7 +445,7 @@ const DocumentsTab: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Document Sources */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">

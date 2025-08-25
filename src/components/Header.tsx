@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Home, DollarSign, LogOut, Lightbulb, Video, Menu, X, Smartphone, Building2 } from 'lucide-react';
+import { Users, Home, DollarSign, Send, LogOut, Lightbulb, Video, Menu, X, Bot } from 'lucide-react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import Swal from 'sweetalert2';
@@ -15,7 +15,7 @@ export const Header: React.FC<HeaderProps> = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
+  const isActive = (path: string) => (path === '/' ? location.pathname === path : location.pathname.startsWith(path));
   
   const handleLogout = async () => {
     const { isConfirmed } = await Swal.fire({
@@ -55,10 +55,10 @@ export const Header: React.FC<HeaderProps> = () => {
               <Video size={16} /> Tạo Video
             </Link>
             <Link to="/posts" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/posts') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>
-              <Users size={16} /> Đăng Bài
+              <Send size={16} /> Đăng Bài
             </Link>
             <Link to="/chatbot-tabs" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive('/chatbot-tabs') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>
-              <Smartphone size={16} /> Chatbot
+              <Bot size={16} /> Chatbot
             </Link>
           </div>
         </>
@@ -109,7 +109,7 @@ export const Header: React.FC<HeaderProps> = () => {
                         </div>
                         <div className="border-t border-gray-200 my-1"></div>
                         <NavLink to="/accounts" className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                            <Building2 size={16}/> Cấu hình
+                            <Users size={16}/> Cấu hình
                         </NavLink>
                         <div className="border-t border-gray-200 my-1"></div>
                         <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-100 hover:text-red-700 flex items-center gap-2">

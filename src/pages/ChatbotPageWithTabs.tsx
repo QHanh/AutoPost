@@ -15,7 +15,7 @@ import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
 import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 import { ServiceManagementPage } from './ServiceManagementPage';
-import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
+import ApiIntegrationPage from './ApiIntegrationPage';
 
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'caidat';
 type SubTab =
@@ -43,24 +43,18 @@ const mainTabsConfig = {
         ]
     },
     dichvu: {
-        label: 'Dịch vụ',
+        label: 'Dịch vụ sửa chữa',
         icon: Wrench,
         subTabs: [
             { id: 'services', label: 'Quản lý Dịch vụ', component: <ServiceManagementPage /> }
         ]
     },
     linhkien: {
-        label: 'Linh kiện',
-        icon: Component,
+        label: 'Phụ kiện',
+        icon: Package,
         subTabs: [
-            { id: 'components', label: 'Quản lý Linh kiện', component: <LinhKienManagementTabs /> }
+            { id: 'components', label: 'Quản lý Phụ kiện', component: <LinhKienManagementTabs /> }
         ]
-    },
-    chat: {
-        label: 'Chat',
-        icon: MessageSquare,
-        isSingleTab: true,
-        component: <ChatbotTab />
     },
     caidat: {
         label: 'Cài đặt',
@@ -71,6 +65,12 @@ const mainTabsConfig = {
             { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab /> },
         ]
     },
+    chat: {
+      label: 'Chat',
+      icon: MessageSquare,
+      isSingleTab: true,
+      component: <ChatbotTab />
+    }
 };
 
 const ChatbotPageWithTabs: React.FC = () => {
