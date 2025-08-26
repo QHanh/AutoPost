@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { serviceService } from '../services/serviceService';
 import { brandService } from '../services/brandService';
 import { Service } from '../types/Service';
 import { Brand } from '../types/Brand';
-import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical, Search, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 import deviceBrandService from '../services/deviceBrandService';
 import { DeviceBrand } from '../types/deviceBrand';
@@ -12,6 +12,8 @@ import { BrandModal } from '../components/BrandModal';
 import { ExportModal } from '../components/ExportModal';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { deviceApiService } from '../services/deviceApiService';
+import PopupModal from '../components/PopupModal';
 
 type SortConfig = {
     key: keyof Brand;
@@ -36,7 +38,14 @@ export const ServiceManagementPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
     const [isServicesVisible, setIsServicesVisible] = useState(true);
-    const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+    const [noteModal, setNoteModal] = useState({ isOpen: false, title: '', content: '' });
+    
+    // ✅ State cho search trực tiếp
+    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<{ id: string, name: string }[]>([]);
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+    const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+    const [selectedSearchBrand, setSelectedSearchBrand] = useState<string>('');
 
 
     // Helper function to format price as Vietnamese currency
@@ -131,6 +140,21 @@ export const ServiceManagementPage: React.FC = () => {
         }
     }, [selectedService, sortConfig]);
 
+    // ✅ Handle click outside search results
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element;
+            if (!target.closest('.search-container')) {
+                setShowSearchResults(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     const handleSelectService = (service: Service) => {
         setSelectedService(service);
         setSortConfig(null); // Reset sort when changing service
@@ -167,6 +191,73 @@ export const ServiceManagementPage: React.FC = () => {
         }
     };
 
+    // ✅ Callback cho search trực tiếp
+    const handleSearch = useCallback(async (term: string) => {
+        if (!term.trim()) {
+            setSearchResults([]);
+            setShowSearchResults(false);
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const searchParams: any = { search: term };
+            if (selectedSearchBrand) {
+                const selectedBrand = deviceBrands.find(b => b.id === selectedSearchBrand);
+                if (selectedBrand) {
+                    searchParams.brand = selectedBrand.name;
+                }
+            }
+            
+            const res = await deviceApiService.getDeviceInfos(searchParams, { limit: 20 });
+            const devices = res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
+            setSearchResults(devices);
+            setShowSearchResults(true);
+        } catch (error) {
+            console.error('Search failed:', error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [selectedSearchBrand, deviceBrands]);
+
+    const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        
+        if (value.trim()) {
+            // Debounce search
+            const timeoutId = setTimeout(() => {
+                handleSearch(value);
+            }, 300);
+            
+            return () => clearTimeout(timeoutId);
+        } else {
+            setSearchResults([]);
+            setShowSearchResults(false);
+        }
+    }, [handleSearch]);
+
+    const handleSearchResultSelect = useCallback((device: { id: string, name: string }) => {
+        setSearchTerm(device.name);
+        setShowSearchResults(false);
+        // Có thể thêm logic khác ở đây nếu cần
+    }, []);
+
+    const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && searchResults.length > 0) {
+            handleSearchResultSelect(searchResults[0]);
+        } else if (e.key === 'Escape') {
+            setShowSearchResults(false);
+        }
+    }, [searchResults, handleSearchResultSelect]);
+
+    const clearSearch = useCallback(() => {
+        setSearchTerm('');
+        setSearchResults([]);
+        setShowSearchResults(false);
+    }, []);
+
     const handleExportSelectedServices = async () => {
         try {
             setExportModalOpen(false);
@@ -179,8 +270,19 @@ export const ServiceManagementPage: React.FC = () => {
     };
     
     // Service Modal Handlers
-    const handleOpenServiceModal = (service: Partial<Service> | null = null) => {
-        setCurrentService(service ? { ...service } as Service : { id: '', name: '', description: '', created_at: '', updated_at: '' });
+    const handleOpenServiceModal = async (service: Partial<Service> | null = null) => {
+        if (service && service.id) {
+            try {
+                const fullService = await serviceService.getService(service.id);
+                setCurrentService({ ...fullService });
+            } catch (error) {
+                console.error("Failed to fetch service details", error);
+                Swal.fire('Lỗi', 'Không thể tải chi tiết dịch vụ.', 'error');
+                return; // Don't open modal if fetch fails
+            }
+        } else {
+            setCurrentService({ id: '', name: '', description: '', conditions: [], created_at: '', updated_at: '' });
+        }
         setServiceModalOpen(true);
     };
 
@@ -218,16 +320,35 @@ export const ServiceManagementPage: React.FC = () => {
         });
     };
     
-    // Brand Modal Handlers
-    const handleOpenBrandModal = (brand: Partial<Brand> | null = null) => {
-        setCurrentBrand(brand ? { ...brand } as Brand : { id: '', service_code: '', name: '', warranty: '', service_id: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    // onSave cho BrandModal: MEMO HOÁ để tránh thay đổi identity mỗi render
+    const handleBrandModalSave = useCallback(() => {
+        if (selectedService?.id) {
+            fetchBrands(selectedService.id);
+        }
+    }, [selectedService?.id]);
+
+    // open/close modal cũng nên giữ API đơn giản, không reset form ở đây
+    const openBrandModal = useCallback((brand: Partial<Brand> | null = null) => {
+        setCurrentBrand(brand ? { ...brand } as Brand : {
+            id: '',
+            service_code: '',
+            name: '',
+            warranty: '',
+            service_id: '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
         setBrandModalOpen(true);
-    };
-    
-    const handleCloseBrandModal = () => {
+    }, []);
+
+    const closeBrandModal = useCallback(() => {
         setBrandModalOpen(false);
-        setCurrentBrand(null);
-    };
+        // ĐỪNG reset currentBrand về null ở đây nếu bên trong modal dựa vào prop để giữ form;
+        // Nếu muốn dọn dẹp, làm trong unmount của chính BrandModal
+    }, []);
+
+    // Brand Modal Handlers - thay thế các hàm cũ
+    const handleOpenBrandModal = openBrandModal;
     
     const handleDeleteBrand = (brandId: string) => {
         Swal.fire({
@@ -248,11 +369,12 @@ export const ServiceManagementPage: React.FC = () => {
         });
     };
 
-    const toggleNoteExpansion = (brandId: string) => {
-        setExpandedNotes(prev => ({
-            ...prev,
-            [brandId]: !prev[brandId]
-        }));
+    const openNoteModal = (title: string, content: string) => {
+        setNoteModal({ isOpen: true, title, content });
+    };
+
+    const closeNoteModal = () => {
+        setNoteModal({ isOpen: false, title: '', content: '' });
     };
 
     const requestSort = (key: keyof Brand) => {
@@ -329,7 +451,7 @@ export const ServiceManagementPage: React.FC = () => {
     };
 
   return (
-    <div className="container mx-auto px-4 py-8 flex gap-8 h-[calc(100vh-80px)]">
+    <div className="w-full h-full flex gap-8">
       {/* Services Column */}
       {isServicesVisible && (
         <div className="w-1/4 bg-white shadow-md rounded-lg p-4 flex flex-col transition-all duration-300">
@@ -426,6 +548,90 @@ export const ServiceManagementPage: React.FC = () => {
                 )}
             </div>
         </div>
+        
+        {/* ✅ Search Input */}
+        <div className="mb-4">
+            <div className="relative search-container">
+                <div className="flex gap-2 mb-2">
+                    <select
+                        value={selectedSearchBrand}
+                        onChange={(e) => setSelectedSearchBrand(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    >
+                        <option value="">Tất cả thương hiệu</option>
+                        {deviceBrands.map((brand) => (
+                            <option key={brand.id} value={brand.id}>
+                                {brand.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={handleSearchInputChange}
+                        onKeyDown={handleSearchKeyDown}
+                        placeholder="Tìm kiếm thiết bị..."
+                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={clearSearch}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
+                            Tìm thấy {searchResults.length} kết quả
+                            {selectedSearchBrand && (
+                                <span className="ml-2 text-blue-600">
+                                    (Đã filter theo {deviceBrands.find(b => b.id === selectedSearchBrand)?.name})
+                                </span>
+                            )}
+                        </div>
+                        {searchResults.map((device) => (
+                            <div
+                                key={device.id}
+                                onClick={() => handleSearchResultSelect(device)}
+                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+                            >
+                                <div className="font-medium text-gray-900">{device.name}</div>
+                                <div className="text-sm text-gray-500">ID: {device.id}</div>
+                                <div className="text-xs text-blue-600 mt-1">
+                                    Nhấn Enter để chọn, Esc để đóng
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                
+                {/* Loading State */}
+                {isSearching && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
+                        <div className="flex items-center justify-center">
+                            <LoadingSpinner size="sm" text="Đang tìm kiếm..." />
+                        </div>
+                    </div>
+                )}
+                
+                {/* No Results */}
+                {showSearchResults && !isSearching && searchResults.length === 0 && searchTerm.trim() && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
+                        <div className="text-center text-gray-500">
+                            Không tìm thấy kết quả nào
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
         {isLoadingBrands ? (
             <div className="text-center p-4">Đang tải...</div>
         ) : (
@@ -457,14 +663,13 @@ export const ServiceManagementPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.price)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
                                 <td className="px-6 py-4" style={{ maxWidth: '250px' }}>
-                                    {brand.note && brand.note.length > 20 ? (
+                                    {brand.note ? (
                                         <div className="whitespace-normal break-words">
-                                            {expandedNotes[brand.id] ? brand.note : `${brand.note.substring(0, 20)}...`}
                                             <button
-                                                onClick={() => toggleNoteExpansion(brand.id)}
-                                                className="text-blue-500 hover:text-blue-700 text-xs ml-1"
+                                                onClick={() => openNoteModal(`Ghi chú cho ${brand.name}`, brand.note || '')}
+                                                className="text-blue-500 hover:text-blue-700 underline"
                                             >
-                                                {expandedNotes[brand.id] ? 'Thu gọn' : 'Xem thêm'}
+                                                Xem
                                             </button>
                                         </div>
                                     ) : (
@@ -495,11 +700,12 @@ export const ServiceManagementPage: React.FC = () => {
 
       <BrandModal
         isOpen={brandModalOpen}
-        onClose={handleCloseBrandModal}
-        onSave={() => fetchBrands(selectedService!.id)}
+        onClose={closeBrandModal}
+        onSave={handleBrandModalSave}
         currentBrand={currentBrand}
         setCurrentBrand={setCurrentBrand}
         selectedService={selectedService}
+        // ❌ Tuyệt đối không truyền `key` động vào BrandModal
       />
 
       <ExportModal 
@@ -510,6 +716,13 @@ export const ServiceManagementPage: React.FC = () => {
         selectedServicesForExport={selectedServicesForExport}
         handleSelectServiceForExport={handleSelectServiceForExport}
         handleSelectAllServicesForExport={handleSelectAllServicesForExport}
+      />
+      
+      <PopupModal
+        isOpen={noteModal.isOpen}
+        onClose={closeNoteModal}
+        title={noteModal.title}
+        content={noteModal.content}
       />
     </div>
   );

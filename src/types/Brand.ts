@@ -15,6 +15,7 @@ export interface Brand {
   updated_at: string;
   service?: { name: string };
   device_brand?: { name: string };
+  conditions?: string[];
 }
 
 export type BrandCreate = Omit<Brand, 'id' | 'service_code' | 'created_at' | 'updated_at' | 'service' | 'device_brand'>;

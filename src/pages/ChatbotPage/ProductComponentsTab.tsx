@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
@@ -6,42 +6,32 @@ import PropertySelector from '../../components/PropertySelector';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
+import PopupModal from '../../components/PopupModal';
 
-// Component hiển thị mô tả với tính năng "Xem thêm"
-const DescriptionDisplay: React.FC<{ description: string | null | undefined }> = ({ description }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
+// Component hiển thị mô tả với tính năng popup
+const DescriptionDisplay: React.FC<{ 
+  description: string | null | undefined;
+  productName: string;
+  onOpenModal: (title: string, content: string) => void;
+}> = ({ description, productName, onOpenModal }) => {
   if (!description) return <span className="text-gray-400">N/A</span>;
   
-  if (description.length <= 20) {
-    return <span>{description}</span>;
+  // Chỉ hiển thị nút "Xem" khi mô tả có nhiều hơn 2 ký tự
+  if (description.length > 2) {
+    return (
+      <div>
+        <button
+          onClick={() => onOpenModal(`Mô tả sản phẩm ${productName}`, description)}
+          className="text-blue-600 hover:text-blue-800 underline"
+        >
+          Xem
+        </button>
+      </div>
+    );
   }
   
-  return (
-    <div>
-      {isExpanded ? (
-        <div>
-          <span>{description}</span>
-          <button
-            onClick={() => setIsExpanded(false)}
-            className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
-          >
-            Thu gọn
-          </button>
-        </div>
-      ) : (
-        <div>
-          <span>{description.substring(0, 20)}...</span>
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
-          >
-            Xem thêm
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  // Nếu mô tả có 2 ký tự trở xuống, hiển thị trực tiếp
+  return <span>{description}</span>;
 };
 
 // Hàm format tiền tệ
@@ -60,6 +50,8 @@ interface ProductComponentsTabProps {
 
 const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthenticated }) => {
   const [productComponents, setProductComponents] = useState<ProductComponent[]>([]);
+  const [selectedProductComponents, setSelectedProductComponents] = useState<Set<string>>(new Set());
+  const [isSelectAll, setIsSelectAll] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,6 +87,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     propertyValues: {} as { [key: string]: string[] },
     trademarks: [] as string[],
   });
+  
+  // Popup modal state
+  const [descriptionModal, setDescriptionModal] = useState({ isOpen: false, title: '', content: '' });
 
   useEffect(() => {
     console.log('=== MAIN USE EFFECT ===');
@@ -541,6 +536,13 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         // Cập nhật state ngay lập tức để UI phản hồi nhanh
         setProductComponents(prev => prev.filter(pc => pc.id !== id));
         
+        // Cập nhật selectedProductComponents
+        setSelectedProductComponents(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+        
         // Removed success notification
         
         // Sau đó load lại dữ liệu để đảm bảo đồng bộ với server
@@ -558,10 +560,16 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
+    // Clear selection when changing pages
+    setSelectedProductComponents(new Set());
+    setIsSelectAll(false);
   };
 
   const handleLimitChange = (newLimit: number) => {
     setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    // Clear selection when changing page size
+    setSelectedProductComponents(new Set());
+    setIsSelectAll(false);
   };
 
   const renderSortIcon = (key: keyof ProductComponent) => {
@@ -571,8 +579,131 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       <ChevronsUpDown className="ml-1 h-4 w-4" />;
   };
 
+  // Popup modal handlers
+  const openDescriptionModal = (title: string, content: string) => {
+    setDescriptionModal({ isOpen: true, title, content });
+  };
+
+  const closeDescriptionModal = () => {
+    setDescriptionModal({ isOpen: false, title: '', content: '' });
+  };
+
   // No need for client-side filtering since search is now handled by backend
   // The productComponents state now contains the filtered results from backend
+  
+  // Bulk selection handlers
+  const handleSelectAll = () => {
+    if (isSelectAll) {
+      setSelectedProductComponents(new Set());
+    } else {
+      const allIds = new Set(productComponents.map(pc => pc.id));
+      setSelectedProductComponents(allIds);
+    }
+    setIsSelectAll(!isSelectAll);
+  };
+  
+  const handleSelectProductComponent = (id: string) => {
+    setSelectedProductComponents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+    
+    // Update select all state
+    setIsSelectAll(selectedProductComponents.size === productComponents.length - 1);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedProductComponents.size === 0) {
+      alert('Vui lòng chọn ít nhất một thành phần sản phẩm để xóa');
+      return;
+    }
+    
+    if (window.confirm(`Bạn có chắc chắn muốn xóa ${selectedProductComponents.size} thành phần sản phẩm đã chọn?`)) {
+      try {
+        setIsLoading(true);
+        const ids = Array.from(selectedProductComponents);
+        await productComponentService.bulkDeleteProductComponents(ids);
+        
+        // Cập nhật state ngay lập tức để UI phản hồi nhanh
+        setProductComponents(prev => prev.filter(pc => !selectedProductComponents.has(pc.id)));
+        
+        // Clear selection
+        setSelectedProductComponents(new Set());
+        setIsSelectAll(false);
+        
+        // Load lại dữ liệu để đảm bảo đồng bộ với server
+        await fetchProductComponents();
+        
+        Swal.fire({
+          title: 'Thành công',
+          text: `Đã xóa ${ids.length} thành phần sản phẩm`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        console.error('Error bulk deleting product components:', error);
+        alert('Có lỗi xảy ra khi xóa các linh kiện. Vui lòng thử lại.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (productComponents.length === 0) {
+      alert('Không có linh kiện nào để xóa.');
+      return;
+    }
+
+    Swal.fire({
+      title: 'Bạn có chắc chắn không?',
+      text: `Tất cả ${productComponents.length} linh kiện sẽ bị xóa vĩnh viễn!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Xóa tất cả!',
+      cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          setIsLoading(true);
+          await productComponentService.deleteAllProductComponents();
+
+          // UI updates
+          setProductComponents([]);
+          setSelectedProductComponents(new Set());
+          setIsSelectAll(false);
+          setPagination(prev => ({ ...prev, total: 0, totalPages: 1, page: 1 }));
+
+          Swal.fire(
+            'Đã xóa!',
+            'Tất cả linh kiện đã được xóa.',
+            'success'
+          );
+
+          // Refresh data from server to confirm
+          await fetchProductComponents();
+
+        } catch (error) {
+          console.error('Error deleting all product components:', error);
+          Swal.fire(
+            'Lỗi!',
+            'Có lỗi xảy ra khi xóa tất cả linh kiện.',
+            'error'
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    });
+  };
 
   if (!isAuthenticated) {
     return <div className="p-6 text-center">Vui lòng đăng nhập để xem nội dung này.</div>;
@@ -601,15 +732,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           </div>
         </div>
       )}
-      
-      <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
+            <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
         <div className="flex items-center gap-2">
-                  <Filter 
-          key={`filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`}
-          config={filterConfig} 
-          onFilterChange={handleFilterChange} 
-        />
+          <Filter 
+            key={`filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`}
+            config={filterConfig} 
+            onFilterChange={handleFilterChange} 
+          />
           <button
             onClick={handleExport}
             className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
@@ -680,6 +810,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <input
+                    type="checkbox"
+                    checked={isSelectAll}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                </th>
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -756,13 +894,21 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <tbody className="bg-white divide-y divide-gray-200">
               {productComponents.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={14} className="px-6 py-4 text-center text-gray-500">
                     {searchTerm ? `Không tìm thấy kết quả nào cho "${searchTerm}"` : 'Không có dữ liệu linh kiện nào'}
                   </td>
                 </tr>
               ) : (
                 productComponents.map((productComponent) => (
-                  <tr key={productComponent.id}>
+                  <tr key={productComponent.id} className={selectedProductComponents.has(productComponent.id) ? 'bg-blue-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductComponents.has(productComponent.id)}
+                        onChange={() => handleSelectProductComponent(productComponent.id)}
+                        className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
                        {productComponent.product_code}
                      </td>
@@ -801,7 +947,11 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                        {productComponent.stock}
                      </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      <DescriptionDisplay description={productComponent.description} />
+                      <DescriptionDisplay 
+                        description={productComponent.description} 
+                        productName={productComponent.product_name}
+                        onOpenModal={openDescriptionModal}
+                      />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {productComponent.product_photo ? (
@@ -841,7 +991,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       )}
       
       <div className="flex justify-between items-center mt-4">
-        <div>
+        <div className="flex items-center gap-4">
           <select
             value={pagination.limit}
             onChange={(e) => handleLimitChange(Number(e.target.value))}
@@ -851,13 +1001,39 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <option value={20}>20 / trang</option>
             <option value={50}>50 / trang</option>
           </select>
+          
+          {selectedProductComponents.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              <Trash2 size={20} className="mr-2" />
+              Xóa {selectedProductComponents.size} mục
+            </button>
+          )}
+          {productComponents.length > 0 && selectedProductComponents.size === 0 && (
+            <button
+              onClick={handleDeleteAll}
+              className="bg-red-700 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              <Trash2 size={20} className="mr-2" />
+              Xóa Tất Cả
+            </button>
+          )}
         </div>
         
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={handlePageChange}
-        />
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">
+            Tổng số: {pagination.total}
+          </span>
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       </div>
 
       {/* Modal for Create/Update Product Component */}
@@ -1060,6 +1236,13 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           </div>
         </div>
       )}
+      
+      <PopupModal
+        isOpen={descriptionModal.isOpen}
+        onClose={closeDescriptionModal}
+        title={descriptionModal.title}
+        content={descriptionModal.content}
+      />
     </div>
   );
 };

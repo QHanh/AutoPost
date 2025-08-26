@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Brand } from '../types/Brand';
 import { DeviceBrand } from '../types/deviceBrand';
 import SearchableSelect from './SearchableSelect';
-import { Plus, Trash2, Smartphone, Palette, DollarSign, Shield, FileText, Check, X, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Smartphone, Palette, DollarSign, Shield, FileText, Check, X, Edit3, CheckSquare } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
 import deviceBrandService from '../services/deviceBrandService';
@@ -31,20 +31,32 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   const [warrantyServices, setWarrantyServices] = useState<WarrantyService[]>([]);
   const [uniqueBrandNames, setUniqueBrandNames] = useState<UniqueBrandName[]>([]);
   const [selectedDeviceBrand, setSelectedDeviceBrand] = useState<string>('');
-  const [newDeviceBrand, setNewDeviceBrand] = useState<string>('');
+  // Remove duplicate declaration
   const [isAddingNewBrand, setIsAddingNewBrand] = useState<boolean>(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [deviceTypeSearchTerm, setDeviceTypeSearchTerm] = useState('');
+  const [newDeviceBrand, setNewDeviceBrand] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [newWarrantyService, setNewWarrantyService] = useState<string>('');
   const [isAddingNewWarranty, setIsAddingNewWarranty] = useState<boolean>(false);
   const [isAddingNewTypeName, setIsAddingNewTypeName] = useState<boolean>(false);
   const [newTypeName, setNewTypeName] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [userNote, setUserNote] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       fetchInitialData();
+      // Initialize user note when editing existing brand
+      if (currentBrand?.note) {
+        const noteParts = currentBrand.note.split('--- Điều kiện ---');
+        const userNotePart = noteParts[0].trim();
+        setUserNote(userNotePart);
+      } else {
+        setUserNote('');
+      }
     }
-  }, [isOpen, selectedService]);
+  }, [isOpen, selectedService, currentBrand?.note]);
 
   // Đảm bảo selectedDeviceId vẫn hợp lệ khi deviceOptions thay đổi
   useEffect(() => {
@@ -59,7 +71,30 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }
   }, [deviceOptions, selectedDeviceId]);
 
-  const fetchInitialData = async () => {
+  // ✅ Debug: Theo dõi khi deviceOptions thay đổi
+  useEffect(() => {
+    console.log('📊 [BrandModal] deviceOptions changed:', {
+      count: deviceOptions.length,
+      options: deviceOptions.map(o => ({ id: o.id, name: o.name })),
+      isSearching
+    });
+  }, [deviceOptions, isSearching]);
+
+  // ✅ Debug: Theo dõi isSearching state
+  useEffect(() => {
+    console.log('🔍 [BrandModal] isSearching changed:', isSearching);
+  }, [isSearching]);
+
+  // ✅ Reset search state khi modal đóng
+  useEffect(() => {
+    if (!isOpen) {
+      console.log('🔄 [BrandModal] Modal closed, resetting search state');
+      setIsSearching(false);
+    }
+  }, [isOpen]);
+
+  // ✅ callback ổn định cho fetch initial data
+  const fetchInitialData = useCallback(async () => {
     // Fetch initial options for Device Types (Loại máy)
     const deviceInfosRes = await deviceApiService.getDeviceInfos({}, { limit: 20 });
     let deviceOptionsData = deviceInfosRes.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
@@ -91,8 +126,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
         // Handle Device Type for editing
         if (currentBrand.device_type) {
-            const isDeviceInList = deviceOptionsData.some(d => d.name === currentBrand.device_type);
-            if (!isDeviceInList) {
+          setDeviceTypeSearchTerm(currentBrand.device_type);
+          const isDeviceInList = deviceOptionsData.some(d => d.name === currentBrand.device_type);
+          if (!isDeviceInList) {
                 // Nếu device không có trong danh sách đã filter, search thêm
                 const res = await deviceApiService.getDeviceInfos({ search: currentBrand.device_type }, { limit: 1 });
                 if (res.devices.length > 0) {
@@ -138,13 +174,21 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         setSelectedColor('');
         setSelectedDeviceBrand('');
     }
-  };
+  }, [currentBrand, selectedService]);
 
-  const handleDeviceBrandChange = async (brandId: string) => {
+  // ✅ callback ổn định cho device brand change
+  const handleDeviceBrandChange = useCallback(async (brandId: string) => {
+    console.log('🔄 [BrandModal] Device brand change:', { from: selectedDeviceBrand, to: brandId });
+    
+    // ✅ QUAN TRỌNG: Reset searching state khi thay đổi brand
+    // Điều này cho phép update deviceOptions
+    setIsSearching(false);
+    
     setSelectedDeviceBrand(brandId);
     
     // Reset device selection khi thay đổi thương hiệu
     setSelectedDeviceId('');
+    setDeviceTypeSearchTerm('');
     setColorOptions([]);
     setSelectedColor('');
     
@@ -166,7 +210,19 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           id: String(d.id), 
           name: String(d.model) 
         }));
-        setDeviceOptions(deviceOptionsData);
+        
+        // ✅ QUAN TRỌNG: Luôn update deviceOptions khi thay đổi brand
+        // Vì đã reset isSearching = false
+        setDeviceOptions(prevOptions => {
+          console.log('🔄 [BrandModal] Brand change - updating deviceOptions:', {
+            previous: prevOptions.length,
+            new: deviceOptionsData.length,
+            isSearching: false
+          });
+          
+          return deviceOptionsData;
+        });
+        
         console.log('Filtered devices for brand:', selectedBrand.name, ':', deviceOptionsData);
       }
     } else {
@@ -179,59 +235,134 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
       setDeviceOptions(deviceOptionsData);
       console.log('All devices loaded:', deviceOptionsData);
     }
-  };
+  }, [deviceBrands, selectedDeviceBrand]);
 
-  const handleSearchDeviceInfos = async (term: string) => {
-    console.log('Searching for:', term, 'with selected brand:', selectedDeviceBrand);
+  // ✅ callback ổn định cho search device infos
+  const handleSearchDeviceInfos = useCallback(async (term: string) => {
+    console.log('🔍 [BrandModal] Search started:', { term, selectedDeviceBrand });
     
-    // Khi search, KHÔNG filter theo thương hiệu đã chọn
-    // Chỉ search theo term, để user có thể tìm máy khác thương hiệu
-    const searchParams: any = { search: term };
+    // ✅ Set searching state để tránh bị override
+    setIsSearching(true);
     
-    const res = await deviceApiService.getDeviceInfos(searchParams, { limit: 20 });
-    const devices = res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
-    console.log('Search results for term:', term, 'devices:', devices); // Debug log
-    
-    // Cập nhật deviceOptions với kết quả tìm kiếm
-    setDeviceOptions(devices);
-    
-    return devices;
-  };
-
-  const handleSearchDeviceBrands = async (term: string) => {
-    const res = await deviceBrandService.getDeviceBrands(0, 20, term);
-    return res.map(b => ({ id: b.id, name: b.name }));
-  };
-
-  const handleDeviceChange = async (deviceId: string) => {
-    console.log('handleDeviceChange called with deviceId:', deviceId); // Debug log
-    console.log('Current deviceOptions:', deviceOptions); // Debug log
-    
-    // Kiểm tra xem deviceId có tồn tại trong deviceOptions không
-    const selectedDevice = deviceOptions.find(d => d.id === deviceId);
-    if (!selectedDevice) {
-      console.error('Selected device not found in deviceOptions:', deviceId, deviceOptions);
-      return;
+    try {
+      // ✅ Khi search, vẫn filter theo thương hiệu đã chọn để đảm bảo tính nhất quán
+      const searchParams: any = { search: term };
+      if (selectedDeviceBrand) {
+        const selectedBrand = deviceBrands.find(b => b.id === selectedDeviceBrand);
+        if (selectedBrand) {
+          searchParams.brand = selectedBrand.name;
+        }
+      }
+      
+      console.log('🔍 [BrandModal] API call params:', searchParams);
+      const res = await deviceApiService.getDeviceInfos(searchParams, { limit: 20 });
+      const devices = res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
+      console.log('🔍 [BrandModal] API response:', { 
+        term, 
+        brandFilter: searchParams.brand, 
+        devicesCount: devices.length,
+        devices: devices.map(d => d.name)
+      });
+      
+      // ✅ QUAN TRỌNG: Cập nhật deviceOptions với kết quả tìm kiếm
+      // Sử dụng functional update để đảm bảo state update đúng cách
+      setDeviceOptions(prevOptions => {
+        console.log('🔄 [BrandModal] State update:', { 
+          previous: prevOptions.length, 
+          new: devices.length,
+          previousOptions: prevOptions.map(o => o.name),
+          newOptions: devices.map(o => o.name)
+        });
+        return devices;
+      });
+      
+      // ✅ QUAN TRỌNG: Đợi state update hoàn tất trước khi return
+      // Điều này đảm bảo SearchableSelect nhận được options mới
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      console.log('✅ [BrandModal] Search completed, returning devices');
+      return devices;
+    } catch (error) {
+      console.error('❌ [BrandModal] Search failed:', error);
+      // Trong trường hợp lỗi, vẫn cập nhật state để hiển thị empty
+      setDeviceOptions([]);
+      return [];
     }
+    // ❌ KHÔNG reset isSearching ngay lập tức - để giữ kết quả search
+    // setIsSearching(false) sẽ được gọi khi user chọn option hoặc đóng dropdown
+  }, [selectedDeviceBrand, deviceBrands]);
+
+  // ✅ callback ổn định cho search device brands
+  const handleSearchDeviceBrands = useCallback(async (term: string) => {
+    try {
+      const brands = await deviceBrandService.getDeviceBrands(0, 20, term);
+      return brands.map(brand => ({ id: brand.id, name: brand.name }));
+    } catch (error) {
+      console.error('Failed to search device brands:', error);
+      return [];
+    }
+  }, []);
+
+  // ✅ callback ổn định cho device change
+  const handleDeviceChange = useCallback((deviceId: string) => {
+    console.log('🔄 [BrandModal] Device selected:', deviceId);
+    
+    // ✅ Reset searching state khi user chọn device
+    setIsSearching(false);
     
     setSelectedDeviceId(deviceId);
-    setSelectedColor('');
-    setColorOptions([]);
     if (deviceId) {
-      const colors = await deviceApiService.getColorsByDeviceInfoId(deviceId);
-      setColorOptions(colors.map(c => ({ id: String(c.id), name: String(c.name) })));
+      // Fetch colors for selected device
+      deviceApiService.getColorsByDeviceInfoId(deviceId).then(colors => {
+        const newColorOptions = colors.map(c => ({ id: String(c.id), name: String(c.name) }));
+        setColorOptions(newColorOptions);
+        setSelectedColor('');
+      });
+    } else {
+      setColorOptions([]);
+      setSelectedColor('');
     }
-  };
-  const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedColor(e.target.value);
-};
+  }, []);
 
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '');
-    if (/^\d*$/.test(rawValue)) {
-      setCurrentBrand(prev => prev ? { ...prev, price: rawValue } : null);
-    }
-  };
+  const handleConditionsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = e.target;
+    setCurrentBrand(prev => {
+        if (!prev) return null;
+
+        // Define a marker to separate user notes from conditions
+        const conditionsMarker = '--- Điều kiện ---';
+
+        // Update the conditions array
+        const prevConditions = prev.conditions || [];
+        const newConditions = checked
+            ? [...prevConditions, value]
+            : prevConditions.filter(c => c !== value);
+
+        // Update the note field
+        let newNote = userNote;
+        if (newConditions.length > 0) {
+            const conditionsText = newConditions.join(', ');
+            // If there's a user note, add a newline before conditions
+            if (userNote) {
+                newNote = `${userNote}\n${conditionsText}`;
+            } else {
+                newNote = conditionsText;
+            }
+        }
+
+        // We add a hidden marker to the end of the note to reliably find the user-written part later
+        if (newNote) {
+            newNote += `\n${conditionsMarker}`;
+        }
+
+        return { ...prev, conditions: newConditions, note: newNote };
+    });
+  }, []);
+  // ✅ callback ổn định cho price change
+  const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d]/g, '');
+    setCurrentBrand(prev => prev ? { ...prev, price: value } : null);
+  }, []);
 
   const formatPrice = (price: string): string => {
     if (!price) return '';
@@ -240,162 +371,110 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     return numberValue.toLocaleString('vi-VN');
   };
 
-  const handleSave = async () => {
-    if (!currentBrand || !currentBrand.name || !selectedService) {
-        Swal.fire('Lỗi', 'Tên loại không được để trống.', 'error');
+  // ✅ callback ổn định cho save
+  const handleSave = useCallback(async () => {
+    try {
+      if (!currentBrand?.name || !selectedService) {
+        Swal.fire('Lỗi', 'Vui lòng điền đầy đủ thông tin bắt buộc.', 'error');
         return;
-    }
+      }
 
-    // Lấy tên thiết bị từ selectedDeviceId
-    const selectedDevice = deviceOptions.find(d => d.id === selectedDeviceId);
-    const deviceName = selectedDevice?.name || '';
-    
-    console.log('Save - selectedDeviceId:', selectedDeviceId);
-    console.log('Save - selectedDevice:', selectedDevice);
-    console.log('Save - deviceName:', deviceName);
-    console.log('Save - deviceOptions:', deviceOptions);
-    
-    // Kiểm tra xem có chọn thiết bị không
-    if (!selectedDeviceId || !deviceName) {
-        Swal.fire('Lỗi', 'Vui lòng chọn loại máy.', 'error');
+      // Validate device brand selection
+      if (!selectedDeviceBrand) {
+        Swal.fire('Lỗi', 'Vui lòng chọn thương hiệu thiết bị.', 'error');
         return;
-    }
-    
-    const deviceBrandId = selectedDeviceBrand || undefined;
+      }
 
-    if (selectedColor === 'all' && colorOptions.length > 0) {
-        try {
-            for (const colorOpt of colorOptions) {
-                const payload: Partial<Brand> = {
-                    name: currentBrand.name,
-                    warranty: currentBrand.warranty || '',
-                    service_id: selectedService.id,
-                    device_brand_id: deviceBrandId,
-                    device_type: deviceName,
-                    color: colorOpt.name,
-                    price: currentBrand.price || '',
-                    note: currentBrand.note || ''
-                };
-                await brandService.createBrand(payload);
-            }
-            onSave();
-            onClose();
-        } catch (error: any) {
-            console.error("Failed to create brands for all colors", error);
-        }
-    } else {
-        const colorName = colorOptions.find(c => c.id === selectedColor)?.name || '';
-        
-        const payload: Partial<Brand> = {
-            name: currentBrand.name,
-            warranty: currentBrand.warranty || '',
+      if (selectedColor === 'all') {
+        // Save a service for each color sequentially
+        for (const color of colorOptions) {
+          const brandData = {
+            ...currentBrand,
             service_id: selectedService.id,
-            device_brand_id: deviceBrandId,
-            device_type: deviceName,
-            color: colorName,
-            price: currentBrand.price || '',
-            note: currentBrand.note || ''
+            device_brand_id: selectedDeviceBrand,
+            device_type: deviceOptions.find(d => d.id === selectedDeviceId)?.name || '',
+            color: color.name,
+          };
+
+          // Since we are creating multiple entries, we should only use createBrand
+          // and not updateBrand, as 'all' implies creating new entries for each color.
+          await brandService.createBrand(brandData);
+          // Optional: add a small delay to prevent overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        Swal.fire('Thành công', `Đã tạo dịch vụ cho ${colorOptions.length} màu!`, 'success');
+
+      } else {
+        // Save for a single selected color
+        const brandData = {
+          ...currentBrand,
+          service_id: selectedService.id,
+          device_brand_id: selectedDeviceBrand,
+          device_type: deviceOptions.find(d => d.id === selectedDeviceId)?.name || '',
+          color: colorOptions.find(c => c.id === selectedColor)?.name || '',
         };
 
-        try {
-            if (currentBrand.id) {
-                await brandService.updateBrand(currentBrand.id, payload);
-            } else {
-                await brandService.createBrand(payload);
-            }
-            onSave();
-            onClose();
-        } catch (error: any) {
-            console.error("Failed to save brand", error);
+        if (currentBrand.id) {
+          await brandService.updateBrand(currentBrand.id, brandData);
+          Swal.fire('Thành công', 'Cập nhật loại dịch vụ thành công!', 'success');
+        } else {
+          await brandService.createBrand(brandData);
+          Swal.fire('Thành công', 'Tạo loại dịch vụ thành công!', 'success');
         }
-    }
-};
+      }
 
-  const handleDeleteDeviceBrand = async (brandId: string) => {
-    if (!brandId) return;
-
-    try {
-      await deviceBrandService.deleteDeviceBrand(brandId);
-      fetchInitialData(); // Refresh data
-      setSelectedDeviceBrand(''); // Reset selection
+      onSave();
+      onClose();
     } catch (error) {
-      console.error("Failed to delete device brand", error);
+      console.error('Failed to save brand:', error);
+      Swal.fire('Lỗi', 'Có lỗi xảy ra khi lưu loại dịch vụ.', 'error');
     }
-  };
+  }, [currentBrand, selectedService, selectedDeviceBrand, selectedDeviceId, selectedColor, deviceOptions, colorOptions, onSave, onClose]);
 
-  const handleEditDeviceBrand = async (brandId: string, currentName: string) => {
-    Swal.fire({
-      title: 'Sửa tên thương hiệu',
-      input: 'text',
-      inputValue: currentName,
-      showCancelButton: true,
-      confirmButtonText: 'Lưu',
-      cancelButtonText: 'Hủy',
-      inputValidator: (value) => {
-        if (!value) {
-          return 'Tên không được để trống!'
-        }
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await deviceBrandService.updateDeviceBrand(brandId, { name: result.value });
-          fetchInitialData();
-        } catch (error) {
-          console.error("Failed to update device brand", error);
-        }
-      }
-    });
-  };
+  // ✅ callback ổn định cho service name change
+  const handleServiceNameChange = useCallback((value: string) => {
+    const selected = uniqueBrandNames.find(b => b.name === value);
+    setCurrentBrand(prev => ({
+      ...prev,
+      name: value,
+      warranty: selected ? selected.warranty : prev?.warranty || ''
+    }));
+  }, [uniqueBrandNames]);
 
-  const handleEditWarranty = async (warrantyId: string, currentValue: string) => {
-    Swal.fire({
-      title: 'Sửa thông tin bảo hành',
-      input: 'text',
-      inputValue: currentValue,
-      showCancelButton: true,
-      confirmButtonText: 'Lưu',
-      cancelButtonText: 'Hủy',
-      inputValidator: (value) => {
-        if (!value) {
-          return 'Thông tin không được để trống!'
-        }
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await warrantyService.updateWarrantyService(warrantyId, { value: result.value });
-          fetchInitialData();
-          if (currentBrand?.warranty === currentValue) {
-            setCurrentBrand(prev => prev ? { ...prev, warranty: result.value } : null);
-          }
-        } catch (error) {
-          console.error("Failed to update warranty service", error);
-        }
-      }
-    });
-  };
+  // ✅ callback ổn định cho warranty change
+  const handleWarrantyChange = useCallback((value: string) => {
+    const selectedWarranty = (warrantyServices || []).find(ws => ws.id === value);
+    setCurrentBrand(prev => prev ? { ...prev, warranty: selectedWarranty?.value || '' } : null);
+  }, [warrantyServices]);
 
-  const handleDeleteWarranty = async (warrantyId: string) => {
-    if (!warrantyId) return;
-  
+  // ✅ callback ổn định cho edit warranty
+  const handleEditWarranty = useCallback(async (warrantyId: string, newValue: string) => {
+    try {
+      const updatedWarranty = await warrantyService.updateWarrantyService(warrantyId, { value: newValue });
+      setWarrantyServices(prev => prev.map(w => w.id === warrantyId ? updatedWarranty : w));
+    } catch (error) {
+      console.error('Failed to update warranty service:', error);
+    }
+  }, []);
+
+  // ✅ callback ổn định cho delete warranty
+  const handleDeleteWarranty = useCallback(async (warrantyId: string) => {
     try {
       await warrantyService.deleteWarrantyService(warrantyId);
-      fetchInitialData();
-      const warrantyToDelete = warrantyServices.find(w => w.id === warrantyId);
-      if (warrantyToDelete && currentBrand?.warranty === warrantyToDelete.value) {
-        setCurrentBrand(prev => prev ? { ...prev, warranty: '' } : null);
-      }
+      setWarrantyServices(prev => prev.filter(w => w.id !== warrantyId));
     } catch (error) {
-      console.error("Failed to delete warranty service", error);
+      console.error('Failed to delete warranty service:', error);
     }
-  };
+  }, []);
 
-  if (!isOpen) return null;
+  // ✅ KHÔNG return null khi !isOpen, giữ mount và ẩn bằng CSS
+  if (!isOpen) {
+    return null; // Tạm thởi giữ nguyên để tránh breaking change
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-xl shadow-2xl w-full max-h-[90vh] overflow-y-auto ${currentBrand?.id ? 'max-w-2xl' : 'max-w-4xl'}`}>
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -404,12 +483,12 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                 <Edit3 size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-bold">
+                <h3 className="text-lg font-bold">
                   {currentBrand?.id 
                     ? `Sửa loại cho "${selectedService?.name}"` 
                     : 'Thêm loại mới'}
                 </h3>
-                <p className="text-blue-100 text-sm mt-1">
+                <p className="text-blue-100 text-xs mt-1">
                   {currentBrand?.id ? 'Cập nhật thông tin loại dịch vụ' : 'Tạo loại dịch vụ mới cho khách hàng'}
                 </p>
               </div>
@@ -423,373 +502,260 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="p-4 space-y-4">
-          {/* Service Name Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <Smartphone size={16} className="mr-2 text-blue-600" />
-              Loại {selectedService ? `cho "${selectedService.name}"` : ''} <span className="text-red-500 ml-1">*</span>
-            </label>
-            <div className="mt-2">
-              {currentBrand?.id ? (
-                <input
-                  type="text"
-                  value={currentBrand?.name || ''}
-                  onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Nhập tên loại dịch vụ"
-                />
-              ) : !isAddingNewTypeName ? (
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))}
-                      value={currentBrand?.name || ''}
-                      onChange={(value) => {
-                        const selected = uniqueBrandNames.find(b => b.name === value);
-                        setCurrentBrand(prev => ({
-                          ...prev,
-                          name: value,
-                          warranty: selected ? selected.warranty : prev?.warranty || ''
-                        }));
-                      }}
-                      placeholder="Chọn tên loại có sẵn"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewTypeName(true)}
-                    className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                    title="Thêm loại mới"
-                  >
-                    <Plus size={14} />
-                    <span>Mới</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTypeName}
-                    onChange={(e) => setNewTypeName(e.target.value)}
-                    placeholder="Tên loại mới"
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => {
-                      if (!newTypeName.trim()) return;
-                      setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' }));
-                      if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) {
-                        setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]);
-                      }
-                      setIsAddingNewTypeName(false);
-                      setNewTypeName('');
-                    }}
-                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Check size={14} />
-                    <span>Lưu</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewTypeName(false)}
-                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <X size={14} />
-                    <span>Hủy</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Device Brand Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <Smartphone size={16} className="mr-2 text-purple-600" />
-              Thương hiệu điện thoại
-            </label>
-            <div className="mt-2">
-              {!isAddingNewBrand ? (
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={deviceBrands.map(brand => ({ id: brand.id, name: brand.name }))}
-                      value={selectedDeviceBrand}
-                      onChange={handleDeviceBrandChange}
-                      placeholder="Chọn thương hiệu"
-                      onDelete={handleDeleteDeviceBrand}
-                      onEdit={handleEditDeviceBrand}
-                      onSearch={handleSearchDeviceBrands}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewBrand(true)}
-                    className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                    title="Thêm thương hiệu mới"
-                  >
-                    <Plus size={14} />
-                    <span>Mới</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newDeviceBrand}
-                    onChange={(e) => setNewDeviceBrand(e.target.value)}
-                    placeholder="Tên thương hiệu mới"
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    autoFocus
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!newDeviceBrand.trim()) return;
-                      try {
-                        const newBrand = await deviceBrandService.createDeviceBrand({ name: newDeviceBrand.trim() });
-                        setDeviceBrands(prev => [...prev, newBrand]);
-                        setSelectedDeviceBrand(newBrand.id);
-                        setNewDeviceBrand('');
-                        setIsAddingNewBrand(false);
-                      } catch (error) {
-                        console.error('Failed to create device brand:', error);
-                      }
-                    }}
-                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Check size={14} />
-                    <span>Lưu</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewBrand(false)}
-                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <X size={14} />
-                    <span>Hủy</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Device Type Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <Smartphone size={16} className="mr-2 text-indigo-600" />
-              Loại máy
-              {selectedDeviceBrand && (
-                <span className="ml-2 text-xs text-gray-500">
-                  (Đã filter theo thương hiệu: {deviceBrands.find(b => b.id === selectedDeviceBrand)?.name})
-                </span>
-              )}
-            </label>
-            <SearchableSelect
-                key={`device-select-${selectedDeviceBrand}-${deviceOptions.length}`}
-                options={deviceOptions}
-                value={selectedDeviceId}
-                onChange={handleDeviceChange}
-                placeholder={selectedDeviceBrand ? "Chọn loại máy từ thương hiệu đã chọn" : "Chọn loại máy"}
-                onSearch={handleSearchDeviceInfos}
-            />
-            {selectedDeviceBrand && deviceOptions.length === 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                Không tìm thấy thiết bị nào cho thương hiệu "{deviceBrands.find(b => b.id === selectedDeviceBrand)?.name}". 
-                Bạn có thể search để tìm thiết bị khác.
-              </p>
-            )}
-          </div>
-          
-          {/* Color Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <Palette size={16} className="mr-2 text-pink-600" />
-              Màu sắc
-            </label>
-            <select
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                value={selectedColor}
-                onChange={handleColorChange}
-                disabled={!selectedDeviceId}
-            >
-                <option value="">Chọn màu sắc</option>
-                {colorOptions.length > 0 && (
-                    <option value="all">Tất cả màu sắc</option>
-                )}
-                {colorOptions.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.name}</option>
-                ))}
-            </select>
-            {!selectedDeviceId && (
-              <p className="text-sm text-gray-500 mt-2">Vui lòng chọn loại máy trước để xem các màu sắc</p>
-            )}
-          </div>
-
-          {/* Price Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <DollarSign size={16} className="mr-2 text-green-600" />
-              Giá
-            </label>
-            <input
-                type="text"
-                value={formatPrice(currentBrand?.price || '')}
-                onChange={handlePriceChange}
-                placeholder="Nhập giá (VD: 500.000)"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-            />
-          </div>
-
-          {/* Warranty Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <Shield size={16} className="mr-2 text-orange-600" />
-              Bảo hành
-            </label>
-            <div className="mt-2">
-              {!isAddingNewWarranty ? (
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      options={(warrantyServices || []).map(ws => ({ id: ws.id, name: ws.value }))}
-                      value={(warrantyServices || []).find(ws => ws.value === currentBrand?.warranty)?.id || ''}
-                      onChange={(value) => {
-                        const selectedWarranty = (warrantyServices || []).find(ws => ws.id === value);
-                        setCurrentBrand(prev => prev ? { ...prev, warranty: selectedWarranty?.value || '' } : null);
-                      }}
-                      placeholder="Chọn bảo hành"
-                      onDelete={handleDeleteWarranty}
-                      onEdit={handleEditWarranty}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewWarranty(true)}
-                    className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                    title="Thêm bảo hành mới"
-                  >
-                    <Plus size={14} />
-                    <span>Mới</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newWarrantyService}
-                    onChange={(e) => setNewWarrantyService(e.target.value)}
-                    placeholder="Thông tin bảo hành mới"
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                    autoFocus
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!newWarrantyService.trim()) return;
-                      try {
-                        const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() });
-                        setWarrantyServices(prev => [...prev, newWarranty]);
-                        setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null);
-                        setNewWarrantyService('');
-                        setIsAddingNewWarranty(false);
-                      } catch (error) {
-                        console.error('Failed to create warranty service:', error);
-                      }
-                    }}
-                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Check size={14} />
-                    <span>Lưu</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingNewWarranty(false)}
-                    className="px-3 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-colors duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <X size={14} />
-                    <span>Hủy</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Note Section */}
-          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <FileText size={16} className="mr-2 text-teal-600" />
-              Ghi chú
-            </label>
-            <textarea
-                value={currentBrand?.note || ''}
-                onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, note: e.target.value } : null)}
-                placeholder="Ghi chú thêm (VD: Áp dụng cho máy còn tem, điều kiện đặc biệt...)"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 resize-none"
-                rows={3}
-            />
-          </div>
-
-          {/* Conditions Section */}
-          {selectedService && selectedService.conditions && selectedService.conditions.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200">
-              <label className="block text-sm font-semibold text-blue-700 mb-2 flex items-center">
-                <Shield size={16} className="mr-2 text-blue-600" />
-                Điều kiện áp dụng
-              </label>
-              <div className="mt-2 space-y-2">
-                {selectedService.conditions.map((condition, index) => (
-                  <div key={index} className="flex items-center p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors duration-200">
-                    <input
-                      id={`condition-${index}`}
-                      type="checkbox"
-                      checked={currentBrand?.note?.includes(condition)}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        setCurrentBrand(prev => {
-                          if (!prev) return null;
-                          const existingNotes = prev.note ? prev.note.split(', ').filter(n => n.trim() !== '') : [];
-                          let newNotes;
-                          if (isChecked) {
-                            newNotes = [...existingNotes, condition];
-                          } else {
-                            newNotes = existingNotes.filter(n => n !== condition);
-                          }
-                          return { ...prev, note: newNotes.join(', ') };
-                        });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors duration-200"
-                    />
-                    <label htmlFor={`condition-${index}`} className="ml-2 block text-sm text-blue-800 font-medium cursor-pointer hover:text-blue-900 transition-colors duration-200">
-                      {condition}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer Actions */}
-        <div className="bg-gray-50 px-4 py-3 rounded-b-xl border-t border-gray-200">
-          <div className="flex justify-end gap-2">
-            <button 
-              onClick={onClose} 
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
-            >
-              Hủy
-            </button>
-            <button 
-              onClick={handleSave} 
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-md hover:shadow-lg transform hover:scale-105"
-            >
-              {currentBrand?.id ? 'Cập nhật' : 'Tạo mới'}
-            </button>
-          </div>
-        </div>
-      </div>
+{/* Form Content */}
+<div className="p-8 space-y-8">
+{/* Row 1: Device Brand, Type, Color */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+{/* Device Brand */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Thương hiệu</label>
+{!isAddingNewBrand ? (
+  <div className="relative">
+    <div className="flex gap-2">
+      <input
+        type="text"
+        placeholder="Chọn thương hiệu"
+        value={deviceBrands.find(b => b.id === selectedDeviceBrand)?.name || ''}
+        onChange={(e) => {
+          // Handle search
+          handleSearchDeviceBrands(e.target.value);
+        }}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+      />
+      <button type="button" onClick={() => setIsAddingNewBrand(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
     </div>
-  );
+    <div className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+      {deviceBrands.map(brand => (
+        <div
+          key={brand.id}
+          onClick={() => {
+            handleDeviceBrandChange(brand.id);
+          }}
+          className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceBrand === brand.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+        >
+          {brand.name}
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+<div className="flex gap-2">
+<input type="text" value={newDeviceBrand} onChange={(e) => setNewDeviceBrand(e.target.value)} placeholder="Tên thương hiệu mới" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" autoFocus />
+<button onClick={async () => { if (!newDeviceBrand.trim()) return; const newBrand = await deviceBrandService.createDeviceBrand({ name: newDeviceBrand.trim() }); setDeviceBrands(prev => [...prev, newBrand]); setSelectedDeviceBrand(newBrand.id); setNewDeviceBrand(''); setIsAddingNewBrand(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
+<button type="button" onClick={() => setIsAddingNewBrand(false)} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+</div>
+)}
+</div>
+
+{/* Device Type */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Loại máy</label>
+<div className="relative">
+<input
+  type="text"
+  placeholder="Tìm và chọn loại máy"
+  value={deviceTypeSearchTerm}
+  onChange={(e) => {
+    setDeviceTypeSearchTerm(e.target.value);
+    handleSearchDeviceInfos(e.target.value);
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+/>
+<div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+  {deviceOptions.map(option => (
+    <div
+      key={option.id}
+      onClick={() => {
+        handleDeviceChange(option.id);
+        setDeviceTypeSearchTerm(option.name);
+      }}
+      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceId === option.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+    >
+      {option.name}
+    </div>
+  ))}
+</div>
+</div>
+</div>
+
+{/* Color */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Màu sắc</label>
+<div className="relative">
+<input
+  type="text"
+  placeholder="Chọn màu"
+  value={selectedColor === 'all' ? 'Tất cả màu sắc' : colorOptions.find(c => c.id === selectedColor)?.name || (selectedDeviceId ? 'Chọn màu' : 'Chọn loại máy')}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+  disabled={!selectedDeviceId}
+/>
+<div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+  {selectedDeviceId && (
+    <>
+      <div
+        key="all"
+        onClick={async () => {
+          setSelectedColor('all');
+          setCurrentBrand(prev => prev ? { ...prev, color: 'Tất cả màu sắc' } : null);
+          
+          // Call API for each color when 'Tất cả màu sắc' is selected
+          if (selectedDeviceId && selectedDeviceBrand && colorOptions.length > 0) {
+            // Execute API calls sequentially (one after another)
+            for (const color of colorOptions) {
+              try {
+                await deviceApiService.addColorToDevice(selectedDeviceId, color.id);
+                console.log(`Successfully added color ${color.name} to device ${selectedDeviceId}`);
+                // Add a small delay between calls to avoid overwhelming the server
+                await new Promise(resolve => setTimeout(resolve, 100));
+              } catch (error) {
+                console.error(`Error adding color ${color.name} to device ${selectedDeviceId}:`, error);
+                // Optionally show error to user
+              }
+            }
+          }
+        }}
+        className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+      >
+        Tất cả màu sắc
+      </div>
+      {colorOptions.map(color => (
+        <div
+          key={color.id}
+          onClick={() => {
+            setSelectedColor(color.id);
+            setCurrentBrand(prev => prev ? { ...prev, color: color.name } : null);
+          }}
+          className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === color.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+        >
+          {color.name}
+        </div>
+      ))}
+    </>
+  )}
+  {!selectedDeviceId && (
+    <div className="px-3 py-2 text-gray-500">Vui lòng chọn loại máy</div>
+  )}
+</div>
+</div>
+<div className="h-4"></div>
+</div>
+</div>
+
+{/* Row 2: Service Name, Price, Warranty */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+{/* Service Name */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Loại dịch vụ <span className="text-red-500">*</span></label>
+{currentBrand?.id ? (
+<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại dịch vụ" />
+) : !isAddingNewTypeName ? (
+<div className="flex gap-2">
+<div className="flex-1"><SearchableSelect options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))} value={currentBrand?.name || ''} onChange={handleServiceNameChange} placeholder="Chọn tên loại có sẵn" /></div>
+<button type="button" onClick={() => setIsAddingNewTypeName(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+</div>
+) : (
+<div className="flex flex-col gap-1">
+<input type="text" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Tên loại mới" className="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-base" autoFocus />
+<div className="flex gap-1 justify-end">
+<button onClick={() => { if (!newTypeName.trim()) return; setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' })); if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) { setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]); } setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"><Check size={14} className="inline mr-1"/>Xác nhận</button>
+<button type="button" onClick={() => setIsAddingNewTypeName(false)} className="px-3 py-1 bg-gray-400 text-white rounded-md hover:bg-gray-500 text-sm"><X size={14} className="inline mr-1"/>Hủy</button>
+</div>
+</div>
+)}
+</div>
+
+{/* Price */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Giá</label>
+<input type="text" value={formatPrice(currentBrand?.price || '')} onChange={handlePriceChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá" />
+</div>
+
+{/* Warranty */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Bảo hành</label>
+{!isAddingNewWarranty ? (
+<div className="flex gap-2">
+<div className="flex-1"><SearchableSelect options={(warrantyServices || []).map(w => ({ id: w.id, name: w.value }))} value={(warrantyServices || []).find(w => w.value === currentBrand?.warranty)?.id || ''} onChange={handleWarrantyChange} placeholder="Chọn bảo hành" onDelete={handleDeleteWarranty} onEdit={handleEditWarranty} /></div>
+<button type="button" onClick={() => setIsAddingNewWarranty(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+</div>
+) : (
+<div className="flex gap-2">
+<input type="text" value={newWarrantyService} onChange={(e) => setNewWarrantyService(e.target.value)} placeholder="Bảo hành mới" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
+<button onClick={async () => { if (!newWarrantyService.trim()) return; const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() }); setWarrantyServices(prev => [...prev, newWarranty]); setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null); setNewWarrantyService(''); setIsAddingNewWarranty(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
+<button type="button" onClick={() => setIsAddingNewWarranty(false)} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+</div>
+)}
+</div>
+</div>
+
+{/* Row 3: Notes */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Ghi chú</label>
+<textarea 
+    value={userNote}
+    onChange={(e) => {
+        const newText = e.target.value;
+        setUserNote(newText);
+        // Update the full note in currentBrand
+        setCurrentBrand(prev => {
+            if (!prev) return null;
+            const conditionsText = (prev.conditions || []).join(', ');
+            let newNote = newText;
+            if (conditionsText) {
+                newNote = newText ? `${newText}\n${conditionsText}` : conditionsText;
+            }
+            // Append the hidden marker for internal tracking
+            if (newNote) {
+                newNote += '\n--- Điều kiện ---';
+            }
+            return { ...prev, note: newNote };
+        });
+    }}
+    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" 
+    placeholder="Thêm ghi chú nếu cần" 
+    rows={3}
+></textarea>
+</div>
+
+{/* Conditions Section (for Battery Replacement) */}
+{selectedService?.conditions && selectedService.conditions.length > 0 && (
+<div>
+<label className="block text-base font-medium text-gray-700 mb-3">Điều kiện áp dụng</label>
+<div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 border border-gray-200 rounded-lg">
+{selectedService.conditions.map(condition => (
+<label key={condition} className="flex items-center space-x-2 cursor-pointer">
+<input
+type="checkbox"
+value={condition}
+checked={(currentBrand?.conditions || []).includes(condition)}
+onChange={handleConditionsChange}
+className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+/>
+<span className="text-sm text-gray-700">{condition}</span>
+</label>
+))}
+</div>
+</div>
+)}
+
+{/* Footer with buttons */}
+<div className="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end space-x-3 border-t border-gray-200">
+<button 
+onClick={onClose} 
+className="px-6 py-3 text-base font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 focus:ring-4 focus:ring-gray-200 focus:outline-none transition-all"
+>
+Hủy
+</button>
+<button 
+onClick={handleSave} 
+className="px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 focus:outline-none transition-all flex items-center shadow-sm"
+>
+<Check size={18} className="mr-2" />
+{currentBrand?.id ? 'Lưu thay đổi' : 'Tạo mới'}
+</button>
+</div>
+</div>
+</div>
+</div>
+);
 };
