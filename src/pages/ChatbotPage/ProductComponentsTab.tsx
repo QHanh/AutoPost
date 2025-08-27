@@ -70,6 +70,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     product_name: '',
     stock: 0,
     amount: 0,
+    wholesale_price: undefined,
     properties: '',
     category: '',
     guarantee: '',
@@ -425,6 +426,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         guarantee: productComponent.guarantee || '',
         stock: productComponent.stock,
         amount: productComponent.amount,
+        wholesale_price: productComponent.wholesale_price,
         description: productComponent.description || '',
         product_photo: productComponent.product_photo || '',
         product_link: productComponent.product_link || '',
@@ -438,6 +440,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         product_name: '',
         stock: 0,
         amount: 0,
+        wholesale_price: undefined,
         properties: '',
         category: '',
         guarantee: '',
@@ -764,6 +767,16 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <Plus size={20} className="mr-2" />
             Thêm Linh Kiện
           </button>
+          {productComponents.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              className="bg-red-700 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              <Trash2 size={20} className="mr-2" />
+              Xóa Tất Cả
+            </button>
+          )}
           <input
             type="file"
             ref={fileInputRef}
@@ -856,6 +869,16 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                 </th>
                 <th 
                   scope="col" 
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort('wholesale_price')}
+                >
+                  <div className="flex items-center justify-end">
+                    Giá Bán Buôn
+                    {renderSortIcon('wholesale_price')}
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('trademark')}
                 >
@@ -894,7 +917,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <tbody className="bg-white divide-y divide-gray-200">
               {productComponents.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={15} className="px-6 py-4 text-center text-gray-500">
                     {searchTerm ? `Không tìm thấy kết quả nào cho "${searchTerm}"` : 'Không có dữ liệu linh kiện nào'}
                   </td>
                 </tr>
@@ -938,6 +961,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
                        {formatCurrency(productComponent.amount)}
+                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-right">
+                       {productComponent.wholesale_price ? formatCurrency(productComponent.wholesale_price) : 'N/A'}
                      </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{productComponent.trademark || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1012,16 +1038,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
               Xóa {selectedProductComponents.size} mục
             </button>
           )}
-          {productComponents.length > 0 && selectedProductComponents.size === 0 && (
-            <button
-              onClick={handleDeleteAll}
-              className="bg-red-700 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading}
-            >
-              <Trash2 size={20} className="mr-2" />
-              Xóa Tất Cả
-            </button>
-          )}
         </div>
         
         <div className="flex items-center gap-4">
@@ -1084,6 +1100,18 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       min="0"
                     />
                     {formErrors.amount && <p className="text-red-500 text-xs mt-2">{formErrors.amount}</p>}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Giá Bán Buôn</label>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      value={formData.wholesale_price || ''}
+                      onChange={(e) => setFormData({...formData, wholesale_price: e.target.value ? Number(e.target.value) : undefined})}
+                      placeholder="0"
+                      min="0"
+                    />
                   </div>
 
                   <div>

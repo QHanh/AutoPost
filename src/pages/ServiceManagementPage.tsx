@@ -552,20 +552,6 @@ export const ServiceManagementPage: React.FC = () => {
         {/* ✅ Search Input */}
         <div className="mb-4">
             <div className="relative search-container">
-                <div className="flex gap-2 mb-2">
-                    <select
-                        value={selectedSearchBrand}
-                        onChange={(e) => setSelectedSearchBrand(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    >
-                        <option value="">Tất cả thương hiệu</option>
-                        {deviceBrands.map((brand) => (
-                            <option key={brand.id} value={brand.id}>
-                                {brand.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -646,6 +632,7 @@ export const ServiceManagementPage: React.FC = () => {
                            {renderSortableHeader('device_type', 'Loại máy')}
                            {renderSortableHeader('color', 'Màu sắc')}
                            {renderSortableHeader('price', 'Giá')}
+                           {renderSortableHeader('wholesale_price', 'Giá bán buôn')}
                            {renderSortableHeader('warranty', 'Bảo hành')}
                            {renderSortableHeader('note', 'Ghi chú')}
                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Hành động</th>
@@ -661,6 +648,7 @@ export const ServiceManagementPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.device_type || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.color || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.price)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.wholesale_price)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
                                 <td className="px-6 py-4" style={{ maxWidth: '250px' }}>
                                     {brand.note ? (

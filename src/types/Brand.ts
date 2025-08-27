@@ -1,5 +1,3 @@
-import { Service } from './Service';
-
 export interface Brand {
   id: string;
   service_code: string;
@@ -11,6 +9,7 @@ export interface Brand {
   device_type?: string;
   color?: string;
   price?: string;
+  wholesale_price?: string;
   created_at: string;
   updated_at: string;
   service?: { name: string };

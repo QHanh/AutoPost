@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Brand } from '../types/Brand';
 import { DeviceBrand } from '../types/deviceBrand';
 import SearchableSelect from './SearchableSelect';
-import { Plus, Trash2, Smartphone, Palette, DollarSign, Shield, FileText, Check, X, Edit3, CheckSquare } from 'lucide-react';
+import { Plus, Check, X, Edit3 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
 import deviceBrandService from '../services/deviceBrandService';
@@ -641,8 +641,8 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 </div>
 </div>
 
-{/* Row 2: Service Name, Price, Warranty */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+{/* Row 2: Service Name, Price, Wholesale Price, Warranty */}
+<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 {/* Service Name */}
 <div>
 <label className="block text-base font-medium text-gray-700 mb-2">Loại dịch vụ <span className="text-red-500">*</span></label>
@@ -668,6 +668,15 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 <div>
 <label className="block text-base font-medium text-gray-700 mb-2">Giá</label>
 <input type="text" value={formatPrice(currentBrand?.price || '')} onChange={handlePriceChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá" />
+</div>
+
+{/* Wholesale Price */}
+<div>
+<label className="block text-base font-medium text-gray-700 mb-2">Giá bán buôn</label>
+<input type="text" value={formatPrice(currentBrand?.wholesale_price || '')} onChange={(e) => {
+  const value = e.target.value.replace(/[^\d]/g, '');
+  setCurrentBrand(prev => prev ? { ...prev, wholesale_price: value } : null);
+}} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá bán buôn" />
 </div>
 
 {/* Warranty */}

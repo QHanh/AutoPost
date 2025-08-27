@@ -3,6 +3,7 @@ export interface ProductComponent {
   product_code: string;
   product_name: string;
   amount: number;
+  wholesale_price?: number;
   trademark?: string;
   guarantee?: string;
   stock: number;
@@ -41,6 +42,7 @@ export interface ProductComponentCreate {
   product_code?: string;
   product_name: string;
   amount: number;
+  wholesale_price?: number;
   trademark?: string;
   guarantee?: string;
   stock: number;
@@ -56,6 +58,7 @@ export interface ProductComponentUpdate {
   product_code?: string;
   product_name?: string;
   amount?: number;
+  wholesale_price?: number;
   trademark?: string;
   guarantee?: string;
   stock?: number;
