@@ -35,10 +35,16 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   const [brands, setBrands] = useState<string[]>([]);
   const [storages, setStorages] = useState<number[]>([]); // To hold unique storage capacities
   const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchUserDevices();
-  }, [sortConfig, pagination.page, pagination.limit, filters]);
+  const filteredDevices = userDevices.filter(device =>
+    (device.deviceModel?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (device.product_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+  );
+
+  const paginatedDevices = filteredDevices;
+
 
   useEffect(() => {
     // Fetch device brands for filter options
@@ -68,6 +74,19 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     };
     fetchFilterOptions();
   }, []);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      const numSelected = selectedDeviceIds.size;
+      const numDevices = paginatedDevices.length;
+      selectAllCheckboxRef.current.indeterminate = numSelected > 0 && numSelected < numDevices;
+    }
+  }, [selectedDeviceIds, paginatedDevices]);
+
+  useEffect(() => {
+    fetchUserDevices();
+    setSelectedDeviceIds(new Set()); // Clear selection on page/filter change
+  }, [sortConfig, pagination.page, pagination.limit, filters]);
 
   const fetchUserDevices = async () => {
     console.log('DevicesTab: fetchUserDevices called with pagination:', pagination);
@@ -207,8 +226,6 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     }
   };
 
-
-
   const handleDeleteDevice = async (deviceId: string) => {
     if (!confirm('Bạn có chắc chắn muốn xóa thiết bị này?')) return;
 
@@ -313,12 +330,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     }
   ];
 
-  const filteredDevices = userDevices.filter(device =>
-    (device.deviceModel?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (device.product_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
 
-  const paginatedDevices = filteredDevices;
 
   const renderSortIcon = (key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price') => {
     if (!sortConfig || sortConfig.key !== key) {
@@ -346,6 +358,95 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     return new Intl.NumberFormat('vi-VN').format(price);
   };
 
+  const handleSelectDevice = (deviceId: string) => {
+    setSelectedDeviceIds(prevSelectedIds => {
+      const newSelectedIds = new Set(prevSelectedIds);
+      if (newSelectedIds.has(deviceId)) {
+        newSelectedIds.delete(deviceId);
+      } else {
+        newSelectedIds.add(deviceId);
+      }
+      return newSelectedIds;
+    });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const allDeviceIds = new Set(paginatedDevices.map(d => d.id));
+      setSelectedDeviceIds(allDeviceIds);
+    } else {
+      setSelectedDeviceIds(new Set());
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDeviceIds.size === 0) return;
+
+    const result = await Swal.fire({
+      title: `Bạn có chắc chắn muốn xóa ${selectedDeviceIds.size} thiết bị đã chọn?`,
+      text: "Hành động này không thể hoàn tác!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await userDeviceService.bulkDeleteUserDevices(Array.from(selectedDeviceIds));
+        Swal.fire(
+          'Đã xóa!',
+          `Đã xóa thành công ${selectedDeviceIds.size} thiết bị.`,
+          'success'
+        );
+        setSelectedDeviceIds(new Set());
+        fetchUserDevices();
+      } catch (error) {
+        console.error('Error bulk deleting devices:', error);
+        Swal.fire(
+          'Lỗi!',
+          'Xóa hàng loạt không thành công.',
+          'error'
+        );
+      }
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const result = await Swal.fire({
+      title: 'Bạn có chắc chắn muốn xóa TẤT CẢ thiết bị?',
+      text: "Hành động này sẽ xóa toàn bộ dữ liệu thiết bị của bạn và không thể hoàn tác!",
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Tôi hiểu, xóa tất cả',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await userDeviceService.deleteAllUserDevices();
+        Swal.fire(
+          'Đã xóa!',
+          'Tất cả thiết bị đã được xóa thành công.',
+          'success'
+        );
+        setSelectedDeviceIds(new Set());
+        fetchUserDevices();
+      } catch (error) {
+        console.error('Error deleting all devices:', error);
+        Swal.fire(
+          'Lỗi!',
+          'Xóa tất cả thiết bị không thành công.',
+          'error'
+        );
+      }
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       {/* Loading overlay toàn màn hình khi import */}
@@ -360,7 +461,22 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
       )}
       
       <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Nhập liệu</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-800">Nhập liệu</h2>
+          {selectedDeviceIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleBulkDelete} 
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                disabled={selectedDeviceIds.size === 0}
+              >
+                <Trash2 className="mr-2" size={18} />
+                Xóa ({selectedDeviceIds.size})
+              </button>
+            </div>
+          )}
+        </div>
+       
         <div className="flex flex-wrap items-center gap-2">
           <Filter config={filterConfig} onFilterChange={handleFilterChange} />
           <button 
@@ -390,6 +506,9 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
             <Plus className="mr-2" size={18} /> Thêm thiết bị
           </button>
+          <button onClick={handleDeleteAll} className="flex items-center px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900">
+              <Trash2 className="mr-2" size={18} /> Xóa tất cả
+          </button>
         </div>
       </div>
 
@@ -406,10 +525,19 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto relative max-h-[calc(100vh-300px)]">
+      <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto relative max-h-[calc(100vh-350px)]">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
             <tr>
+              <th scope="col" className="px-6 py-3">
+                <input 
+                  ref={selectAllCheckboxRef}
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  onChange={handleSelectAll}
+                  checked={paginatedDevices.length > 0 && selectedDeviceIds.size === paginatedDevices.length}
+                />
+              </th>
               {[ 
                 { key: 'product_code', label: 'Mã sản phẩm' },
                 { key: 'deviceModel', label: 'Thiết bị' },
@@ -436,7 +564,15 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {paginatedDevices.map((device) => (
-              <tr key={device.id}>
+              <tr key={device.id} className={`${selectedDeviceIds.has(device.id) ? 'bg-indigo-50' : ''}`}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={selectedDeviceIds.has(device.id)}
+                    onChange={() => handleSelectDevice(device.id)}
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.product_code}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.deviceModel}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.inventory}</td>
@@ -471,11 +607,16 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           </select>
         </div>
         
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={handlePageChange}
-        />
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-600">
+            Tổng số: <span className="font-semibold">{pagination.total}</span>
+          </div>
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       </div>
       <DeviceFormModal
         isOpen={isModalOpen}

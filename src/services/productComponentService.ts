@@ -76,6 +76,20 @@ export const productComponentService = {
     return await apiDelete(`/product-components/${id}`);
   },
 
+  // Bulk delete product components
+  bulkDeleteProductComponents: async (ids: string[]) => {
+    // Convert array of IDs to query parameters
+    const params = new URLSearchParams();
+    ids.forEach(id => params.append('product_component_ids', id));
+    
+    return await apiDelete(`/product-components/bulk?${params.toString()}`);
+  },
+
+  // Delete all product components
+  deleteAllProductComponents: async () => {
+    return await apiDelete('/product-components/all');
+  },
+
   // Get all categories
   getAllCategories: async (skip: number = 0, limit: number = 100) => {
     return await apiGet<Category[]>(`/categories?skip=${skip}&limit=${limit}`);

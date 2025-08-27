@@ -83,6 +83,31 @@ export const userDeviceService = {
     }
   },
 
+  /**
+   * Xóa hàng loạt thiết bị người dùng.
+   * @param deviceIds Danh sách ID của các thiết bị cần xóa
+   */
+  bulkDeleteUserDevices: async (deviceIds: string[]): Promise<void> => {
+    try {
+      await apiDelete('/user-devices/bulk', { user_device_ids: deviceIds });
+    } catch (error) {
+      console.error('Error bulk deleting user devices:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Xóa tất cả thiết bị của người dùng.
+   */
+  deleteAllUserDevices: async (): Promise<void> => {
+    try {
+      await apiDelete('/user-devices/all');
+    } catch (error) {
+      console.error('Error deleting all user devices:', error);
+      throw error;
+    }
+  },
+
   // /**
   //  * Tải template Excel
   //  */

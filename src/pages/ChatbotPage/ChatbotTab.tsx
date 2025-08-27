@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { chatbot } from '../../services/apiService';
+import { chatbotStream } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
 import ReactMarkdown from 'react-markdown';
 
@@ -45,26 +45,57 @@ const ChatbotTab: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
-    try {
-      const response = await chatbot(input);
-      const botMessage: Message = { text: response.response, sender: 'bot' };
-      setMessages((prev) => [...prev, botMessage]);
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      let errorText = 'Sorry, something went wrong.';
-      
-      // Check if it's an API error with a detail message
-      if (error.response && error.response.data && error.response.data.detail) {
-        errorText = error.response.data.detail;
-      } else if (error.message) {
-        errorText = error.message;
+    // Add a placeholder for the bot's response
+    const botMessagePlaceholder: Message = { text: '', sender: 'bot' };
+    setMessages((prev) => [...prev, botMessagePlaceholder]);
+
+    await chatbotStream(
+      input,
+      (chunk) => {
+        try {
+          // Assuming the chunk is a JSON string like {"response": "..."}
+          const parsed = JSON.parse(chunk);
+          const text = parsed.response || '';
+
+          setMessages((prev) => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.sender === 'bot') {
+              return [
+                ...prev.slice(0, -1),
+                { ...lastMessage, text: lastMessage.text + text },
+              ];
+            }
+            return prev;
+          });
+        } catch (error) {
+          // If chunk is not a valid JSON, append it directly.
+          // This handles cases where the stream might send plain text chunks.
+          setMessages((prev) => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.sender === 'bot') {
+              return [
+                ...prev.slice(0, -1),
+                { ...lastMessage, text: lastMessage.text + chunk },
+              ];
+            }
+            return prev;
+          });
+        }
+      },
+      () => {
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error sending message:', error);
+        let errorText = 'Sorry, something went wrong.';
+        if (error.message) {
+          errorText = error.message;
+        }
+        const errorMessage: Message = { text: errorText, sender: 'bot' };
+        setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
+        setIsLoading(false);
       }
-      
-      const errorMessage: Message = { text: errorText, sender: 'bot' };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    );
   };
 
   return (

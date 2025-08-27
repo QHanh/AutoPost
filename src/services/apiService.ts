@@ -2,11 +2,6 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
-interface ApiResponse<T> {
-  data: T;
-  message?: string;
-  status?: string;
-}
 
 interface ApiGetOptions extends RequestInit {
   responseType?: 'blob' | 'json';
@@ -59,7 +54,7 @@ export const getAuthHeader = (isFormData = false): HeadersInit => {
 };
 
 
-export const apiGet = async <T>(endpoint: string, options: ApiGetOptions = {}): Promise<any> => {
+export const apiGet = async (endpoint: string, options: ApiGetOptions = {}): Promise<any> => {
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
@@ -84,7 +79,7 @@ export const apiGet = async <T>(endpoint: string, options: ApiGetOptions = {}): 
     return await response.json();
 };
 
-export const apiPost = async <T>(endpoint: string, data: any): Promise<any> => {
+export const apiPost = async (endpoint: string, data: any): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -102,7 +97,7 @@ export const apiPost = async <T>(endpoint: string, data: any): Promise<any> => {
   return await response.json();
 };
 
-export const apiPostForm = async <T>(endpoint: string, formData: FormData): Promise<any> => {
+export const apiPostForm = async (endpoint: string, formData: FormData): Promise<any> => {
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
@@ -121,7 +116,7 @@ export const apiPostForm = async <T>(endpoint: string, formData: FormData): Prom
 };
 
 
-export const apiPut = async <T>(endpoint: string, data: any): Promise<any> => {
+export const apiPut = async (endpoint: string, data: any): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -139,14 +134,20 @@ export const apiPut = async <T>(endpoint: string, data: any): Promise<any> => {
   return await response.json();
 };
 
-export const apiDelete = async <T>(endpoint: string): Promise<any> => {
+export const apiDelete = async (endpoint: string, data?: any): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
-  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
+  const config: RequestInit = {
     method: 'DELETE',
-    headers: getAuthHeader()
-  });
+    headers: getAuthHeader(),
+  };
+
+  if (data) {
+    config.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, config);
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -167,7 +168,7 @@ export const apiDelete = async <T>(endpoint: string): Promise<any> => {
   }
 };
 
-export const apiPostFormData = async <T>(endpoint: string, formData: FormData): Promise<any> => {
+export const apiPostFormData = async (endpoint: string, formData: FormData): Promise<any> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -205,6 +206,64 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
   }
 
   return await response.blob();
+};
+
+export const chatbotStream = async (
+  query: string,
+  onChunk: (chunk: string) => void,
+  onComplete: () => void,
+  onError: (error: Error) => void
+) => {
+  const token = getAuthToken();
+  if (!token) {
+    onError(new Error('Unauthorized'));
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/chatbot/chat`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: JSON.stringify({
+        query,
+        llm_provider: 'google_genai',
+        stream: true,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      let errorText = `Error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorText = errorData.detail || errorText;
+      } catch (e) {
+        // Ignore if response is not JSON
+      }
+      throw new Error(errorText);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    const read = async () => {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          onComplete();
+          return;
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        onChunk(chunk);
+        await read();
+      } catch (streamError) {
+        onError(streamError as Error);
+      }
+    };
+
+    await read();
+  } catch (error: any) {
+    onError(error);
+  }
 };
 
 export const chatbot = async (query: string) => {
