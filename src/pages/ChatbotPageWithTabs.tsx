@@ -61,18 +61,6 @@ const mainTabsConfig = {
         isSingleTab: true,
         component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} /></ErrorBoundary>
     },
-    chat: { // New main category
-        label: 'Chat',
-        icon: MessageSquare,
-        isSingleTab: true,
-        component: <ErrorBoundary><ChatbotTab /></ErrorBoundary>
-    },
-    'chatbot-linhkien': { // Added new category
-        label: 'Chatbot Linh Kiện Hoàng Mai',
-        icon: Bot,
-        isSingleTab: true,
-        component: <ErrorBoundary><ChatbotLinhKienTab /></ErrorBoundary>
-    },
     caidat: {
         label: 'Cài đặt',
         icon: Settings,
@@ -82,11 +70,19 @@ const mainTabsConfig = {
             { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab /> },
         ]
     },
-    chat: {
+
+    chat: { // New main category
       label: 'Chat',
       icon: MessageSquare,
       isSingleTab: true,
-      component: <ChatbotTab />
+      component: <ErrorBoundary><ChatbotTab /></ErrorBoundary>
+    },
+
+    'chatbot-linhkien': { // Added new category
+        label: 'Chatbot Linh Kiện Hoàng Mai',
+        icon: Bot,
+        isSingleTab: true,
+        component: <ErrorBoundary><ChatbotLinhKienTab /></ErrorBoundary>
     }
 };
 
