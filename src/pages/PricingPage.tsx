@@ -564,7 +564,7 @@ export const PricingPage: React.FC = () => {
                 onClick={() => setServiceType('video')}
                 className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'video' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
             >
-                <Video className="inline mr-2" size={20} /> Gói Video
+                <Video className="inline mr-2" size={20} /> Gói đăng bài tự động
             </button>
             <button 
                 onClick={() => setServiceType('chatbot')}

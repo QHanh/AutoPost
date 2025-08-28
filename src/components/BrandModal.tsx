@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Brand } from '../types/Brand';
 import { DeviceBrand } from '../types/deviceBrand';
 import SearchableSelect from './SearchableSelect';
-import { Plus, Check, X, Edit3 } from 'lucide-react';
+import { Plus, Check, X, Edit3, Edit, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { deviceApiService } from '../services/deviceApiService';
 import deviceBrandService from '../services/deviceBrandService';
@@ -43,6 +43,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   const [newTypeName, setNewTypeName] = useState<string>('');
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [userNote, setUserNote] = useState<string>('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,7 +57,25 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         setUserNote('');
       }
     }
-  }, [isOpen, selectedService, currentBrand?.note]);
+  }, [isOpen, selectedService]);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [userNote]);
+
+  // Separate useEffect to handle note changes without resetting other fields
+  useEffect(() => {
+    if (currentBrand?.note) {
+      const noteParts = currentBrand.note.split('--- Điều kiện ---');
+      const userNotePart = noteParts[0].trim();
+      setUserNote(userNotePart);
+    } else {
+      setUserNote('');
+    }
+  }, [currentBrand?.note]);
 
   // Đảm bảo selectedDeviceId vẫn hợp lệ khi deviceOptions thay đổi
   useEffect(() => {
@@ -90,6 +109,11 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     if (!isOpen) {
       console.log('🔄 [BrandModal] Modal closed, resetting search state');
       setIsSearching(false);
+      // Reset all input fields when modal closes
+      setNewDeviceBrand('');
+      setNewTypeName('');
+      setNewWarrantyService('');
+      setUserNote('');
     }
   }, [isOpen]);
 
@@ -329,35 +353,42 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     setCurrentBrand(prev => {
         if (!prev) return null;
 
-        // Define a marker to separate user notes from conditions
-        const conditionsMarker = '--- Điều kiện ---';
-
         // Update the conditions array
         const prevConditions = prev.conditions || [];
         const newConditions = checked
             ? [...prevConditions, value]
             : prevConditions.filter(c => c !== value);
 
-        // Update the note field
-        let newNote = userNote;
+        // Clean userNote by removing any existing conditions
+        let cleanUserNote = userNote;
+        if (prev.conditions && prev.conditions.length > 0) {
+            // Remove all existing conditions from userNote
+            for (const condition of prev.conditions) {
+                cleanUserNote = cleanUserNote.replace(new RegExp(`\\n?${condition.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), '');
+            }
+            // Clean up extra newlines and commas
+            cleanUserNote = cleanUserNote.replace(/\n+/g, '\n').replace(/,\s*/g, '').trim();
+        }
+
+        // Build new note from clean userNote + new conditions
+        let newNote = cleanUserNote;
         if (newConditions.length > 0) {
             const conditionsText = newConditions.join(', ');
-            // If there's a user note, add a newline before conditions
-            if (userNote) {
-                newNote = `${userNote}\n${conditionsText}`;
+            if (cleanUserNote) {
+                newNote = `${cleanUserNote}\n${conditionsText}`;
             } else {
                 newNote = conditionsText;
             }
         }
 
-        // We add a hidden marker to the end of the note to reliably find the user-written part later
-        if (newNote) {
-            newNote += `\n${conditionsMarker}`;
-        }
-
-        return { ...prev, conditions: newConditions, note: newNote };
+        // Return updated brand with all existing values preserved
+        return { 
+            ...prev, 
+            conditions: newConditions, 
+            note: newNote 
+        };
     });
-  }, []);
+  }, [userNote]);
   // ✅ callback ổn định cho price change
   const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^\d]/g, '');
@@ -441,6 +472,66 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }));
   }, [uniqueBrandNames]);
 
+  const handleEditDeviceBrand = useCallback(async (brandId: string) => {
+    const brand = deviceBrands.find(b => b.id === brandId);
+    if (!brand) return;
+
+    const { value: newName } = await Swal.fire({
+        title: `Sửa tên thương hiệu`,
+        input: 'text',
+        inputValue: brand.name,
+        showCancelButton: true,
+        confirmButtonText: 'Lưu',
+        cancelButtonText: 'Hủy',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Tên không được để trống!';
+            }
+        }
+    });
+
+    if (newName && newName !== brand.name) {
+        try {
+            const updatedBrand = await deviceBrandService.updateDeviceBrand(brandId, { name: newName });
+            setDeviceBrands(prev => prev.map(b => b.id === brandId ? updatedBrand : b));
+            Swal.fire('Thành công', 'Đã cập nhật tên thương hiệu.', 'success');
+        } catch (error) {
+            console.error('Failed to update device brand:', error);
+            Swal.fire('Lỗi', 'Không thể cập nhật thương hiệu.', 'error');
+        }
+    }
+  }, [deviceBrands]);
+
+  const handleDeleteDeviceBrand = useCallback(async (brandId: string) => {
+    const brand = deviceBrands.find(b => b.id === brandId);
+    if (!brand) return;
+
+    Swal.fire({
+        title: `Bạn chắc chắn muốn xóa "${brand.name}"?`,
+        text: "Hành động này không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Vâng, xóa nó!',
+        cancelButtonText: 'Hủy'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                await deviceBrandService.deleteDeviceBrand(brandId);
+                setDeviceBrands(prev => prev.filter(b => b.id !== brandId));
+                if (selectedDeviceBrand === brandId) {
+                    setSelectedDeviceBrand('');
+                }
+                Swal.fire('Đã xóa!', 'Thương hiệu đã được xóa.', 'success');
+            } catch (error) {
+                console.error('Failed to delete device brand:', error);
+                Swal.fire('Lỗi', 'Không thể xóa thương hiệu.', 'error');
+            }
+        }
+    });
+  }, [deviceBrands, selectedDeviceBrand]);
+
   // ✅ callback ổn định cho warranty change
   const handleWarrantyChange = useCallback((value: string) => {
     const selectedWarranty = (warrantyServices || []).find(ws => ws.id === value);
@@ -474,7 +565,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-xl shadow-2xl w-full max-h-[90vh] overflow-y-auto ${currentBrand?.id ? 'max-w-2xl' : 'max-w-4xl'}`}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -486,7 +577,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                 <h3 className="text-lg font-bold">
                   {currentBrand?.id 
                     ? `Sửa loại cho "${selectedService?.name}"` 
-                    : 'Thêm loại mới'}
+                    : `Thêm loại cho "${selectedService?.name}"`}
                 </h3>
                 <p className="text-blue-100 text-xs mt-1">
                   {currentBrand?.id ? 'Cập nhật thông tin loại dịch vụ' : 'Tạo loại dịch vụ mới cho khách hàng'}
@@ -520,7 +611,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           // Handle search
           handleSearchDeviceBrands(e.target.value);
         }}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
       />
       <button type="button" onClick={() => setIsAddingNewBrand(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
     </div>
@@ -528,21 +619,23 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
       {deviceBrands.map(brand => (
         <div
           key={brand.id}
-          onClick={() => {
-            handleDeviceBrandChange(brand.id);
-          }}
-          className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceBrand === brand.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+          onClick={() => handleDeviceBrandChange(brand.id)}
+          className={`group flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceBrand === brand.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
         >
-          {brand.name}
+          <span>{brand.name}</span>
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={(e) => { e.stopPropagation(); handleEditDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-blue-600"><Edit size={14} /></button>
+              <button onClick={(e) => { e.stopPropagation(); handleDeleteDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
+          </div>
         </div>
       ))}
     </div>
   </div>
 ) : (
 <div className="flex gap-2">
-<input type="text" value={newDeviceBrand} onChange={(e) => setNewDeviceBrand(e.target.value)} placeholder="Tên thương hiệu mới" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" autoFocus />
+        <input type="text" value={newDeviceBrand} onChange={(e) => setNewDeviceBrand(e.target.value)} placeholder="Tên thương hiệu mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" autoFocus />
 <button onClick={async () => { if (!newDeviceBrand.trim()) return; const newBrand = await deviceBrandService.createDeviceBrand({ name: newDeviceBrand.trim() }); setDeviceBrands(prev => [...prev, newBrand]); setSelectedDeviceBrand(newBrand.id); setNewDeviceBrand(''); setIsAddingNewBrand(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
-<button type="button" onClick={() => setIsAddingNewBrand(false)} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+<button type="button" onClick={() => { setIsAddingNewBrand(false); setNewDeviceBrand(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
 </div>
 )}
 </div>
@@ -559,7 +652,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     setDeviceTypeSearchTerm(e.target.value);
     handleSearchDeviceInfos(e.target.value);
   }}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
 />
 <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
   {deviceOptions.map(option => (
@@ -586,7 +679,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   type="text"
   placeholder="Chọn màu"
   value={selectedColor === 'all' ? 'Tất cả màu sắc' : colorOptions.find(c => c.id === selectedColor)?.name || (selectedDeviceId ? 'Chọn màu' : 'Chọn loại máy')}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
   disabled={!selectedDeviceId}
 />
 <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
@@ -642,12 +735,12 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 </div>
 
 {/* Row 2: Service Name, Price, Wholesale Price, Warranty */}
-<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1.5fr] gap-6 items-end">
 {/* Service Name */}
 <div>
 <label className="block text-base font-medium text-gray-700 mb-2">Loại dịch vụ <span className="text-red-500">*</span></label>
 {currentBrand?.id ? (
-<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại dịch vụ" />
+<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại dịch vụ" />
 ) : !isAddingNewTypeName ? (
 <div className="flex gap-2">
 <div className="flex-1"><SearchableSelect options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))} value={currentBrand?.name || ''} onChange={handleServiceNameChange} placeholder="Chọn tên loại có sẵn" /></div>
@@ -655,28 +748,28 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 </div>
 ) : (
 <div className="flex flex-col gap-1">
-<input type="text" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Tên loại mới" className="w-full px-2 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-base" autoFocus />
+<input type="text" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Tên loại mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
 <div className="flex gap-1 justify-end">
 <button onClick={() => { if (!newTypeName.trim()) return; setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' })); if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) { setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]); } setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"><Check size={14} className="inline mr-1"/>Xác nhận</button>
-<button type="button" onClick={() => setIsAddingNewTypeName(false)} className="px-3 py-1 bg-gray-400 text-white rounded-md hover:bg-gray-500 text-sm"><X size={14} className="inline mr-1"/>Hủy</button>
+<button type="button" onClick={() => { setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-gray-400 text-white rounded-md hover:bg-gray-500 text-sm"><X size={14} className="inline mr-1"/>Hủy</button>
 </div>
 </div>
 )}
 </div>
 
 {/* Price */}
-<div>
+<div className="w-full">
 <label className="block text-base font-medium text-gray-700 mb-2">Giá</label>
-<input type="text" value={formatPrice(currentBrand?.price || '')} onChange={handlePriceChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá" />
+<input type="text" value={formatPrice(currentBrand?.price || '')} onChange={handlePriceChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá" />
 </div>
 
 {/* Wholesale Price */}
-<div>
+<div className="w-full">
 <label className="block text-base font-medium text-gray-700 mb-2">Giá bán buôn</label>
 <input type="text" value={formatPrice(currentBrand?.wholesale_price || '')} onChange={(e) => {
   const value = e.target.value.replace(/[^\d]/g, '');
   setCurrentBrand(prev => prev ? { ...prev, wholesale_price: value } : null);
-}} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá bán buôn" />
+}} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá bán buôn" />
 </div>
 
 {/* Warranty */}
@@ -689,9 +782,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 </div>
 ) : (
 <div className="flex gap-2">
-<input type="text" value={newWarrantyService} onChange={(e) => setNewWarrantyService(e.target.value)} placeholder="Bảo hành mới" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
+<input type="text" value={newWarrantyService} onChange={(e) => setNewWarrantyService(e.target.value)} placeholder="Bảo hành mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
 <button onClick={async () => { if (!newWarrantyService.trim()) return; const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() }); setWarrantyServices(prev => [...prev, newWarranty]); setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null); setNewWarrantyService(''); setIsAddingNewWarranty(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
-<button type="button" onClick={() => setIsAddingNewWarranty(false)} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+<button type="button" onClick={() => { setIsAddingNewWarranty(false); setNewWarrantyService(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
 </div>
 )}
 </div>
@@ -701,28 +794,37 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 <div>
 <label className="block text-base font-medium text-gray-700 mb-2">Ghi chú</label>
 <textarea 
+    ref={textareaRef}
     value={userNote}
     onChange={(e) => {
         const newText = e.target.value;
         setUserNote(newText);
-        // Update the full note in currentBrand
+        
+        // Check if user manually removed conditions from the note
         setCurrentBrand(prev => {
             if (!prev) return null;
-            const conditionsText = (prev.conditions || []).join(', ');
-            let newNote = newText;
-            if (conditionsText) {
-                newNote = newText ? `${newText}\n${conditionsText}` : conditionsText;
+            
+            const currentConditions = prev.conditions || [];
+            const updatedConditions: string[] = [];
+            
+            // Check which conditions are still present in the user input
+            for (const condition of currentConditions) {
+                if (newText.includes(condition)) {
+                    updatedConditions.push(condition);
+                }
             }
-            // Append the hidden marker for internal tracking
-            if (newNote) {
-                newNote += '\n--- Điều kiện ---';
-            }
-            return { ...prev, note: newNote };
+            
+            // Update both note and conditions
+            return { 
+                ...prev, 
+                note: newText,
+                conditions: updatedConditions
+            };
         });
     }}
-    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" 
+    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base resize-none overflow-hidden" 
     placeholder="Thêm ghi chú nếu cần" 
-    rows={3}
+    rows={1}
 ></textarea>
 </div>
 

@@ -72,14 +72,14 @@ const mainTabsConfig = {
     },
 
     chat: { // New main category
-      label: 'Chat',
+      label: 'Chatbot Agent',
       icon: MessageSquare,
       isSingleTab: true,
       component: <ErrorBoundary><ChatbotTab /></ErrorBoundary>
     },
 
     'chatbot-linhkien': { // Added new category
-        label: 'Chatbot Linh Kiện Hoàng Mai',
+        label: 'Chatbot tùy chỉnh',
         icon: Bot,
         isSingleTab: true,
         component: <ErrorBoundary><ChatbotLinhKienTab /></ErrorBoundary>
