@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { DeviceInfo } from '../types/deviceTypes';
-import { X, Save, Smartphone, Calendar, Monitor, Cpu, Camera, Battery, Wifi, Palette, Ruler, Shield } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { DeviceInfo, Material } from '../types/deviceTypes';
+import { X, Save, Smartphone, Calendar, Monitor, Cpu, Camera, Battery, Wifi, Palette, Ruler, Shield, Layers } from 'lucide-react';
 
 interface DeviceInfoModalProps {
   isOpen: boolean;
@@ -11,10 +11,16 @@ interface DeviceInfoModalProps {
 
 const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSave, deviceInfo }) => {
   const [formData, setFormData] = useState<Partial<DeviceInfo>>({});
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [newMaterial, setNewMaterial] = useState('');
 
   useEffect(() => {
     if (deviceInfo) {
       setFormData(deviceInfo);
+      // Load existing materials if any
+      if (deviceInfo.materials) {
+        setMaterials(deviceInfo.materials);
+      }
     } else {
       setFormData({
         model: '',
@@ -29,6 +35,7 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
         dimensions_weight: '',
         warranty: '',
       });
+      setMaterials([]);
     }
   }, [deviceInfo, isOpen]);
 
@@ -37,9 +44,56 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleMaterialChange = (materialId: string, checked: boolean) => {
+    setFormData(prev => {
+      const currentMaterials = prev.materials || [];
+      if (checked) {
+        // Add material
+        const materialToAdd = materials.find(m => m.id === materialId);
+        if (materialToAdd && !currentMaterials.find(m => m.id === materialId)) {
+          return { ...prev, materials: [...currentMaterials, materialToAdd] };
+        }
+      } else {
+        // Remove material
+        return { ...prev, materials: currentMaterials.filter(m => m.id !== materialId) };
+      }
+      return prev;
+    });
+  };
+
+  const addNewMaterial = () => {
+    if (newMaterial.trim()) {
+      const newMat: Material = {
+        id: `new_${Date.now()}`,
+        name: newMaterial.trim(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setMaterials(prev => [...prev, newMat]);
+      setFormData(prev => ({
+        ...prev,
+        materials: [...(prev.materials || []), newMat]
+      }));
+      setNewMaterial('');
+    }
+  };
+
+  const removeMaterial = (materialId: string) => {
+    setMaterials(prev => prev.filter(m => m.id !== materialId));
+    setFormData(prev => ({
+      ...prev,
+      materials: (prev.materials || []).filter(m => m.id !== materialId)
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Include materials in the form data
+    const dataToSave = {
+      ...formData,
+      materials: formData.materials || []
+    };
+    onSave(dataToSave);
   };
 
   if (!isOpen) return null;
@@ -131,6 +185,58 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="VD: 12 tháng chính hãng"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Materials Section */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <Layers className="mr-2 text-purple-600" size={20} />
+                Vật liệu vỏ
+              </h3>
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {materials.map(material => (
+                    <div key={material.id} className="flex items-center bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-200">
+                      <input
+                        type="checkbox"
+                        id={`material-${material.id}`}
+                        checked={!!(formData.materials || []).find(m => m.id === material.id)}
+                        onChange={(e) => handleMaterialChange(material.id, e.target.checked)}
+                        className="mr-2 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor={`material-${material.id}`} className="text-sm font-medium text-gray-700">
+                        {material.name}
+                      </label>
+                      {material.id.startsWith('new_') && (
+                        <button
+                          type="button"
+                          onClick={() => removeMaterial(material.id)}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex">
+                  <input
+                    type="text"
+                    value={newMaterial}
+                    onChange={(e) => setNewMaterial(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addNewMaterial())}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Thêm vật liệu mới"
+                  />
+                  <button
+                    type="button"
+                    onClick={addNewMaterial}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Thêm
+                  </button>
                 </div>
               </div>
             </div>
@@ -240,6 +346,20 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                     placeholder="VD: 159.9 x 76.7 x 8.25 mm, 221g"
                   />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 flex items-center">
+                    <Shield className="mr-2 text-gray-500" size={16} />
+                    Cảm biến & Tính năng sức khỏe
+                  </label>
+                  <input
+                    type="text"
+                    name="sensors_health_features"
+                    value={formData.sensors_health_features || ''}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="VD: Face ID, Cảm biến gia tốc, Con quay hồi chuyển"
+                  />
+                </div>
               </div>
             </div>
 
@@ -267,4 +387,4 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
   );
 };
 
-export default DeviceInfoModal;
+export default memo(DeviceInfoModal);

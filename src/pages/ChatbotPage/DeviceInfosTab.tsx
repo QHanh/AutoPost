@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { DeviceInfo } from '../../types/deviceTypes';
 import { deviceInfoService } from '../../services/deviceInfoService';
-import { Plus, Edit, Trash2, Search, Loader, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronDown, ChevronUp, FileUp, FileDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader, ChevronsUpDown, ChevronDown, ChevronUp, FileUp, FileDown } from 'lucide-react';
 import DeviceInfoModal from '../../components/DeviceInfoModal';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
@@ -14,6 +14,7 @@ const DeviceInfosTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportingExcel, setIsImportingExcel] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedDeviceInfo, setSelectedDeviceInfo] = useState<DeviceInfo | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,30 +27,10 @@ const DeviceInfosTab: React.FC = () => {
   });
   const [filters, setFilters] = useState<{ brand?: string }>({});
   const [brands, setBrands] = useState<string[]>([]);
+  const selectAllCheckboxRef = React.useRef<HTMLInputElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchDeviceInfos();
-    }
-  }, [isAuthenticated, pagination.page, pagination.limit, searchTerm, sortConfig, filters]);
-
-  useEffect(() => {
-    // Fetch brands for filter options
-    const fetchBrands = async () => {
-      try {
-        // This should be an API call to a new endpoint that returns distinct brands
-        // For now, I'll simulate it, but you should create that endpoint.
-        const allBrands = await deviceInfoService.getDistinctBrands(); 
-        setBrands(allBrands);
-      } catch (error) {
-        console.error("Failed to fetch brands for filter:", error);
-      }
-    };
-    fetchBrands();
-  }, []);
-
-
-  const fetchDeviceInfos = async () => {
+  const fetchDeviceInfos = useCallback(async () => {
     setIsLoading(true);
     try {
       const filter = { 
@@ -71,7 +52,39 @@ const DeviceInfosTab: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchTerm, sortConfig, filters, pagination.page, pagination.limit]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDeviceInfos();
+    }
+  }, [isAuthenticated, fetchDeviceInfos]);
+
+  useEffect(() => {
+    // Fetch brands for filter options
+    const fetchBrands = async () => {
+      try {
+        // This should be an API call to a new endpoint that returns distinct brands
+        // For now, I'll simulate it, but you should create that endpoint.
+        const allBrands = await deviceInfoService.getDistinctBrands(); 
+        setBrands(allBrands);
+      } catch (error) {
+        console.error("Failed to fetch brands for filter:", error);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      const numSelected = selectedIds.size;
+      const numInfos = deviceInfos.length;
+      selectAllCheckboxRef.current.checked = numSelected > 0 && numSelected === numInfos;
+      selectAllCheckboxRef.current.indeterminate = numSelected > 0 && numSelected < numInfos;
+    }
+  }, [selectedIds, deviceInfos]);
+
+
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -110,7 +123,11 @@ const DeviceInfosTab: React.FC = () => {
     }
   };
 
-  const handleSave = async (deviceInfoData: Partial<DeviceInfo>) => {
+    const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleSave = useCallback(async (deviceInfoData: Partial<DeviceInfo>) => {
     setIsLoading(true);
     try {
       if (selectedDeviceInfo) {
@@ -125,14 +142,67 @@ const DeviceInfosTab: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [selectedDeviceInfo, fetchDeviceInfos]);
+
+  // const handleDeleteAll = async () => {
+  //   if (!window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ thông tin thiết bị của mình? Hành động này không thể hoàn tác!')) {
+  //     return;
+  //   }
+  //   try {
+  //     await deviceInfoService.deleteAllDeviceInfos();
+  //     fetchDeviceInfos();
+  //     alert('Đã xóa tất cả thông tin thiết bị thành công!');
+  //   } catch (error: any) {
+  //     console.error('Error deleting all device infos:', error);
+  //     alert(error?.message || 'Có lỗi xảy ra khi xóa tất cả thông tin thiết bị.');
+  //   }
+  // };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await deviceInfoService.exportDeviceInfos();
+      alert('Xuất file thành công!');
+    } catch (error) {
+      console.error('Error exporting device infos:', error);
+      alert('Có lỗi xảy ra khi xuất file.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleExportTemplate = async () => {
+  const handleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const newSelectedIds = new Set(prev);
+      if (newSelectedIds.has(id)) {
+        newSelectedIds.delete(id);
+      } else {
+        newSelectedIds.add(id);
+      }
+      return newSelectedIds;
+    });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const allIds = new Set(deviceInfos.map(info => info.id));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.size} mục đã chọn?`)) {
+      return;
+    }
     try {
-      await deviceInfoService.exportTemplate();
-    } catch (error) {
-      console.error('Error exporting template:', error);
-      alert('Có lỗi xảy ra khi xuất file mẫu.');
+      await deviceInfoService.deleteMultipleDeviceInfos(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      fetchDeviceInfos();
+    } catch (error: any) {
+      alert(error.message || 'Xóa các mục đã chọn không thành công.');
     }
   };
 
@@ -232,10 +302,43 @@ const DeviceInfosTab: React.FC = () => {
             )}
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
-          <button onClick={handleExportTemplate} className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center">
-            <FileDown size={20} className="mr-2" />
-            Export Mẫu
+          <button 
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`px-4 py-2 rounded-lg flex items-center ${
+              isExporting 
+                ? 'bg-yellow-400 cursor-not-allowed' 
+                : 'bg-yellow-500 hover:bg-yellow-600'
+            } text-white`}
+          >
+            {isExporting ? (
+              <>
+                <LoadingSpinner size="sm" text="" />
+                Đang xuất...
+              </>
+            ) : (
+              <>
+                <FileDown size={20} className="mr-2" />
+                Export
+              </>
+            )}
           </button>
+          {selectedIds.size > 0 && (
+            <button 
+              onClick={handleDeleteSelected}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-700 transition-colors"
+            >
+              <Trash2 size={20} className="mr-2" />
+              Xóa ({selectedIds.size}) mục
+            </button>
+          )}
+          {/* <button 
+            onClick={handleDeleteAll}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-600 transition-colors"
+          >
+            <Trash2 size={20} className="mr-2" />
+            Xóa tất cả
+          </button> */}
           <button onClick={handleCreate} className="bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center">
             <Plus size={20} className="mr-2" />
             Thêm thông tin
@@ -265,6 +368,14 @@ const DeviceInfosTab: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input 
+                    type="checkbox" 
+                    ref={selectAllCheckboxRef}
+                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('brand')}>
                   <div className="flex items-center">
                     Thương hiệu
@@ -296,6 +407,8 @@ const DeviceInfosTab: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết nối/HĐH</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Màu (EN)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kích thước/Trọng lượng</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vật liệu</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cảm biến & Sức khỏe</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('created_at')}>
                    <div className="flex items-center">
                     Ngày tạo
@@ -309,7 +422,15 @@ const DeviceInfosTab: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {deviceInfos.map((info) => (
-                <tr key={info.id}>
+                <tr key={info.id} className={`${selectedIds.has(info.id) ? 'bg-indigo-50' : ''}`}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input 
+                      type="checkbox" 
+                      className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                      checked={selectedIds.has(info.id)}
+                      onChange={() => handleSelect(info.id)}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{info.brand}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.model}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.release_date}</td>
@@ -320,6 +441,8 @@ const DeviceInfosTab: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.connectivity_os}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.color_english}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.dimensions_weight}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.materials?.map(m => m.name).join(', ') || ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{info.sensors_health_features}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(info.created_at)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => handleEdit(info)} className="text-indigo-600 hover:text-indigo-900 mr-4">
@@ -358,7 +481,7 @@ const DeviceInfosTab: React.FC = () => {
 
       <DeviceInfoModal 
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         onSave={handleSave}
         deviceInfo={selectedDeviceInfo}
       />

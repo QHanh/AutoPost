@@ -43,13 +43,21 @@ export const deviceInfoService = {
 
   async createDeviceInfo(deviceInfo: Partial<DeviceInfo>): Promise<DeviceInfo> {
     const token = getAuthToken();
+    // Xử lý dữ liệu vật liệu trước khi gửi
+    const deviceInfoToSend = {
+      ...deviceInfo,
+      material_ids: deviceInfo.materials ? deviceInfo.materials.map(m => m.id) : []
+    };
+    // Xóa trường materials nếu có để tránh gửi dữ liệu thừa
+    delete (deviceInfoToSend as any).materials;
+    
     const response = await fetch(`${API_BASE_URL}/api/v1/device-infos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(deviceInfo),
+      body: JSON.stringify(deviceInfoToSend),
     });
     if (!response.ok) throw new Error('Failed to create device info');
     const data = await response.json();
@@ -58,15 +66,45 @@ export const deviceInfoService = {
 
   async updateDeviceInfo(id: string, deviceInfo: Partial<DeviceInfo>): Promise<DeviceInfo> {
     const token = getAuthToken();
+    // Xử lý dữ liệu vật liệu trước khi gửi
+    const deviceInfoToSend = {
+      ...deviceInfo,
+      material_ids: deviceInfo.materials ? deviceInfo.materials.map(m => m.id) : []
+    };
+    // Xóa trường materials nếu có để tránh gửi dữ liệu thừa
+    delete (deviceInfoToSend as any).materials;
+    
     const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(deviceInfo),
+      body: JSON.stringify(deviceInfoToSend),
     });
     if (!response.ok) throw new Error('Failed to update device info');
+    const data = await response.json();
+    return data.data;
+  },
+
+  async deleteMultipleDeviceInfos(ids: string[]): Promise<boolean> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/delete-multiple`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids }),
+    });
+    if (!response.ok) {
+      let message = 'Failed to delete selected device infos';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
+    }
     const data = await response.json();
     return data.data;
   },
@@ -79,6 +117,24 @@ export const deviceInfoService = {
     });
     if (!response.ok) {
       let message = 'Failed to delete device info';
+      try {
+        const data = await response.json();
+        message = data?.detail || message;
+      } catch {}
+      throw { status: response.status, message };
+    }
+    const data = await response.json();
+    return data.data;
+  },
+
+  async deleteAllDeviceInfos(): Promise<boolean> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/delete-all`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      let message = 'Failed to delete all device infos';
       try {
         const data = await response.json();
         message = data?.detail || message;
@@ -131,4 +187,33 @@ export const deviceInfoService = {
     }
     return response.json();
   },
-}; 
+
+  async exportDeviceInfos(filters: { search?: string; brand?: string } = {}): Promise<void> {
+    const token = getAuthToken();
+    const params = new URLSearchParams();
+    if (filters.search) {
+      params.append('search', filters.search);
+    }
+    if (filters.brand) {
+      params.append('brand', filters.brand);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/device-infos/export?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export device infos');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'danh_sach_thiet_bi.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+};

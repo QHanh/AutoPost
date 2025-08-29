@@ -1,3 +1,11 @@
+export interface Material {
+  id: string;
+  name: string;
+  user_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DeviceInfo {
   id: string;
   model: string;
@@ -10,10 +18,12 @@ export interface DeviceInfo {
   connectivity_os?: string;
   color_english?: string;
   dimensions_weight?: string;
+  sensors_health_features?: string;
   warranty?: string;
   user_id?: string;
   created_at: string;
   updated_at: string;
+  materials?: Material[];
 }
 
 export interface Color {
