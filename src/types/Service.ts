@@ -5,4 +5,5 @@ export interface Service {
     conditions?: string[];
     created_at: string;
     updated_at: string;
+    product_count: number;
   }

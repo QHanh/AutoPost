@@ -208,6 +208,23 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
   return await response.blob();
 };
 
+export const apiPostAndGetBlob = async (endpoint: string, data: any): Promise<Blob> => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error: ${response.status}`);
+  }
+
+  return await response.blob();
+};
+
 export const chatbotStream = async (
   query: string,
   onChunk: (chunk: string) => void,

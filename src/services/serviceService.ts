@@ -1,6 +1,5 @@
-import { ResponseModel } from '../types/ResponseModel.js';
 import { Service } from '../types/Service.js';
-import { apiGet, apiPost, apiPut, apiDelete } from './apiService.js';
+import { apiGet, apiPost, apiPut, apiDelete, apiPostForm, apiPostAndGetBlob } from './apiService.js';
 
 const API_ENDPOINT = '/services';
 
@@ -35,4 +34,19 @@ export const serviceService = {
     const response = await apiDelete(`${API_ENDPOINT}/${id}`);
     return response.data;
   },
-}; 
+
+  bulkDeleteServices: async (serviceIds: string[]) => {
+    const response = await apiDelete(`${API_ENDPOINT}/bulk`, serviceIds);
+    return response.data;
+  },
+
+  importServicesFromExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return await apiPostForm(`${API_ENDPOINT}/import-excel`, formData);
+  },
+
+  exportServicesToExcel: async (serviceIds: string[]) => {
+    return await apiPostAndGetBlob(`${API_ENDPOINT}/export-excel`, { service_ids: serviceIds });
+  },
+};

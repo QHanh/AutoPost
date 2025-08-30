@@ -3,16 +3,16 @@ import { serviceService } from '../services/serviceService';
 import { brandService } from '../services/brandService';
 import { Service } from '../types/Service';
 import { Brand } from '../types/Brand';
-import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical, Search, X } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical } from 'lucide-react';
 import Swal from 'sweetalert2';
 import deviceBrandService from '../services/deviceBrandService';
 import { DeviceBrand } from '../types/deviceBrand';
 import { ServiceModal } from '../components/ServiceModal';
 import { BrandModal } from '../components/BrandModal';
 import { ExportModal } from '../components/ExportModal';
+import { useDebounce } from '../hooks/useDebounce';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { deviceApiService } from '../services/deviceApiService';
 import PopupModal from '../components/PopupModal';
 
 type SortConfig = {
@@ -33,19 +33,15 @@ export const ServiceManagementPage: React.FC = () => {
     const [brandModalOpen, setBrandModalOpen] = useState(false);
     const [exportModalOpen, setExportModalOpen] = useState(false);
     const [selectedServicesForExport, setSelectedServicesForExport] = useState<Set<string>>(new Set());
+    const [selectedBrandsForDelete, setSelectedBrandsForDelete] = useState<Set<string>>(new Set());
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
     const [currentBrand, setCurrentBrand] = useState<Partial<Brand> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
     const [isServicesVisible, setIsServicesVisible] = useState(true);
     const [noteModal, setNoteModal] = useState({ isOpen: false, title: '', content: '' });
-    
-    // ✅ State cho search trực tiếp
-    const [searchTerm, setSearchTerm] = useState<string>('');
-    const [searchResults, setSearchResults] = useState<{ id: string, name: string }[]>([]);
-    const [isSearching, setIsSearching] = useState<boolean>(false);
-    const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
-    const [selectedSearchBrand, setSelectedSearchBrand] = useState<string>('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
 
     // Helper function to format price as Vietnamese currency
@@ -101,10 +97,10 @@ export const ServiceManagementPage: React.FC = () => {
         }
     };
 
-    const fetchBrands = async (serviceId: string, sortBy?: keyof Brand, sortOrder?: 'asc' | 'desc') => {
+    const fetchBrands = async (serviceId: string, search: string, sortBy?: keyof Brand, sortOrder?: 'asc' | 'desc') => {
         try {
             setIsLoadingBrands(true);
-            const data = await brandService.getAllBrands(0, 100, '', serviceId, sortBy, sortOrder);
+            const data = await brandService.getAllBrands(0, 100, search, serviceId, sortBy, sortOrder);
             setBrands(data);
         } catch (error) {
             console.error("Failed to fetch brands", error);
@@ -136,24 +132,9 @@ export const ServiceManagementPage: React.FC = () => {
         if (selectedService) {
             const sortBy = sortConfig?.key;
             const sortOrder = sortConfig?.direction === 'ascending' ? 'asc' : 'desc';
-            fetchBrands(selectedService.id, sortBy, sortOrder);
+            fetchBrands(selectedService.id, debouncedSearchQuery, sortBy, sortOrder);
         }
-    }, [selectedService, sortConfig]);
-
-    // ✅ Handle click outside search results
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as Element;
-            if (!target.closest('.search-container')) {
-                setShowSearchResults(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
+    }, [selectedService, sortConfig, debouncedSearchQuery]);
 
     const handleSelectService = (service: Service) => {
         setSelectedService(service);
@@ -191,72 +172,89 @@ export const ServiceManagementPage: React.FC = () => {
         }
     };
 
-    // ✅ Callback cho search trực tiếp
-    const handleSearch = useCallback(async (term: string) => {
-        if (!term.trim()) {
-            setSearchResults([]);
-            setShowSearchResults(false);
+
+    // Brand selection handlers
+    const handleSelectBrandForDelete = (brandId: string) => {
+        setSelectedBrandsForDelete(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(brandId)) {
+                newSet.delete(brandId);
+            } else {
+                newSet.add(brandId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAllBrandsForDelete = () => {
+        if (brands.length > 0 && selectedBrandsForDelete.size === brands.length) {
+            setSelectedBrandsForDelete(new Set());
+        } else {
+            setSelectedBrandsForDelete(new Set(brands.map(b => b.id)));
+        }
+    };
+
+    const handleBulkDeleteBrands = async () => {
+        if (selectedBrandsForDelete.size === 0) {
+            Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một sản phẩm để xóa.', 'warning');
             return;
         }
 
-        setIsSearching(true);
-        try {
-            const searchParams: any = { search: term };
-            if (selectedSearchBrand) {
-                const selectedBrand = deviceBrands.find(b => b.id === selectedSearchBrand);
-                if (selectedBrand) {
-                    searchParams.brand = selectedBrand.name;
+        const result = await Swal.fire({
+            title: `Xóa ${selectedBrandsForDelete.size} sản phẩm đã chọn?`,
+            text: "Bạn không thể hoàn tác hành động này!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Vâng, xóa tất cả!',
+            cancelButtonText: 'Hủy'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const brandIds = Array.from(selectedBrandsForDelete);
+                let successCount = 0;
+                let errorCount = 0;
+                const errors: string[] = [];
+
+                for (const brandId of brandIds) {
+                    try {
+                        await brandService.deleteBrand(brandId);
+                        successCount++;
+                    } catch (error) {
+                        errorCount++;
+                        errors.push(`Lỗi xóa sản phẩm ID: ${brandId}`);
+                    }
                 }
+
+                if (errorCount > 0) {
+                    Swal.fire({
+                        title: 'Kết quả xóa',
+                        html: `
+                            Thành công: ${successCount}<br/>
+                            Lỗi: ${errorCount}<br/>
+                            ${errors.length > 0 ? `<strong>Chi tiết lỗi:</strong><br/>${errors.join('<br/>')}` : ''}
+                        `,
+                        icon: 'warning'
+                    });
+                } else {
+                    Swal.fire('Thành công', `Đã xóa ${successCount} sản phẩm.`, 'success');
+                }
+
+                setSelectedBrandsForDelete(new Set());
+                if (selectedService) {
+                    fetchBrands(selectedService.id, debouncedSearchQuery);
+                }
+            } catch (error) {
+                console.error('Bulk delete error:', error);
+                Swal.fire('Lỗi', 'Có lỗi xảy ra khi xóa sản phẩm.', 'error');
             }
-            
-            const res = await deviceApiService.getDeviceInfos(searchParams, { limit: 20 });
-            const devices = res.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
-            setSearchResults(devices);
-            setShowSearchResults(true);
-        } catch (error) {
-            console.error('Search failed:', error);
-            setSearchResults([]);
-        } finally {
-            setIsSearching(false);
         }
-    }, [selectedSearchBrand, deviceBrands]);
+    };
 
-    const handleSearchInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        
-        if (value.trim()) {
-            // Debounce search
-            const timeoutId = setTimeout(() => {
-                handleSearch(value);
-            }, 300);
-            
-            return () => clearTimeout(timeoutId);
-        } else {
-            setSearchResults([]);
-            setShowSearchResults(false);
-        }
-    }, [handleSearch]);
-
-    const handleSearchResultSelect = useCallback((device: { id: string, name: string }) => {
-        setSearchTerm(device.name);
-        setShowSearchResults(false);
-        // Có thể thêm logic khác ở đây nếu cần
-    }, []);
-
-    const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && searchResults.length > 0) {
-            handleSearchResultSelect(searchResults[0]);
-        } else if (e.key === 'Escape') {
-            setShowSearchResults(false);
-        }
-    }, [searchResults, handleSearchResultSelect]);
-
-    const clearSearch = useCallback(() => {
-        setSearchTerm('');
-        setSearchResults([]);
-        setShowSearchResults(false);
-    }, []);
+    // Reset selected brands when service changes
+    useEffect(() => {
+        setSelectedBrandsForDelete(new Set());
+    }, [selectedService]);
 
     const handleExportSelectedServices = async () => {
         try {
@@ -323,9 +321,9 @@ export const ServiceManagementPage: React.FC = () => {
     // onSave cho BrandModal: MEMO HOÁ để tránh thay đổi identity mỗi render
     const handleBrandModalSave = useCallback(() => {
         if (selectedService?.id) {
-            fetchBrands(selectedService.id);
+            fetchBrands(selectedService.id, debouncedSearchQuery);
         }
-    }, [selectedService?.id]);
+    }, [selectedService?.id, debouncedSearchQuery]);
 
     // open/close modal cũng nên giữ API đơn giản, không reset form ở đây
     const openBrandModal = useCallback((brand: Partial<Brand> | null = null) => {
@@ -361,7 +359,7 @@ export const ServiceManagementPage: React.FC = () => {
             if (result.isConfirmed) {
                 try {
                     await brandService.deleteBrand(brandId);
-                    fetchBrands(selectedService?.id || '');
+                    fetchBrands(selectedService?.id || '', debouncedSearchQuery);
                 } catch (error) {
                     Swal.fire('Lỗi', 'Không thể xóa loại.', 'error');
                 }
@@ -438,8 +436,9 @@ export const ServiceManagementPage: React.FC = () => {
             
             fetchServices();
             if (selectedService) {
-                fetchBrands(selectedService.id);
+                fetchBrands(selectedService.id, debouncedSearchQuery);
             }
+            setSearchQuery('');
         } catch (error) {
             Swal.fire('Lỗi Import', 'Có lỗi xảy ra trong quá trình import file.', 'error');
         } finally {
@@ -484,7 +483,12 @@ export const ServiceManagementPage: React.FC = () => {
                                                     <div {...provided.dragHandleProps} className="mr-2 cursor-grab active:cursor-grabbing">
                                                         <GripVertical size={16} />
                                                     </div>
-                                                    <span>{service.name}</span>
+                                                    <div className="flex flex-col">
+                                                        <span>{service.name}</span>
+                                                        <span className="text-xs text-gray-500 mt-1">
+                                                            {service.product_count || 0} sản phẩm
+                                                        </span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={(e) => { e.stopPropagation(); handleOpenServiceModal(service);}} className="p-1 rounded-full hover:bg-gray-300"><Edit size={16}/></button>
@@ -516,6 +520,15 @@ export const ServiceManagementPage: React.FC = () => {
                 </h2>
             </div>
             <div className="flex items-center gap-2">
+                {selectedBrandsForDelete.size > 0 && (
+                    <button
+                        onClick={handleBulkDeleteBrands}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Xóa ({selectedBrandsForDelete.size})
+                    </button>
+                )}
                 <button 
                     onClick={handleImportClick} 
                     disabled={isImportingExcel}
@@ -549,74 +562,14 @@ export const ServiceManagementPage: React.FC = () => {
             </div>
         </div>
         
-        {/* ✅ Search Input */}
-        <div className="mb-4">
-            <div className="relative search-container">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={handleSearchInputChange}
-                        onKeyDown={handleSearchKeyDown}
-                        placeholder="Tìm kiếm thiết bị..."
-                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    />
-                    {searchTerm && (
-                        <button
-                            onClick={clearSearch}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                            <X size={16} />
-                        </button>
-                    )}
-                </div>
-                
-                {/* Search Results Dropdown */}
-                {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
-                            Tìm thấy {searchResults.length} kết quả
-                            {selectedSearchBrand && (
-                                <span className="ml-2 text-blue-600">
-                                    (Đã filter theo {deviceBrands.find(b => b.id === selectedSearchBrand)?.name})
-                                </span>
-                            )}
-                        </div>
-                        {searchResults.map((device) => (
-                            <div
-                                key={device.id}
-                                onClick={() => handleSearchResultSelect(device)}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
-                            >
-                                <div className="font-medium text-gray-900">{device.name}</div>
-                                <div className="text-sm text-gray-500">ID: {device.id}</div>
-                                <div className="text-xs text-blue-600 mt-1">
-                                    Nhấn Enter để chọn, Esc để đóng
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                
-                {/* Loading State */}
-                {isSearching && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
-                        <div className="flex items-center justify-center">
-                            <LoadingSpinner size="sm" text="Đang tìm kiếm..." />
-                        </div>
-                    </div>
-                )}
-                
-                {/* No Results */}
-                {showSearchResults && !isSearching && searchResults.length === 0 && searchTerm.trim() && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4">
-                        <div className="text-center text-gray-500">
-                            Không tìm thấy kết quả nào
-                        </div>
-                    </div>
-                )}
-            </div>
+        <div className="mb-4 px-4">
+            <input
+                type="text"
+                placeholder="Tìm kiếm theo loại dịch vụ, mã DV..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
         </div>
         {isLoadingBrands ? (
             <div className="text-center p-4">Đang tải...</div>
@@ -625,6 +578,14 @@ export const ServiceManagementPage: React.FC = () => {
                 <table className="min-w-full">
                     <thead className="sticky top-0 z-10">
                         <tr className="bg-gray-100 shadow-sm">
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">
+                               <input
+                                   type="checkbox"
+                                   checked={brands.length > 0 && selectedBrandsForDelete.size === brands.length}
+                                   onChange={handleSelectAllBrandsForDelete}
+                                   className="rounded"
+                               />
+                           </th>
                            {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Tên dịch vụ</th>}
                            {renderSortableHeader('service_code', 'Mã DV')}
                            {renderSortableHeader('name', 'Loại dịch vụ')}
@@ -640,7 +601,15 @@ export const ServiceManagementPage: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {brands && brands.map(brand => (
-                            <tr key={brand.id}>
+                            <tr key={brand.id} className={selectedBrandsForDelete.has(brand.id) ? 'bg-red-50' : ''}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedBrandsForDelete.has(brand.id)}
+                                        onChange={() => handleSelectBrandForDelete(brand.id)}
+                                        className="rounded"
+                                    />
+                                </td>
                                 {!selectedService && <td className="px-6 py-4 whitespace-nowrap">{brand.service?.name}</td>}
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.service_code}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.name}</td>
