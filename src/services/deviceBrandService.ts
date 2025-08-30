@@ -35,6 +35,12 @@ class DeviceBrandService {
     return response.data;
   }
 
+  async getDistinctDeviceBrands(search = ''): Promise<DeviceBrand[]> {
+    const query = new URLSearchParams({ search });
+    const response = await this.makeRequest(`/device-brands/distinct?${query}`);
+    return response.data;
+  }
+
   async getDeviceBrand(id: string): Promise<DeviceBrand> {
     const response = await this.makeRequest(`/device-brands/${id}`);
     return response.data;

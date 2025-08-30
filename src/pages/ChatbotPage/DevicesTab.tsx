@@ -37,14 +37,9 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<number | null>(null);
 
-  const filteredDevices = userDevices.filter(device =>
-    (device.deviceModel?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (device.product_code?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  );
-
-  const paginatedDevices = filteredDevices;
-
+  const paginatedDevices = userDevices;
 
   useEffect(() => {
     // Fetch device brands for filter options
@@ -86,7 +81,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   useEffect(() => {
     fetchUserDevices();
     setSelectedDeviceIds(new Set()); // Clear selection on page/filter change
-  }, [sortConfig, pagination.page, pagination.limit, filters]);
+  }, [sortConfig, pagination.page, pagination.limit, filters, searchTerm]);
 
   const fetchUserDevices = async () => {
     console.log('DevicesTab: fetchUserDevices called with pagination:', pagination);
@@ -108,6 +103,11 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           params.append(key, value as string);
         }
       });
+      
+      // Add search term to params
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
 
       console.log('DevicesTab: API request params:', params.toString());
 

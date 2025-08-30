@@ -159,17 +159,28 @@ const StorageSelectionSection = memo<{
       )}
       <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white">
         {storages.length > 0 ? (
-          storages.map(storage => (
+          <>
             <div
-              key={storage.id}
-              onClick={() => onStorageSelect(storage.id)}
+              key="clear-storage"
+              onClick={() => onStorageSelect('')}
               className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                formData.device_storage_id === storage.id ? 'bg-blue-50 text-blue-700 font-medium' : ''
-              } ${isLoading ? 'cursor-not-allowed' : ''}`}
+                !formData.device_storage_id ? 'bg-blue-50 text-blue-700 font-medium' : ''
+              } ${isLoading ? 'cursor-not-allowed' : ''} border-b border-gray-200`}
             >
-              {storage.capacity} GB
+              Không chọn dung lượng
             </div>
-          ))
+            {storages.map(storage => (
+              <div
+                key={storage.id}
+                onClick={() => onStorageSelect(storage.id)}
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
+                  formData.device_storage_id === storage.id ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                } ${isLoading ? 'cursor-not-allowed' : ''}`}
+              >
+                {storage.capacity} GB
+              </div>
+            ))}
+          </>
         ) : (
           <div className="px-3 py-2 text-gray-500">
             {formData.device_info_id ? (isLoading ? 'Đang tải...' : 'Không có dung lượng') : 'Vui lòng chọn thiết bị'}
@@ -370,7 +381,10 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
 
   const handleStorageSelect = useCallback((storageId: string) => {
     if (isDependentDataLoading) return;
-    setFormData(prev => ({ ...prev, device_storage_id: storageId }));
+    setFormData(prev => ({ 
+      ...prev, 
+      device_storage_id: storageId 
+    }));
   }, [isDependentDataLoading]);
 
   const handleDeviceTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -414,8 +428,17 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-4">{device ? 'Sửa thiết bị' : 'Thêm thiết bị'}</h2>
+      <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">{device ? 'Sửa thiết bị' : 'Thêm thiết bị'}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none p-1 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Đóng modal"
+          >
+            ×
+          </button>
+        </div>
         <form onSubmit={handleSubmit}>
           {/* Hàng 1: Thiết bị, Màu sắc, Dung lượng */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

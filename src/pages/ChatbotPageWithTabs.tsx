@@ -190,7 +190,7 @@ const ChatbotPageWithTabs: React.FC = () => {
           </ul>
         </nav>
       </aside>
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto">
         {renderTabContent()}
       </main>
     </div>

@@ -48,34 +48,35 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   useEffect(() => {
     if (isOpen) {
       fetchInitialData();
-      // Initialize user note when editing existing brand
+      // Initialize user note, always include applied conditions in the textarea
       if (currentBrand?.note) {
-        const noteParts = currentBrand.note.split('--- Điều kiện ---');
-        const userNotePart = noteParts[0].trim();
-        setUserNote(userNotePart);
+        let noteToDisplay = currentBrand.note;
+        const appliedConditions = selectedService?.applied_conditions || [];
+        if (appliedConditions.length > 0) {
+          const appliedText = appliedConditions.join(', ');
+          // Remove applied conditions from display to avoid duplication
+          noteToDisplay = noteToDisplay.replace(appliedText, '').replace(/,\s*$/, '').trim();
+        }
+        setUserNote(noteToDisplay);
       } else {
-        setUserNote('');
+        // If no existing note, start with applied conditions
+        const appliedConditions = selectedService?.applied_conditions || [];
+        if (appliedConditions.length > 0) {
+          setUserNote(appliedConditions.join(', '));
+        } else {
+          setUserNote('');
+        }
       }
     }
-  }, [isOpen, selectedService]);
+  }, [isOpen, currentBrand?.note, selectedService?.applied_conditions]);
 
+  // Adjust textarea height
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [userNote]);
-
-  // Separate useEffect to handle note changes without resetting other fields
-  useEffect(() => {
-    if (currentBrand?.note) {
-      const noteParts = currentBrand.note.split('--- Điều kiện ---');
-      const userNotePart = noteParts[0].trim();
-      setUserNote(userNotePart);
-    } else {
-      setUserNote('');
-    }
-  }, [currentBrand?.note]);
 
   // Đảm bảo selectedDeviceId vẫn hợp lệ khi deviceOptions thay đổi
   useEffect(() => {
@@ -124,7 +125,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     let deviceOptionsData = deviceInfosRes.devices.map(d => ({ id: String(d.id), name: String(d.model) }));
 
     // Fetch initial options for Device Brands (Thương hiệu)
-    let deviceBrandsData = await deviceBrandService.getDeviceBrands(0, 20, '');
+    let deviceBrandsData = await deviceBrandService.getDistinctDeviceBrands('');
 
     // --- Handle Edit Mode ---
     if (currentBrand) {
@@ -319,11 +320,11 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
   // ✅ callback ổn định cho search device brands
   const handleSearchDeviceBrands = useCallback(async (term: string) => {
     try {
-      const brands = await deviceBrandService.getDeviceBrands(0, 20, term);
-      return brands.map(brand => ({ id: brand.id, name: brand.name }));
+      const brands = await deviceBrandService.getDistinctDeviceBrands(term);
+      setDeviceBrands(brands);
     } catch (error) {
       console.error('Failed to search device brands:', error);
-      return [];
+      setDeviceBrands([]);
     }
   }, []);
 
@@ -348,47 +349,76 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
     }
   }, []);
 
+  const handleUserNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserNote(e.target.value);
+    setCurrentBrand(prev => prev ? { ...prev, note: e.target.value } : null);
+  };
+
   const handleConditionsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = e.target;
+    
+    // Update the conditions array in currentBrand
     setCurrentBrand(prev => {
         if (!prev) return null;
-
-        // Update the conditions array
+        
         const prevConditions = prev.conditions || [];
         const newConditions = checked
             ? [...prevConditions, value]
             : prevConditions.filter(c => c !== value);
-
-        // Clean userNote by removing any existing conditions
-        let cleanUserNote = userNote;
-        if (prev.conditions && prev.conditions.length > 0) {
-            // Remove all existing conditions from userNote
-            for (const condition of prev.conditions) {
-                cleanUserNote = cleanUserNote.replace(new RegExp(`\\n?${condition.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), '');
-            }
-            // Clean up extra newlines and commas
-            cleanUserNote = cleanUserNote.replace(/\n+/g, '\n').replace(/,\s*/g, '').trim();
-        }
-
-        // Build new note from clean userNote + new conditions
-        let newNote = cleanUserNote;
-        if (newConditions.length > 0) {
-            const conditionsText = newConditions.join(', ');
-            if (cleanUserNote) {
-                newNote = `${cleanUserNote}\n${conditionsText}`;
-            } else {
-                newNote = conditionsText;
-            }
-        }
-
-        // Return updated brand with all existing values preserved
-        return { 
-            ...prev, 
-            conditions: newConditions, 
-            note: newNote 
-        };
+            
+        return { ...prev, conditions: newConditions };
     });
-  }, [userNote]);
+
+    // Update userNote separately to avoid infinite loops
+    const appliedConditions = selectedService?.applied_conditions || [];
+    
+    // Get the new conditions array (use the updated state)
+    const newConditions = checked
+        ? [...(currentBrand?.conditions || []), value]
+        : (currentBrand?.conditions || []).filter(c => c !== value);
+
+    // Build the new note: applied_conditions + new_conditions
+    let newNote = '';
+    
+    // 1. Always start with applied conditions (cố định)
+    if (appliedConditions.length > 0) {
+        newNote = appliedConditions.join(', ');
+    }
+    
+    // 2. Add user-selected conditions
+    if (newConditions.length > 0) {
+        if (newNote) {
+            newNote = `${newNote}, ${newConditions.join(', ')}`;
+        } else {
+            newNote = newConditions.join(', ');
+        }
+    }
+    
+    // 3. Add user's custom note (extract from current userNote)
+    const userCustomNote = userNote
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => 
+            item && 
+            !appliedConditions.includes(item) && 
+            !newConditions.includes(item) &&
+            !(currentBrand?.conditions || []).includes(item) // Also exclude current conditions
+        )
+        .join(', ');
+        
+    if (userCustomNote) {
+        if (newNote) {
+            newNote = `${newNote}, ${userCustomNote}`;
+        } else {
+            newNote = userCustomNote;
+        }
+    }
+    
+    // Clean up extra commas and spaces
+    newNote = newNote.replace(/,\s*,/g, ',').replace(/^,\s*/, '').replace(/,\s*$/, '');
+    
+    setUserNote(newNote);
+  }, [currentBrand?.conditions, selectedService?.applied_conditions, userNote]);
   // ✅ callback ổn định cho price change
   const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^\d]/g, '');
@@ -416,21 +446,25 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         return;
       }
 
+      // Final note construction: userNote already contains applied conditions + user input
+      const finalNote = userNote.trim();
+
+      const brandPayload = {
+        ...currentBrand,
+        note: finalNote, // Use the constructed final note
+        service_id: selectedService.id,
+        device_brand_id: selectedDeviceBrand,
+        device_type: deviceOptions.find(d => d.id === selectedDeviceId)?.name || '',
+      };
+
       if (selectedColor === 'all') {
         // Save a service for each color sequentially
         for (const color of colorOptions) {
           const brandData = {
-            ...currentBrand,
-            service_id: selectedService.id,
-            device_brand_id: selectedDeviceBrand,
-            device_type: deviceOptions.find(d => d.id === selectedDeviceId)?.name || '',
+            ...brandPayload,
             color: color.name,
           };
-
-          // Since we are creating multiple entries, we should only use createBrand
-          // and not updateBrand, as 'all' implies creating new entries for each color.
           await brandService.createBrand(brandData);
-          // Optional: add a small delay to prevent overwhelming the server
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         Swal.fire('Thành công', `Đã tạo dịch vụ cho ${colorOptions.length} màu!`, 'success');
@@ -438,19 +472,16 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
       } else {
         // Save for a single selected color
         const brandData = {
-          ...currentBrand,
-          service_id: selectedService.id,
-          device_brand_id: selectedDeviceBrand,
-          device_type: deviceOptions.find(d => d.id === selectedDeviceId)?.name || '',
+          ...brandPayload,
           color: colorOptions.find(c => c.id === selectedColor)?.name || '',
         };
 
         if (currentBrand.id) {
           await brandService.updateBrand(currentBrand.id, brandData);
-          Swal.fire('Thành công', 'Cập nhật loại dịch vụ thành công!', 'success');
+          Swal.fire('Thành công', 'Cập nhật loại sản phẩm thành công!', 'success');
         } else {
           await brandService.createBrand(brandData);
-          Swal.fire('Thành công', 'Tạo loại dịch vụ thành công!', 'success');
+          Swal.fire('Thành công', 'Tạo loại sản phẩm thành công!', 'success');
         }
       }
 
@@ -458,9 +489,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
       onClose();
     } catch (error) {
       console.error('Failed to save brand:', error);
-      Swal.fire('Lỗi', 'Có lỗi xảy ra khi lưu loại dịch vụ.', 'error');
+      Swal.fire('Lỗi', 'Có lỗi xảy ra khi lưu loại sản phẩm.', 'error');
     }
-  }, [currentBrand, selectedService, selectedDeviceBrand, selectedDeviceId, selectedColor, deviceOptions, colorOptions, onSave, onClose]);
+  }, [currentBrand, selectedService, selectedDeviceBrand, selectedDeviceId, selectedColor, deviceOptions, colorOptions, onSave, onClose, userNote]);
 
   // ✅ callback ổn định cho service name change
   const handleServiceNameChange = useCallback((value: string) => {
@@ -471,6 +502,25 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
       warranty: selected ? selected.warranty : prev?.warranty || ''
     }));
   }, [uniqueBrandNames]);
+
+  // ✅ Cập nhật điều kiện cố định khi selectedService thay đổi
+  useEffect(() => {
+    if (selectedService?.applied_conditions && selectedService.applied_conditions.length > 0) {
+      const appliedConditionsText = selectedService.applied_conditions.join(', ');
+      
+      // Chỉ cập nhật nếu userNote chưa có điều kiện cố định
+      if (!userNote.includes(appliedConditionsText)) {
+        let newNote = appliedConditionsText;
+        
+        // Thêm điều kiện đã chọn (nếu có)
+        if (currentBrand?.conditions && currentBrand.conditions.length > 0) {
+          newNote = `${newNote}, ${currentBrand.conditions.join(', ')}`;
+        }
+        
+        setUserNote(newNote);
+      }
+    }
+  }, [selectedService?.applied_conditions]);
 
   const handleEditDeviceBrand = useCallback(async (brandId: string) => {
     const brand = deviceBrands.find(b => b.id === brandId);
@@ -580,7 +630,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
                     : `Thêm loại cho "${selectedService?.name}"`}
                 </h3>
                 <p className="text-blue-100 text-xs mt-1">
-                  {currentBrand?.id ? 'Cập nhật thông tin loại dịch vụ' : 'Tạo loại dịch vụ mới cho khách hàng'}
+                  {currentBrand?.id ? 'Cập nhật thông tin loại sản phẩm' : 'Tạo loại sản phẩm mới cho khách hàng'}
                 </p>
               </div>
             </div>
@@ -738,9 +788,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1.5fr] gap-6 items-end">
 {/* Service Name */}
 <div>
-<label className="block text-base font-medium text-gray-700 mb-2">Loại dịch vụ <span className="text-red-500">*</span></label>
+<label className="block text-base font-medium text-gray-700 mb-2">loại sản phẩm <span className="text-red-500">*</span></label>
 {currentBrand?.id ? (
-<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại dịch vụ" />
+<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại sản phẩm" />
 ) : !isAddingNewTypeName ? (
 <div className="flex gap-2">
 <div className="flex-1"><SearchableSelect options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))} value={currentBrand?.name || ''} onChange={handleServiceNameChange} placeholder="Chọn tên loại có sẵn" /></div>
@@ -793,6 +843,19 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 {/* Row 3: Notes */}
 <div>
 <label className="block text-base font-medium text-gray-700 mb-2">Ghi chú</label>
+
+{/* Thông báo điều kiện cố định đã có trong ô ghi chú */}
+{selectedService?.applied_conditions && selectedService.applied_conditions.length > 0 && (
+  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+    <div className="text-sm font-medium text-blue-800 mb-2">
+      ℹ️ Điều kiện cố định đã được thêm vào ô ghi chú bên dưới
+    </div>
+    <div className="text-sm text-blue-700">
+      Bạn có thể thêm ghi chú khác sau dấu phẩy
+    </div>
+  </div>
+)}
+
 <textarea 
     ref={textareaRef}
     value={userNote}
@@ -800,26 +863,10 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
         const newText = e.target.value;
         setUserNote(newText);
         
-        // Check if user manually removed conditions from the note
+        // Update currentBrand with user note only (applied conditions will be added in handleSave)
         setCurrentBrand(prev => {
             if (!prev) return null;
-            
-            const currentConditions = prev.conditions || [];
-            const updatedConditions: string[] = [];
-            
-            // Check which conditions are still present in the user input
-            for (const condition of currentConditions) {
-                if (newText.includes(condition)) {
-                    updatedConditions.push(condition);
-                }
-            }
-            
-            // Update both note and conditions
-            return { 
-                ...prev, 
-                note: newText,
-                conditions: updatedConditions
-            };
+            return { ...prev, note: newText };
         });
     }}
     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base resize-none overflow-hidden" 
@@ -828,12 +875,29 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 ></textarea>
 </div>
 
-{/* Conditions Section (for Battery Replacement) */}
-{selectedService?.conditions && selectedService.conditions.length > 0 && (
+{/* Unified Conditions Section */}
+{((selectedService?.applied_conditions && selectedService.applied_conditions.length > 0) || 
+  (selectedService?.conditions && selectedService.conditions.length > 0)) && (
 <div>
 <label className="block text-base font-medium text-gray-700 mb-3">Điều kiện áp dụng</label>
 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 border border-gray-200 rounded-lg">
-{selectedService.conditions.map(condition => (
+{/* Applied Conditions - Always checked, different color */}
+{selectedService?.applied_conditions?.map((condition, index) => (
+<label key={`applied-${index}`} className="flex items-center space-x-2">
+<input
+type="checkbox"
+checked={true}
+disabled={true}
+className="h-4 w-4 rounded border-green-300 text-green-600 bg-green-100"
+/>
+<span className="text-sm text-green-700 font-semibold">{condition}</span>
+</label>
+))}
+
+{/* Regular Conditions - User can check/uncheck */}
+{selectedService?.conditions?.filter(condition => 
+  !(selectedService?.applied_conditions || []).includes(condition)
+).map(condition => (
 <label key={condition} className="flex items-center space-x-2 cursor-pointer">
 <input
 type="checkbox"

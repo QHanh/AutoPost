@@ -42,7 +42,7 @@ export const ServiceManagementPage: React.FC = () => {
     const [noteModal, setNoteModal] = useState({ isOpen: false, title: '', content: '' });
     const [searchQuery, setSearchQuery] = useState('');
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
-
+    const totalProducts = services.reduce((acc, service) => acc + (service.product_count || 0), 0);
 
     // Helper function to format price as Vietnamese currency
     const formatPrice = (price: string | undefined): string => {
@@ -279,7 +279,7 @@ export const ServiceManagementPage: React.FC = () => {
                 return; // Don't open modal if fetch fails
             }
         } else {
-            setCurrentService({ id: '', name: '', description: '', conditions: [], created_at: '', updated_at: '' });
+            setCurrentService({ id: '', name: '', description: '', conditions: [], applied_conditions: [], created_at: '', updated_at: '' });
         }
         setServiceModalOpen(true);
     };
@@ -450,12 +450,12 @@ export const ServiceManagementPage: React.FC = () => {
     };
 
   return (
-    <div className="w-full h-full flex gap-8">
+    <div className="w-full flex gap-4 h-[calc(100vh-80px)] p-4">
       {/* Services Column */}
       {isServicesVisible && (
-        <div className="w-1/4 bg-white shadow-md rounded-lg p-4 flex flex-col transition-all duration-300">
+        <div className="w-1/4 bg-white shadow-md rounded-lg p-4 flex flex-col h-full">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Dịch vụ</h2>
+                <h2 className="text-xl font-semibold">Danh sách dịch vụ ({totalProducts})</h2>
                 <div className="flex items-center gap-2">
                     <button onClick={() => handleOpenServiceModal()} className="p-2 rounded-full hover:bg-gray-200">
                         <Plus size={20} />
@@ -483,11 +483,8 @@ export const ServiceManagementPage: React.FC = () => {
                                                     <div {...provided.dragHandleProps} className="mr-2 cursor-grab active:cursor-grabbing">
                                                         <GripVertical size={16} />
                                                     </div>
-                                                    <div className="flex flex-col">
-                                                        <span>{service.name}</span>
-                                                        <span className="text-xs text-gray-500 mt-1">
-                                                            {service.product_count || 0} sản phẩm
-                                                        </span>
+                                                    <div className="flex-grow">
+                                                        <div className="font-medium">{service.name} <span className="text-xs text-gray-500">({service.product_count || 0})</span></div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -509,14 +506,14 @@ export const ServiceManagementPage: React.FC = () => {
       )}
 
       {/* Brands Column */}
-      <div className={`${isServicesVisible ? 'w-3/4' : 'w-full'} bg-white shadow-md rounded-lg p-4 flex flex-col transition-all duration-300`}>
+      <div className={`${isServicesVisible ? 'w-3/4' : 'w-full'} bg-white shadow-md rounded-lg p-4 flex flex-col h-full transition-all duration-300`}>
         <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-4">
                 <button onClick={() => setIsServicesVisible(!isServicesVisible)} className="p-2 rounded-full hover:bg-gray-200">
                     <ChevronsUpDown size={20} />
                 </button>
                 <h2 className="text-xl font-bold text-gray-800">
-                    {selectedService ? `Loại & Bảo hành cho "${selectedService.name}"` : "Tất cả Loại & Bảo hành"}
+                    {selectedService ? `Sản phẩm cho "${selectedService.name}" (${brands.length})` : "Tất cả sản phẩm"}
                 </h2>
             </div>
             <div className="flex items-center gap-2">
@@ -565,7 +562,7 @@ export const ServiceManagementPage: React.FC = () => {
         <div className="mb-4 px-4">
             <input
                 type="text"
-                placeholder="Tìm kiếm theo loại dịch vụ, mã DV..."
+                placeholder="Tìm kiếm theo loại sản phẩm, mã DV..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -588,7 +585,7 @@ export const ServiceManagementPage: React.FC = () => {
                            </th>
                            {!selectedService && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Tên dịch vụ</th>}
                            {renderSortableHeader('service_code', 'Mã DV')}
-                           {renderSortableHeader('name', 'Loại dịch vụ')}
+                           {renderSortableHeader('name', 'loại sản phẩm')}
                            {renderSortableHeader('device_brand_id', 'Thương hiệu')}
                            {renderSortableHeader('device_type', 'Loại máy')}
                            {renderSortableHeader('color', 'Màu sắc')}

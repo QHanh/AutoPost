@@ -3,7 +3,8 @@ export interface Service {
     name: string;
     description: string;
     conditions?: string[];
+    applied_conditions?: string[];
     created_at: string;
     updated_at: string;
-    product_count: number;
+    product_count?: number;
   }

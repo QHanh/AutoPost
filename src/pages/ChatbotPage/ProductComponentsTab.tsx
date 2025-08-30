@@ -1056,10 +1056,17 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900">
                 {editingProductComponent ? 'Cập Nhật Linh Kiện' : 'Thêm Linh Kiện Mới'}
               </h3>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none p-1 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Đóng modal"
+              >
+                ×
+              </button>
             </div>
             
             <div className="px-6 py-6">
