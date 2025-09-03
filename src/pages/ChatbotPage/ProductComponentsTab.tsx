@@ -7,6 +7,8 @@ import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
 import PopupModal from '../../components/PopupModal';
+import InfoHint from '../../components/InfoHint';
+import LabeledField from '../../components/LabeledField';
 
 // Component hiển thị mô tả với tính năng popup
 const DescriptionDisplay: React.FC<{ 
@@ -46,9 +48,19 @@ const formatCurrency = (amount: number): string => {
 
 interface ProductComponentsTabProps {
   isAuthenticated: boolean;
+  currentPage: number;
+  currentLimit: number;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
 }
 
-const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthenticated }) => {
+const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ 
+  isAuthenticated,
+  currentPage,
+  currentLimit,
+  onPageChange,
+  onLimitChange 
+}) => {
   const [productComponents, setProductComponents] = useState<ProductComponent[]>([]);
   const [selectedProductComponents, setSelectedProductComponents] = useState<Set<string>>(new Set());
   const [isSelectAll, setIsSelectAll] = useState(false);
@@ -59,9 +71,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof ProductComponent; direction: 'ascending' | 'descending' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
+  const [paginationInfo, setPaginationInfo] = useState({
     total: 0,
     totalPages: 1,
   });
@@ -93,24 +103,22 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const [descriptionModal, setDescriptionModal] = useState({ isOpen: false, title: '', content: '' });
 
   useEffect(() => {
-    console.log('=== MAIN USE EFFECT ===');
-    console.log('isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      console.log('Calling fetch functions...');
       fetchProductComponents();
+    }
+  }, [isAuthenticated, currentPage, currentLimit, sortConfig]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
       fetchCategories();
       fetchProperties();
       fetchFilterOptions();
     }
-    console.log('=== END MAIN USE EFFECT ===');
-  }, [isAuthenticated, sortConfig, pagination.page, pagination.limit]);
+  }, [isAuthenticated]);
 
   // Separate useEffect for search term to trigger search with debounce
   useEffect(() => {
     if (isAuthenticated) {
-      // Reset to first page when searching
-      setPagination(prev => ({ ...prev, page: 1 }));
-      
       // Add debounce for search
       const timeoutId = setTimeout(() => {
         fetchProductComponents();
@@ -118,9 +126,8 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       
       return () => clearTimeout(timeoutId);
     }
-  }, [searchTerm]);
+  }, [searchTerm, isAuthenticated]);
 
-  // Separate useEffect for filters to call API when filters change
   useEffect(() => {
     console.log('=== FILTERS USE EFFECT ===');
     console.log('Filters changed:', filters);
@@ -129,8 +136,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     console.log('Filters object values:', Object.values(filters));
     console.log('isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
-      // Reset to first page when filters change
-      setPagination(prev => ({ ...prev, page: 1 }));
       // Call API with new filters
       fetchProductComponents();
     }
@@ -140,12 +145,12 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   const fetchProductComponents = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching product components with pagination:', pagination);
+      console.log('Fetching product components with pagination:', { page: currentPage, limit: currentLimit });
       console.log('Search term:', searchTerm);
       console.log('Active filters:', filters);
       const response = await productComponentService.getAllProductComponents(
-        pagination.page,
-        pagination.limit,
+        currentPage,
+        currentLimit,
         searchTerm || undefined, // search term
         sortConfig?.key,
         sortConfig?.direction,
@@ -159,12 +164,10 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       setProductComponents(components);
       
       // Update pagination info from backend response
-      setPagination(prev => ({
-        ...prev,
+      setPaginationInfo({
         total: response.total || 0,
         totalPages: response.total_pages || 1,
-        page: response.page || 1,
-      }));
+      });
     } catch (error) {
       console.error('Error fetching product components:', error);
       alert('Có lỗi xảy ra khi tải dữ liệu linh kiện. Vui lòng thử lại.');
@@ -289,7 +292,10 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
     console.log('New property_key:', newFilters.property_key);
     console.log('Old filters object reference:', filters);
     
-    setPagination(prev => ({ ...prev, page: 1 }));
+    // Reset to page 1 only when filters actually change
+    if (JSON.stringify(filters) !== JSON.stringify(newFilters)) {
+      onPageChange(1);
+    }
     
     // Always set filters, regardless of change
     console.log('Setting filters to:', newFilters);
@@ -562,14 +568,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    onPageChange(newPage);
     // Clear selection when changing pages
     setSelectedProductComponents(new Set());
     setIsSelectAll(false);
   };
 
   const handleLimitChange = (newLimit: number) => {
-    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    onLimitChange(newLimit);
     // Clear selection when changing page size
     setSelectedProductComponents(new Set());
     setIsSelectAll(false);
@@ -683,7 +689,8 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           setProductComponents([]);
           setSelectedProductComponents(new Set());
           setIsSelectAll(false);
-          setPagination(prev => ({ ...prev, total: 0, totalPages: 1, page: 1 }));
+          setPaginationInfo({ total: 0, totalPages: 1 });
+          onPageChange(1);
 
           Swal.fire(
             'Đã xóa!',
@@ -759,14 +766,22 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <Upload size={20} className="mr-2" />
             Nhập Excel
           </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            <Plus size={20} className="mr-2" />
-            Thêm Linh Kiện
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleOpenModal()}
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              <Plus size={20} className="mr-2" />
+              Thêm Linh Kiện
+            </button>
+            <InfoHint
+              text={
+                'Thêm linh kiện mới vào danh sách.\nGợi ý: Bạn có thể nhập Excel để thêm hàng loạt nhanh hơn.'
+              }
+              position="right"
+            />
+          </div>
           {productComponents.length > 0 && (
             <button
               onClick={handleDeleteAll}
@@ -786,6 +801,24 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
           />
         </div>
       </div>
+
+      {selectedProductComponents.size > 0 && (
+        <div className="mb-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+              <button
+                onClick={handleBulkDelete}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
+              >
+                <Trash2 size={20} className="mr-2" />
+                Xóa ({selectedProductComponents.size})
+              </button>
+              <span className="text-sm text-gray-600">
+                Đã chọn {selectedProductComponents.size} trên {productComponents.length} mục
+              </span>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4">
         <div className="relative">
@@ -808,7 +841,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
         </div>
         {searchTerm && (
           <div className="mt-2 text-sm text-gray-600">
-            Tìm kiếm: "{searchTerm}" - Tìm thấy {pagination.total} kết quả
+            Tìm kiếm: "{searchTerm}" - Tìm thấy {paginationInfo.total} kết quả
           </div>
         )}
       </div>
@@ -1017,39 +1050,23 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
       )}
       
       <div className="flex justify-between items-center mt-4">
-        <div className="flex items-center gap-4">
+        <div>
           <select
-            value={pagination.limit}
+            value={currentLimit}
             onChange={(e) => handleLimitChange(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >
-            <option value={10}>10 / trang</option>
-            <option value={20}>20 / trang</option>
+            <option value={15}>15 / trang</option>
+            <option value={30}>30 / trang</option>
             <option value={50}>50 / trang</option>
+            <option value={100}>100 / trang</option>
           </select>
-          
-          {selectedProductComponents.size > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading}
-            >
-              <Trash2 size={20} className="mr-2" />
-              Xóa {selectedProductComponents.size} mục
-            </button>
-          )}
         </div>
-        
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">
-            Tổng số: {pagination.total}
-          </span>
-          <Pagination
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
-          />
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginationInfo.totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Modal for Create/Update Product Component */}
@@ -1072,8 +1089,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
             <div className="px-6 py-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Mã Sản Phẩm</label>
+                  <LabeledField label="Mã Sản Phẩm" hintText="Tùy chọn. Để trống hệ thống sẽ tự sinh mã." hintPosition="right">
                     <input
                       type="text"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.product_code ? 'border-red-500' : 'border-gray-300'}`}
@@ -1081,11 +1097,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, product_code: e.target.value})}
                       placeholder="Nhập mã sản phẩm (tùy chọn)"
                     />
-                    <p className="text-gray-500 text-xs mt-2">Nếu không nhập, hệ thống sẽ tự động tạo mã</p>
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tên Sản Phẩm *</label>
+                  <LabeledField label="Tên Sản Phẩm" required hintText="Tên hiển thị của linh kiện/dịch vụ." hintPosition="right">
                     <input
                       type="text"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.product_name ? 'border-red-500' : 'border-gray-300'}`}
@@ -1094,10 +1108,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       placeholder="Nhập tên sản phẩm"
                     />
                     {formErrors.product_name && <p className="text-red-500 text-xs mt-2">{formErrors.product_name}</p>}
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Giá Tiền *</label>
+                  <LabeledField label="Giá Tiền" required hintText="Lưu ý: Với dịch vụ liên quan đến vỏ máy, mỗi màu có thể có giá khác nhau." hintPosition="right">
                     <input
                       type="number"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.amount ? 'border-red-500' : 'border-gray-300'}`}
@@ -1107,10 +1120,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       min="0"
                     />
                     {formErrors.amount && <p className="text-red-500 text-xs mt-2">{formErrors.amount}</p>}
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Giá Bán Buôn</label>
+                  <LabeledField label="Giá Bán Buôn" hintText="Giá áp dụng cho đại lý/mua số lượng." hintPosition="right">
                     <input
                       type="number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1119,10 +1131,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       placeholder="0"
                       min="0"
                     />
-                  </div>
+                  </LabeledField>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tồn Kho *</label>
+                  <LabeledField label="Tồn Kho" required hintText="Số lượng còn lại trong kho." hintPosition="right">
                     <input
                       type="number"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.stock ? 'border-red-500' : 'border-gray-300'}`}
@@ -1132,10 +1143,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       min="0"
                     />
                     {formErrors.stock && <p className="text-red-500 text-xs mt-2">{formErrors.stock}</p>}
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Thương Hiệu</label>
+                  <LabeledField label="Thương Hiệu" hintText="Ví dụ: Apple, Samsung..." hintPosition="right">
                     <input
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1143,10 +1153,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, trademark: e.target.value})}
                       placeholder="Nhập thương hiệu"
                     />
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Bảo Hành</label>
+                  <LabeledField label="Bảo Hành" hintText="Thời hạn hoặc điều kiện bảo hành." hintPosition="right">
                     <input
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1154,12 +1163,11 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, guarantee: e.target.value})}
                       placeholder="Nhập thông tin bảo hành"
                     />
-                  </div>
+                  </LabeledField>
                 </div>
                 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Danh Mục</label>
+                  <LabeledField label="Danh Mục" hintText="Nhóm phân loại của sản phẩm/dịch vụ." hintPosition="right">
                     <input
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1167,10 +1175,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, category: e.target.value})}
                       placeholder="Nhập tên danh mục"
                     />
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Mô Tả</label>
+                  <LabeledField label="Mô Tả" hintText="Nếu là dịch vụ vỏ máy: ghi chú rõ mỗi màu có thể có giá khác nhau." hintPosition="right">
                     <textarea
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       value={formData.description || ''}
@@ -1178,10 +1185,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       rows={3}
                       placeholder="Nhập mô tả sản phẩm"
                     />
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Liên Kết Ảnh</label>
+                  <LabeledField label="Liên Kết Ảnh" hintText="URL ảnh minh họa sản phẩm/dịch vụ." hintPosition="right">
                     <input
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1189,10 +1195,9 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, product_photo: e.target.value})}
                       placeholder="Nhập URL ảnh sản phẩm"
                     />
-                  </div>
+                  </LabeledField>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Liên Kết Sản Phẩm</label>
+                  <LabeledField label="Liên Kết Sản Phẩm" hintText="URL chi tiết sản phẩm để khách tham khảo." hintPosition="right">
                     <input
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -1200,54 +1205,55 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ isAuthentic
                       onChange={(e) => setFormData({...formData, product_link: e.target.value})}
                       placeholder="Nhập URL sản phẩm"
                     />
-                  </div>
+                  </LabeledField>
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Thuộc Tính</label>
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <PropertySelector 
-                      properties={properties}
-                      selectedProperties={formData.properties || ''}
-                      onPropertiesChange={(properties) => {
-                        setFormData({
-                          ...formData,
-                          properties
-                        });
-                      }}
-                      onAddNewProperty={async (key, values) => {
-                        try {
-                          const newProperty = await productComponentService.createProperty({
-                            key,
-                            values
-                          });
-                          
-                          setProperties(prev => [...prev, newProperty]);
-                          
-                          // Update properties in form data
-                          let currentProperties: any[] = [];
-                          try {
-                            currentProperties = formData.properties ? JSON.parse(formData.properties) : [];
-                          } catch (e) {
-                            currentProperties = [];
-                          }
-                          
-                          const updatedProperties = [
-                            ...currentProperties,
-                            { key: newProperty.key, values: newProperty.values || [] }
-                          ];
-                          
+                  <LabeledField label="Thuộc Tính" hintText="Thêm thuộc tính như Màu sắc, Dung lượng... Lưu ý: Với dịch vụ liên quan đến vỏ máy, các màu có thể có giá khác nhau." hintPosition="right">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <PropertySelector 
+                        properties={properties}
+                        selectedProperties={formData.properties || ''}
+                        onPropertiesChange={(properties) => {
                           setFormData({
                             ...formData,
-                            properties: JSON.stringify(updatedProperties)
+                            properties
                           });
-                        } catch (error) {
-                          console.error('Error creating new property:', error);
-                          alert('Có lỗi xảy ra khi thêm thuộc tính mới');
-                        }
-                      }}
-                    />
-                  </div>
+                        }}
+                        onAddNewProperty={async (key, values) => {
+                          try {
+                            const newProperty = await productComponentService.createProperty({
+                              key,
+                              values
+                            });
+                            
+                            setProperties(prev => [...prev, newProperty]);
+                            
+                            // Update properties in form data
+                            let currentProperties: any[] = [];
+                            try {
+                              currentProperties = formData.properties ? JSON.parse(formData.properties) : [];
+                            } catch (e) {
+                              currentProperties = [];
+                            }
+                            
+                            const updatedProperties = [
+                              ...currentProperties,
+                              { key: newProperty.key, values: newProperty.values || [] }
+                            ];
+                            
+                            setFormData({
+                              ...formData,
+                              properties: JSON.stringify(updatedProperties)
+                            });
+                          } catch (error) {
+                            console.error('Error creating new property:', error);
+                            alert('Có lỗi xảy ra khi thêm thuộc tính mới');
+                          }
+                        }}
+                      />
+                    </div>
+                  </LabeledField>
                 </div>
               </div>
             </div>

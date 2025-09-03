@@ -9,6 +9,7 @@ import deviceBrandService from '../services/deviceBrandService';
 import { brandService } from '../services/brandService';
 import { warrantyService, WarrantyService } from '../services/warrantyService';
 import { Service } from '../types/Service';
+import LabeledField from './LabeledField';
 
 interface UniqueBrandName {
   name: string;
@@ -615,7 +616,7 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -643,273 +644,302 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
           </div>
         </div>
 
-{/* Form Content */}
-<div className="p-8 space-y-8">
-{/* Row 1: Device Brand, Type, Color */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-{/* Device Brand */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">Thương hiệu</label>
-{!isAddingNewBrand ? (
-  <div className="relative">
-    <div className="flex gap-2">
-      <input
-        type="text"
-        placeholder="Chọn thương hiệu"
-        value={deviceBrands.find(b => b.id === selectedDeviceBrand)?.name || ''}
-        onChange={(e) => {
-          // Handle search
-          handleSearchDeviceBrands(e.target.value);
-        }}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-      />
-      <button type="button" onClick={() => setIsAddingNewBrand(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+        {/* Form Content */}
+        <div className="p-8 space-y-8">
+  {/* Row 1: Device Brand, Type, Color */}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {/* Device Brand */}
+    <div>
+      <LabeledField label="Thương hiệu" hintText="Chọn thương hiệu thiết bị để lọc đúng danh sách model." hintPosition="right">
+        {!isAddingNewBrand ? (
+          <div className="relative">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Chọn thương hiệu"
+                value={deviceBrands.find(b => b.id === selectedDeviceBrand)?.name || ''}
+                onChange={(e) => {
+                  // Handle search
+                  handleSearchDeviceBrands(e.target.value);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+              <button type="button" onClick={() => setIsAddingNewBrand(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+            </div>
+            <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
+              {deviceBrands.map(brand => (
+                <div
+                  key={brand.id}
+                  onClick={() => handleDeviceBrandChange(brand.id)}
+                  className={`group flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceBrand === brand.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+                >
+                  <span>{brand.name}</span>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); handleEditDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-blue-600"><Edit size={14} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input type="text" value={newDeviceBrand} onChange={(e) => setNewDeviceBrand(e.target.value)} placeholder="Tên thương hiệu mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" autoFocus />
+            <button onClick={async () => { if (!newDeviceBrand.trim()) return; const newBrand = await deviceBrandService.createDeviceBrand({ name: newDeviceBrand.trim() }); setDeviceBrands(prev => [...prev, newBrand]); setSelectedDeviceBrand(newBrand.id); setNewDeviceBrand(''); setIsAddingNewBrand(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
+            <button type="button" onClick={() => { setIsAddingNewBrand(false); setNewDeviceBrand(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+          </div>
+        )}
+      </LabeledField>
     </div>
-    <div className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
-      {deviceBrands.map(brand => (
-        <div
-          key={brand.id}
-          onClick={() => handleDeviceBrandChange(brand.id)}
-          className={`group flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceBrand === brand.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
-        >
-          <span>{brand.name}</span>
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e.stopPropagation(); handleEditDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-blue-600"><Edit size={14} /></button>
-              <button onClick={(e) => { e.stopPropagation(); handleDeleteDeviceBrand(brand.id); }} className="p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
+
+    {/* Device Type */}
+    <div>
+      <LabeledField label="Loại máy" hintText="Chọn đúng model để hiển thị danh sách màu tương ứng." hintPosition="right">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Tìm và chọn loại máy"
+            value={deviceTypeSearchTerm}
+            onChange={(e) => {
+              setDeviceTypeSearchTerm(e.target.value);
+              handleSearchDeviceInfos(e.target.value);
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+          <div className="mt-1 max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+            {deviceOptions.map(option => (
+              <div
+                key={option.id}
+                onClick={() => {
+                  handleDeviceChange(option.id);
+                  setDeviceTypeSearchTerm(option.name);
+                }}
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceId === option.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+              >
+                {option.name}
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      </LabeledField>
+    </div>
+
+    {/* Color */}
+    <div>
+      <LabeledField label="Màu sắc" hintText="Lưu ý: Với dịch vụ liên quan đến vỏ máy, mỗi màu có thể có giá khác nhau." hintPosition="right">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Chọn màu"
+            value={selectedColor === 'all' ? 'Tất cả màu sắc' : colorOptions.find(c => c.id === selectedColor)?.name || (selectedDeviceId ? 'Chọn màu' : 'Chọn loại máy')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            disabled={!selectedDeviceId}
+          />
+          <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+            {selectedDeviceId && (
+              <>
+                <div
+                  key="all"
+                  onClick={async () => {
+                    setSelectedColor('all');
+                    setCurrentBrand(prev => prev ? { ...prev, color: 'Tất cả màu sắc' } : null);
+                    
+                    // Call API for each color when 'Tất cả màu sắc' is selected
+                    if (selectedDeviceId && selectedDeviceBrand && colorOptions.length > 0) {
+                      // Execute API calls sequentially (one after another)
+                      for (const color of colorOptions) {
+                        try {
+                          await deviceApiService.addColorToDevice(selectedDeviceId, color.id);
+                          console.log(`Successfully added color ${color.name} to device ${selectedDeviceId}`);
+                          // Add a small delay between calls to avoid overwhelming the server
+                          await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (error) {
+                          console.error(`Error adding color ${color.name} to device ${selectedDeviceId}:`, error);
+                          // Optionally show error to user
+                        }
+                      }
+                    }
+                  }}
+                  className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+                >
+                  Tất cả màu sắc
+                </div>
+                {colorOptions.map(color => (
+                  <div
+                    key={color.id}
+                    onClick={() => {
+                      // Cho phép chọn và bỏ chọn màu
+                      if (selectedColor === color.id) {
+                        setSelectedColor('');
+                        setCurrentBrand(prev => prev ? { ...prev, color: '' } : null);
+                      } else {
+                        setSelectedColor(color.id);
+                        setCurrentBrand(prev => prev ? { ...prev, color: color.name } : null);
+                      }
+                    }}
+                    className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === color.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+                  >
+                    {color.name}
+                  </div>
+                ))}
+              </>
+            )}
+            {!selectedDeviceId && (
+              <div className="px-3 py-2 text-gray-500">Vui lòng chọn loại máy</div>
+            )}
+          </div>
+        </div>
+      </LabeledField>
+      <div className="h-4"></div>
     </div>
   </div>
-) : (
-<div className="flex gap-2">
-        <input type="text" value={newDeviceBrand} onChange={(e) => setNewDeviceBrand(e.target.value)} placeholder="Tên thương hiệu mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" autoFocus />
-<button onClick={async () => { if (!newDeviceBrand.trim()) return; const newBrand = await deviceBrandService.createDeviceBrand({ name: newDeviceBrand.trim() }); setDeviceBrands(prev => [...prev, newBrand]); setSelectedDeviceBrand(newBrand.id); setNewDeviceBrand(''); setIsAddingNewBrand(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
-<button type="button" onClick={() => { setIsAddingNewBrand(false); setNewDeviceBrand(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
-</div>
-)}
-</div>
-
-{/* Device Type */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">Loại máy</label>
-<div className="relative">
-<input
-  type="text"
-  placeholder="Tìm và chọn loại máy"
-  value={deviceTypeSearchTerm}
-  onChange={(e) => {
-    setDeviceTypeSearchTerm(e.target.value);
-    handleSearchDeviceInfos(e.target.value);
-  }}
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-/>
-<div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-  {deviceOptions.map(option => (
-    <div
-      key={option.id}
-      onClick={() => {
-        handleDeviceChange(option.id);
-        setDeviceTypeSearchTerm(option.name);
-      }}
-      className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedDeviceId === option.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
-    >
-      {option.name}
-    </div>
-  ))}
-</div>
-</div>
-</div>
-
-{/* Color */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">Màu sắc</label>
-<div className="relative">
-<input
-  type="text"
-  placeholder="Chọn màu"
-  value={selectedColor === 'all' ? 'Tất cả màu sắc' : colorOptions.find(c => c.id === selectedColor)?.name || (selectedDeviceId ? 'Chọn màu' : 'Chọn loại máy')}
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-  disabled={!selectedDeviceId}
-/>
-<div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-  {selectedDeviceId && (
-    <>
-      <div
-        key="all"
-        onClick={async () => {
-          setSelectedColor('all');
-          setCurrentBrand(prev => prev ? { ...prev, color: 'Tất cả màu sắc' } : null);
-          
-          // Call API for each color when 'Tất cả màu sắc' is selected
-          if (selectedDeviceId && selectedDeviceBrand && colorOptions.length > 0) {
-            // Execute API calls sequentially (one after another)
-            for (const color of colorOptions) {
-              try {
-                await deviceApiService.addColorToDevice(selectedDeviceId, color.id);
-                console.log(`Successfully added color ${color.name} to device ${selectedDeviceId}`);
-                // Add a small delay between calls to avoid overwhelming the server
-                await new Promise(resolve => setTimeout(resolve, 100));
-              } catch (error) {
-                console.error(`Error adding color ${color.name} to device ${selectedDeviceId}:`, error);
-                // Optionally show error to user
-              }
-            }
-          }
-        }}
-        className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
-      >
-        Tất cả màu sắc
-      </div>
-      {colorOptions.map(color => (
-        <div
-          key={color.id}
-          onClick={() => {
-            setSelectedColor(color.id);
-            setCurrentBrand(prev => prev ? { ...prev, color: color.name } : null);
-          }}
-          className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${selectedColor === color.id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
-        >
-          {color.name}
-        </div>
-      ))}
-    </>
-  )}
-  {!selectedDeviceId && (
-    <div className="px-3 py-2 text-gray-500">Vui lòng chọn loại máy</div>
-  )}
-</div>
-</div>
-<div className="h-4"></div>
-</div>
 </div>
 
 {/* Row 2: Service Name, Price, Wholesale Price, Warranty */}
-<div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1.5fr] gap-6 items-end">
-{/* Service Name */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">loại sản phẩm <span className="text-red-500">*</span></label>
-{currentBrand?.id ? (
-<input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại sản phẩm" />
-) : !isAddingNewTypeName ? (
-<div className="flex gap-2">
-<div className="flex-1"><SearchableSelect options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))} value={currentBrand?.name || ''} onChange={handleServiceNameChange} placeholder="Chọn tên loại có sẵn" /></div>
-<button type="button" onClick={() => setIsAddingNewTypeName(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
-</div>
-) : (
-<div className="flex flex-col gap-1">
-<input type="text" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Tên loại mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
-<div className="flex gap-1 justify-end">
-<button onClick={() => { if (!newTypeName.trim()) return; setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' })); if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) { setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]); } setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"><Check size={14} className="inline mr-1"/>Xác nhận</button>
-<button type="button" onClick={() => { setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-gray-400 text-white rounded-md hover:bg-gray-500 text-sm"><X size={14} className="inline mr-1"/>Hủy</button>
-</div>
-</div>
-)}
-</div>
+<div className="w-full px-2 md:px-6 lg:px-8">
+  <div className="grid grid-cols-1 md:grid-cols-4 items-end gap-6">
+    {/* Service Name */}
+    <div>
+      <LabeledField label="Loại sản phẩm" required hintText="Đặt tên rõ ràng. Nếu là dịch vụ vỏ máy, nên phân biệt theo màu nếu giá khác nhau." hintPosition="right">
+        {currentBrand?.id ? (
+          <input type="text" value={currentBrand?.name || ''} onChange={(e) => setCurrentBrand(prev => prev ? { ...prev, name: e.target.value } : null)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập tên loại sản phẩm" />
+        ) : !isAddingNewTypeName ? (
+          <div className="flex gap-2">
+            <div className="flex-1"><SearchableSelect options={uniqueBrandNames.map(b => ({ id: b.name, name: b.name }))} value={currentBrand?.name || ''} onChange={handleServiceNameChange} placeholder="Chọn tên loại có sẵn" /></div>
+            <button type="button" onClick={() => setIsAddingNewTypeName(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <input type="text" value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Tên loại mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
+            <div className="flex gap-1 justify-end">
+              <button onClick={() => { if (!newTypeName.trim()) return; setCurrentBrand(prev => ({ ...prev, name: newTypeName.trim(), warranty: '' })); if (!uniqueBrandNames.some(item => item.name === newTypeName.trim())) { setUniqueBrandNames(prev => [...prev, { name: newTypeName.trim(), warranty: ''}]); } setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"><Check size={14} className="inline mr-1"/>Xác nhận</button>
+              <button type="button" onClick={() => { setIsAddingNewTypeName(false); setNewTypeName(''); }} className="px-3 py-1 bg-gray-400 text-white rounded-md hover:bg-gray-500 text-sm"><X size={14} className="inline mr-1"/>Hủy</button>
+            </div>
+          </div>
+        )}
+      </LabeledField>
+    </div>
 
-{/* Price */}
-<div className="w-full">
-<label className="block text-base font-medium text-gray-700 mb-2">Giá</label>
-<input type="text" value={formatPrice(currentBrand?.price || '')} onChange={handlePriceChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá" />
-</div>
+    {/* Price */}
+    <div>
+      <LabeledField label="Giá" hintText="Nếu giá khác theo màu (dịch vụ vỏ), hãy nhập theo từng màu." hintPosition="right" className="w-full">
+        <input
+          type="text"
+          value={formatPrice(currentBrand?.price || '')}
+          onChange={handlePriceChange}
+          className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base ${currentBrand?.price ? 'text-right' : 'text-left'}`}
+          placeholder="Nhập giá"
+        />
+      </LabeledField>
+    </div>
 
-{/* Wholesale Price */}
-<div className="w-full">
-<label className="block text-base font-medium text-gray-700 mb-2">Giá bán buôn</label>
-<input type="text" value={formatPrice(currentBrand?.wholesale_price || '')} onChange={(e) => {
-  const value = e.target.value.replace(/[^\d]/g, '');
-  setCurrentBrand(prev => prev ? { ...prev, wholesale_price: value } : null);
-}} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" placeholder="Nhập giá bán buôn" />
-</div>
+    {/* Wholesale Price */}
+    <div>
+      <LabeledField label="Giá bán buôn" hintText="Áp dụng cho khách sỉ. Có thể khác theo màu nếu là dịch vụ vỏ." hintPosition="right" className="w-full">
+        <input
+          type="text"
+          value={formatPrice(currentBrand?.wholesale_price || '')}
+          onChange={(e) => {
+            const value = e.target.value.replace(/[^\d]/g, '');
+            setCurrentBrand(prev => prev ? { ...prev, wholesale_price: value } : null);
+          }}
+          className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base ${currentBrand?.wholesale_price ? 'text-right' : 'text-left'}`}
+          placeholder="Nhập giá bán buôn"
+        />
+      </LabeledField>
+    </div>
 
-{/* Warranty */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">Bảo hành</label>
-{!isAddingNewWarranty ? (
-<div className="flex gap-2">
-<div className="flex-1"><SearchableSelect options={(warrantyServices || []).map(w => ({ id: w.id, name: w.value }))} value={(warrantyServices || []).find(w => w.value === currentBrand?.warranty)?.id || ''} onChange={handleWarrantyChange} placeholder="Chọn bảo hành" onDelete={handleDeleteWarranty} onEdit={handleEditWarranty} /></div>
-<button type="button" onClick={() => setIsAddingNewWarranty(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
-</div>
-) : (
-<div className="flex gap-2">
-<input type="text" value={newWarrantyService} onChange={(e) => setNewWarrantyService(e.target.value)} placeholder="Bảo hành mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
-<button onClick={async () => { if (!newWarrantyService.trim()) return; const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() }); setWarrantyServices(prev => [...prev, newWarranty]); setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null); setNewWarrantyService(''); setIsAddingNewWarranty(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
-<button type="button" onClick={() => { setIsAddingNewWarranty(false); setNewWarrantyService(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
-</div>
-)}
-</div>
+    {/* Warranty */}
+    <div>
+      <LabeledField label="Bảo hành" hintText="Chính sách bảo hành áp dụng cho loại này." hintPosition="right" className="w-full">
+        {!isAddingNewWarranty ? (
+          <div className="flex gap-2">
+            <div className="flex-1"><SearchableSelect options={(warrantyServices || []).map(w => ({ id: w.id, name: w.value }))} value={(warrantyServices || []).find(w => w.value === currentBrand?.warranty)?.id || ''} onChange={handleWarrantyChange} placeholder="Chọn bảo hành" onDelete={handleDeleteWarranty} onEdit={handleEditWarranty} /></div>
+            <button type="button" onClick={() => setIsAddingNewWarranty(true)} className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"><Plus size={16} /></button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input type="text" value={newWarrantyService} onChange={(e) => setNewWarrantyService(e.target.value)} placeholder="Bảo hành mới" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base" autoFocus />
+            <button onClick={async () => { if (!newWarrantyService.trim()) return; const newWarranty = await warrantyService.createWarrantyService({ value: newWarrantyService.trim() }); setWarrantyServices(prev => [...prev, newWarranty]); setCurrentBrand(prev => prev ? { ...prev, warranty: newWarranty.value } : null); setNewWarrantyService(''); setIsAddingNewWarranty(false); }} className="p-2 bg-green-500 text-white rounded-lg"><Check size={16} /></button>
+            <button type="button" onClick={() => { setIsAddingNewWarranty(false); setNewWarrantyService(''); }} className="p-2 bg-gray-400 text-white rounded-lg"><X size={16} /></button>
+          </div>
+        )}
+      </LabeledField>
+    </div>
+  </div>
 </div>
 
 {/* Row 3: Notes */}
-<div>
-<label className="block text-base font-medium text-gray-700 mb-2">Ghi chú</label>
+<div className="w-full px-2 md:px-6 lg:px-8">
+  <LabeledField label="Ghi chú" hintText="Có thể ghi rõ màu/chất liệu hoặc lưu ý ảnh hưởng giá (đặc biệt dịch vụ vỏ)." hintPosition="right">
+    {/* Thông báo điều kiện cố định đã có trong ô ghi chú */}
+    {selectedService?.applied_conditions && selectedService.applied_conditions.length > 0 && (
+      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="text-sm font-medium text-blue-800 mb-2">
+          ℹ️ Điều kiện cố định đã được thêm vào ô ghi chú bên dưới
+        </div>
+        <div className="text-sm text-blue-700">
+          Bạn có thể thêm ghi chú khác sau dấu phẩy
+        </div>
+      </div>
+    )}
 
-{/* Thông báo điều kiện cố định đã có trong ô ghi chú */}
-{selectedService?.applied_conditions && selectedService.applied_conditions.length > 0 && (
-  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-    <div className="text-sm font-medium text-blue-800 mb-2">
-      ℹ️ Điều kiện cố định đã được thêm vào ô ghi chú bên dưới
-    </div>
-    <div className="text-sm text-blue-700">
-      Bạn có thể thêm ghi chú khác sau dấu phẩy
-    </div>
-  </div>
-)}
-
-<textarea 
-    ref={textareaRef}
-    value={userNote}
-    onChange={(e) => {
-        const newText = e.target.value;
-        setUserNote(newText);
-        
-        // Update currentBrand with user note only (applied conditions will be added in handleSave)
-        setCurrentBrand(prev => {
-            if (!prev) return null;
-            return { ...prev, note: newText };
-        });
-    }}
-    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base resize-none overflow-hidden" 
-    placeholder="Thêm ghi chú nếu cần" 
-    rows={1}
-></textarea>
+    <textarea 
+        ref={textareaRef}
+        value={userNote}
+        onChange={(e) => {
+            const newText = e.target.value;
+            setUserNote(newText);
+            
+            // Update currentBrand with user note only (applied conditions will be added in handleSave)
+            setCurrentBrand(prev => {
+                if (!prev) return null;
+                return { ...prev, note: newText };
+            });
+        }}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base resize-none overflow-hidden" 
+        placeholder="Thêm ghi chú nếu cần" 
+        rows={1}
+    ></textarea>
+  </LabeledField>
 </div>
 
 {/* Unified Conditions Section */}
 {((selectedService?.applied_conditions && selectedService.applied_conditions.length > 0) || 
   (selectedService?.conditions && selectedService.conditions.length > 0)) && (
-<div>
-<label className="block text-base font-medium text-gray-700 mb-3">Điều kiện áp dụng</label>
-<div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 border border-gray-200 rounded-lg">
-{/* Applied Conditions - Always checked, different color */}
-{selectedService?.applied_conditions?.map((condition, index) => (
-<label key={`applied-${index}`} className="flex items-center space-x-2">
-<input
-type="checkbox"
-checked={true}
-disabled={true}
-className="h-4 w-4 rounded border-green-300 text-green-600 bg-green-100"
-/>
-<span className="text-sm text-green-700 font-semibold">{condition}</span>
-</label>
-))}
+  <div className="w-full px-2 md:px-6 lg:px-8">
+  <LabeledField label="Điều kiện áp dụng" hintText="Các điều kiện đi kèm sẽ tự động thêm vào ghi chú." hintPosition="right">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 border border-gray-200 rounded-lg">
+      {/* Applied Conditions - Always checked, different color */}
+      {selectedService?.applied_conditions?.map((condition, index) => (
+        <label key={`applied-${index}`} className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={true}
+            disabled={true}
+            className="h-4 w-4 rounded border-green-300 text-green-600 bg-green-100"
+          />
+          <span className="text-sm text-green-700 font-semibold">{condition}</span>
+        </label>
+      ))}
 
-{/* Regular Conditions - User can check/uncheck */}
-{selectedService?.conditions?.filter(condition => 
-  !(selectedService?.applied_conditions || []).includes(condition)
-).map(condition => (
-<label key={condition} className="flex items-center space-x-2 cursor-pointer">
-<input
-type="checkbox"
-value={condition}
-checked={(currentBrand?.conditions || []).includes(condition)}
-onChange={handleConditionsChange}
-className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-/>
-<span className="text-sm text-gray-700">{condition}</span>
-</label>
-))}
-</div>
+      {/* Regular Conditions - User can check/uncheck */}
+      {selectedService?.conditions?.filter(condition => 
+        !(selectedService?.applied_conditions || []).includes(condition)
+      ).map(condition => (
+        <label key={condition} className="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="checkbox"
+            value={condition}
+            checked={(currentBrand?.conditions || []).includes(condition)}
+            onChange={handleConditionsChange}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">{condition}</span>
+        </label>
+      ))}
+    </div>
+  </LabeledField>
 </div>
 )}
 
@@ -928,7 +958,6 @@ className="px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hov
 <Check size={18} className="mr-2" />
 {currentBrand?.id ? 'Lưu thay đổi' : 'Tạo mới'}
 </button>
-</div>
 </div>
 </div>
 </div>

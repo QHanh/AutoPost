@@ -7,8 +7,16 @@ import DeviceInfoModal from '../../components/DeviceInfoModal';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import InfoHint from '../../components/InfoHint';
 
-const DeviceInfosTab: React.FC = () => {
+interface DeviceInfosTabProps {
+  currentPage?: number;
+  currentLimit?: number;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+}
+
+const DeviceInfosTab: React.FC<DeviceInfosTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
   const { isAuthenticated } = useAuth();
   const [deviceInfos, setDeviceInfos] = useState<DeviceInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,11 +28,16 @@ const DeviceInfosTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'brand', direction: 'asc' });
   const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
+    page: urlPage,
+    limit: urlLimit,
     total: 0,
     totalPages: 0
   });
+
+  // Sync internal pagination with URL parameters
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: urlPage, limit: urlLimit }));
+  }, [urlPage, urlLimit]);
   const [filters, setFilters] = useState<{ brand?: string }>({});
   const [brands, setBrands] = useState<string[]>([]);
   const selectAllCheckboxRef = React.useRef<HTMLInputElement>(null);
@@ -89,6 +102,9 @@ const DeviceInfosTab: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setPagination(prev => ({ ...prev, page: 1 }));
+    if (onPageChange) {
+      onPageChange(1);
+    }
   };
 
   const handleCreate = () => {
@@ -236,12 +252,21 @@ const DeviceInfosTab: React.FC = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    if (onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
 
   const handleLimitChange = (newLimit: number) => {
-    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+    if (onLimitChange) {
+      onLimitChange(newLimit);
+    } else {
+      setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    }
   };
+
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -260,9 +285,12 @@ const DeviceInfosTab: React.FC = () => {
     });
   };
 
-  const handleFilterChange = (newFilters: { [key: string]: any }) => {
-    setPagination(prev => ({ ...prev, page: 1 }));
+  const handleFilterChange = (newFilters: { brand?: string }) => {
     setFilters(newFilters);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    if (onPageChange) {
+      onPageChange(1);
+    }
   };
   
   const filterConfig: FilterConfig[] = [
@@ -339,10 +367,18 @@ const DeviceInfosTab: React.FC = () => {
             <Trash2 size={20} className="mr-2" />
             Xóa tất cả
           </button> */}
-          <button onClick={handleCreate} className="bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center">
-            <Plus size={20} className="mr-2" />
-            Thêm thông tin
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleCreate} className="bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center">
+              <Plus size={20} className="mr-2" />
+              Thêm thông tin
+            </button>
+            <InfoHint
+              text={
+                'Thêm thông tin thiết bị (model, cấu hình, màu...).\nGợi ý: Import/Export Excel để thao tác hàng loạt nhanh hơn.'
+              }
+              position="right"
+            />
+          </div>
         </div>
       </div>
 
@@ -466,9 +502,10 @@ const DeviceInfosTab: React.FC = () => {
             onChange={(e) => handleLimitChange(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >
-            <option value={10}>10 / trang</option>
-            <option value={20}>20 / trang</option>
+            <option value={15}>15 / trang</option>
+            <option value={30}>30 / trang</option>
             <option value={50}>50 / trang</option>
+            <option value={100}>100 / trang</option>
           </select>
         </div>
         

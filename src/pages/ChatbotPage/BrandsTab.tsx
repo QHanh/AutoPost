@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Filter } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Swal from 'sweetalert2';
+import InfoHint from '../../components/InfoHint';
 
 interface Brand {
   id: string;
@@ -179,13 +180,21 @@ const BrandsTab: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Quản lý Thương hiệu</h2>
-        <button
-          onClick={openCreateModal}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm thương hiệu
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openCreateModal}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Thêm thương hiệu
+          </button>
+          <InfoHint
+            text={
+              'Thêm thương hiệu mới để tổ chức sản phẩm tốt hơn.\nMẹo: Điền Website và Logo để hiển thị đẹp trong bảng.'
+            }
+            position="right"
+          />
+        </div>
       </div>
 
       {/* Search and Filter */}

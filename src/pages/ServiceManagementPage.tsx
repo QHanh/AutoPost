@@ -562,7 +562,7 @@ export const ServiceManagementPage: React.FC = () => {
         <div className="mb-4 px-4">
             <input
                 type="text"
-                placeholder="Tìm kiếm theo loại sản phẩm, mã DV..."
+                placeholder="Tìm kiếm theo loại sản phẩm, mã DV, loại máy..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -1,58 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit, Search, FileDown, FileUp, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
 import { UserDevice } from '../../types/deviceTypes';
 import { userDeviceService } from '../../services/userDeviceService';
 import DeviceFormModal from '../../components/DeviceFormModal';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
-import deviceBrandService from '../../services/deviceBrandService';
-import { DeviceBrand } from '../../types/deviceBrand';
 import { deviceInfoService } from '../../services/deviceInfoService';
 import { deviceStorageService } from '../../services/deviceStorageService';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import InfoHint from '../../components/InfoHint';
 import Swal from 'sweetalert2';
 
 interface DevicesTabProps {
-  // Props nếu cần
+  currentPage?: number;
+  currentLimit?: number;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
 }
 
-const DevicesTab: React.FC<DevicesTabProps> = () => {
-  const { } = useAuth();
+const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
   const [userDevices, setUserDevices] = useState<UserDevice[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<UserDevice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price'; direction: 'ascending' | 'descending' } | null>(null);
   const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
+    page: urlPage,
+    limit: urlLimit,
     total: 0,
     totalPages: 1,
   });
   const [filters, setFilters] = useState<{ [key: string]: any }>({});
-  const [deviceBrands, setDeviceBrands] = useState<DeviceBrand[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [storages, setStorages] = useState<number[]>([]); // To hold unique storage capacities
   const [isImportingExcel, setIsImportingExcel] = useState(false);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<number | null>(null);
 
   const paginatedDevices = userDevices;
 
-  useEffect(() => {
-    // Fetch device brands for filter options
-    const fetchBrands = async () => {
-      try {
-        const brands = await deviceBrandService.getDeviceBrands();
-        setDeviceBrands(brands);
-      } catch (error) {
-        console.error("Failed to fetch device brands for filter:", error);
-      }
-    };
-    fetchBrands();
-  }, []);
 
   useEffect(() => {
     // Fetch unique brands and storages for filter options
@@ -78,13 +63,30 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     }
   }, [selectedDeviceIds, paginatedDevices]);
 
+  // Sync internal pagination with URL parameters and fetch data
+  useEffect(() => {
+    setPagination(prev => {
+      const newPagination = { ...prev, page: urlPage, limit: urlLimit };
+      // Only fetch if pagination actually changed
+      if (prev.page !== urlPage || prev.limit !== urlLimit) {
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => {
+          fetchUserDevices(newPagination);
+          setSelectedDeviceIds(new Set());
+        }, 0);
+      }
+      return newPagination;
+    });
+  }, [urlPage, urlLimit]);
+
   useEffect(() => {
     fetchUserDevices();
     setSelectedDeviceIds(new Set()); // Clear selection on page/filter change
-  }, [sortConfig, pagination.page, pagination.limit, filters, searchTerm]);
+  }, [sortConfig, filters, searchTerm]);
 
-  const fetchUserDevices = async () => {
-    console.log('DevicesTab: fetchUserDevices called with pagination:', pagination);
+  const fetchUserDevices = async (customPagination?: { page: number; limit: number }) => {
+    const currentPagination = customPagination || pagination;
+    console.log('DevicesTab: fetchUserDevices called with pagination:', currentPagination);
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
@@ -94,8 +96,8 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         params.append('sort_by', sortConfig.key);
         params.append('sort_order', sortConfig.direction === 'ascending' ? 'asc' : 'desc');
       }
-      params.append('skip', ((pagination.page - 1) * pagination.limit).toString());
-      params.append('limit', pagination.limit.toString());
+      params.append('skip', ((currentPagination.page - 1) * currentPagination.limit).toString());
+      params.append('limit', currentPagination.limit.toString());
       
       // Append filters to params
       Object.entries(filters).forEach(([key, value]) => {
@@ -133,7 +135,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           totalPages: data.totalPages || 1,
         };
         console.log('DevicesTab: Setting new pagination:', newPagination);
-        setPagination(prev => newPagination);
+        setPagination(newPagination);
       }
     } catch (error) {
       console.error('Error fetching user devices:', error);
@@ -160,52 +162,69 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
 
   const handleSaveDevice = async (device: any) => {
     try {
-      // Check if this is a multi-color device creation
+      // Multi-create when multiple colors are selected
       if (!device.id && device.color_ids && device.color_ids.length > 0) {
-        // Create multiple devices for each selected color
-        const results = [];
-        const errors = [];
-        
+        const results: any[] = [];
+        const errors: any[] = [];
+
+        const storageIds: (string | undefined)[] = (device.storage_ids && device.storage_ids.length > 0)
+          ? device.storage_ids
+          : [undefined];
+
         for (const colorId of device.color_ids) {
-          try {
-            const deviceData = {
-              ...device,
-              color_id: colorId,
-              device_info_id: device.device_info_id,
-              device_storage_id: device.device_storage_id,
-            };
-            
-            // Remove the temporary fields
-            delete deviceData.color_ids;
-            
-            const result = await userDeviceService.addUserDevice(deviceData);
-            results.push(result);
-          } catch (error: any) {
-            console.error(`Error saving device with color ${colorId}:`, error);
-            errors.push({
-              colorId,
-              error: error.message || 'Unknown error'
-            });
+          for (const storageId of storageIds) {
+            try {
+              const deviceData: any = {
+                ...device,
+                color_id: colorId,
+                device_info_id: device.device_info_id,
+              };
+              if (storageId) deviceData.device_storage_id = storageId;
+
+              // Remove the temporary fields
+              delete deviceData.color_ids;
+              delete deviceData.storage_ids;
+
+              const result = await userDeviceService.addUserDevice(deviceData);
+              results.push(result);
+            } catch (error: any) {
+              console.error(`Error saving device with color ${colorId} and storage ${storageId || 'none'}:`, error);
+              errors.push({
+                colorId,
+                storageId,
+                error: error.message || 'Unknown error'
+              });
+            }
           }
         }
-        
-        // Show results to user only if there are errors
+
         if (errors.length > 0) {
           let errorMessage = `Đã thêm ${results.length} thiết bị thành công.\n`;
           errorMessage += `Có ${errors.length} lỗi:\n`;
           errors.forEach((err, index) => {
-            errorMessage += `${index + 1}. Màu ${err.colorId}: ${err.error}\n`;
+            errorMessage += `${index + 1}. Màu ${err.colorId}${err.storageId ? `, Dung lượng ${err.storageId}` : ''}: ${err.error}\n`;
           });
           alert(errorMessage);
         }
-        // Removed success notification for successful multi-color creation
       } else if (device.id) {
         // Update existing device
-        await userDeviceService.updateUserDevice(device.id, device);
+        const updateData: any = { ...device };
+        if (device.storage_ids && device.storage_ids.length > 0) {
+          updateData.device_storage_id = device.storage_ids[0];
+        }
+        delete updateData.storage_ids;
+        delete updateData.color_ids; // single edit doesn't use color_ids
+        await userDeviceService.updateUserDevice(device.id, updateData);
         // Removed success notification
       } else {
         // Single device creation (fallback)
-        await userDeviceService.addUserDevice(device);
+        const createData: any = { ...device };
+        if (device.storage_ids && device.storage_ids.length > 0) {
+          createData.device_storage_id = device.storage_ids[0];
+        }
+        delete createData.storage_ids;
+        delete createData.color_ids;
+        await userDeviceService.addUserDevice(createData);
         // Removed success notification
       }
       
@@ -291,8 +310,13 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
   };
 
   const handleFilterChange = (newFilters: { [key: string]: any }) => {
-    setPagination(prev => ({ ...prev, page: 1 }));
     setFilters(newFilters);
+    // Reset to page 1 when filtering
+    if (onPageChange) {
+      onPageChange(1);
+    } else {
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
   };
   
   const filterConfig: FilterConfig[] = [
@@ -339,18 +363,26 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
     return sortConfig.direction === 'ascending' ? '▲' : '▼';
   };
 
-  const handlePageChange = (newPage: number) => {
-    console.log('DevicesTab: handlePageChange called with', newPage);
-    setPagination(prev => {
-      const newPagination = { ...prev, page: newPage };
-      console.log('DevicesTab: Updated pagination to', newPagination);
-      return newPagination;
-    });
+  const handlePageChangeInternal = (newPage: number) => {
+    console.log('DevicesTab: handlePageChangeInternal called with', newPage);
+    // Update URL through parent component
+    if (onPageChange) {
+      onPageChange(newPage);
+    } else {
+      // Fallback to internal state if no URL sync
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
 
-  const handleLimitChange = (newLimit: number) => {
-    console.log('DevicesTab: handleLimitChange called with', newLimit);
-    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+  const handleLimitChangeInternal = (newLimit: number) => {
+    console.log('DevicesTab: handleLimitChangeInternal called with', newLimit);
+    // Update URL through parent component
+    if (onLimitChange) {
+      onLimitChange(newLimit);
+    } else {
+      // Fallback to internal state if no URL sync
+      setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+    }
   };
 
   // Price formatting function
@@ -503,9 +535,17 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
           <button onClick={handleExport} className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             <FileDown className="mr-2" size={18} /> Export Excel
           </button>
-          <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
-            <Plus className="mr-2" size={18} /> Thêm thiết bị
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+              <Plus className="mr-2" size={18} /> Thêm thiết bị
+            </button>
+            <InfoHint
+              text={
+                'Thêm thiết bị mới vào kho của bạn.\nMẹo: Chọn nhiều màu trong form sẽ tạo nhiều bản ghi tương ứng.'
+              }
+              position="right"
+            />
+          </div>
           <button onClick={handleDeleteAll} className="flex items-center px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900">
               <Trash2 className="mr-2" size={18} /> Xóa tất cả
           </button>
@@ -525,7 +565,7 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto relative max-h-[calc(100vh-350px)]">
+      <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-auto relative h-[calc(100vh-280px)]">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
             <tr>
@@ -598,12 +638,13 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
         <div>
           <select
             value={pagination.limit}
-            onChange={(e) => handleLimitChange(Number(e.target.value))}
+            onChange={(e) => handleLimitChangeInternal(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >
-            <option value={10}>10 / trang</option>
-            <option value={20}>20 / trang</option>
+            <option value={15}>15 / trang</option>
+            <option value={30}>30 / trang</option>
             <option value={50}>50 / trang</option>
+            <option value={100}>100 / trang</option>
           </select>
         </div>
         
@@ -612,9 +653,9 @@ const DevicesTab: React.FC<DevicesTabProps> = () => {
             Tổng số: <span className="font-semibold">{pagination.total}</span>
           </div>
           <Pagination
-            currentPage={pagination.page}
+            currentPage={urlPage}
             totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
+            onPageChange={handlePageChangeInternal}
           />
         </div>
       </div>

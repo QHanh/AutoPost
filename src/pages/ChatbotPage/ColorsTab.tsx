@@ -7,7 +7,14 @@ import ColorModal from '../../components/ColorModal';
 import { GridColDef } from '@mui/x-data-grid';
 import Pagination from '../../components/Pagination';
 
-const ColorsTab: React.FC = () => {
+interface ColorsTabProps {
+  currentPage?: number;
+  currentLimit?: number;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+}
+
+const ColorsTab: React.FC<ColorsTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
   const { isAuthenticated } = useAuth();
   const [colors, setColors] = useState<Color[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -15,11 +22,16 @@ const ColorsTab: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState<Color | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
+    page: urlPage,
+    limit: urlLimit,
     total: 0,
     totalPages: 0
   });
+
+  // Sync internal pagination with URL parameters
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: urlPage, limit: urlLimit }));
+  }, [urlPage, urlLimit]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -49,6 +61,9 @@ const ColorsTab: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setPagination(prev => ({ ...prev, page: 1 }));
+    if (onPageChange) {
+      onPageChange(1);
+    }
   };
 
   const handleCreate = () => {
@@ -99,11 +114,19 @@ const ColorsTab: React.FC = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    if (onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
 
   const handleLimitChange = (newLimit: number) => {
-    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+    if (onLimitChange) {
+      onLimitChange(newLimit);
+    } else {
+      setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    }
   };
 
   const columns: GridColDef[] = [

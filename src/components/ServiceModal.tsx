@@ -126,14 +126,26 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, onS
                             placeholder={`Điều kiện ${index + 1}`}
                             className="flex-1 p-2 border rounded-md"
                         />
-                        <button 
-                            onClick={() => handleApplyCondition(condition)} 
-                            className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center gap-1"
-                            disabled={!condition.trim()}
-                        >
-                            <Check size={16} />
-                            Áp dụng cố định
-                        </button>
+                        {
+                            currentService?.applied_conditions?.includes(condition) ? (
+                                <button 
+                                    className="px-3 py-2 bg-gray-400 text-white rounded-md flex items-center gap-1 cursor-not-allowed"
+                                    disabled
+                                >
+                                    <Check size={16} />
+                                    Đã áp dụng
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => handleApplyCondition(condition)} 
+                                    className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 flex items-center gap-1"
+                                    disabled={!condition.trim()}
+                                >
+                                    <Check size={16} />
+                                    Áp dụng cố định
+                                </button>
+                            )
+                        }
                         <button onClick={() => handleRemoveCondition(index)} className="p-2 text-red-500 hover:text-red-700">
                             <Trash2 size={18} />
                         </button>

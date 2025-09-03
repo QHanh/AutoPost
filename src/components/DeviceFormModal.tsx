@@ -2,6 +2,7 @@ import React, { useState, useEffect, memo, useCallback } from 'react';
 import { UserDevice, DeviceInfo, Color, DeviceStorage } from '../types/deviceTypes';
 import { deviceInfoService } from '../services/deviceInfoService';
 import { Search } from 'lucide-react';
+import LabeledField from './LabeledField';
 
 // Memoized DeviceSearchSection component
 const DeviceSearchSection = memo<{
@@ -29,59 +30,63 @@ const DeviceSearchSection = memo<{
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">
-        Thiết bị <span className="text-red-500">*</span>
-      </label>
-      {formData.device_info_id && (
-        <div className="mb-2">
-          <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
-            {deviceInfos.find(d => d.id === formData.device_info_id)?.model}
-          </span>
-          {(() => {
-            const device = deviceInfos.find(d => d.id === formData.device_info_id);
-            if (device && device.materials && device.materials.length > 0) {
-              return (
-                <div className="mt-1 text-xs text-red-600">
-                  Vật liệu: {device.materials.map(m => m.name).join(', ')}
-                </div>
-              );
-            }
-            return null;
-          })()} 
-        </div>
-      )}
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="Tìm kiếm thiết bị..."
-          value={localSearchTerm}
-          onChange={handleInputChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          disabled={isLoading}
-        />
-        <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-      </div>
-      <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-        {isLoading ? (
-          <div className="px-3 py-2 text-gray-500">Đang tìm kiếm...</div>
-        ) : deviceInfos.length > 0 ? (
-          deviceInfos.map(info => (
-            <div
-              key={info.id}
-              onClick={() => onDeviceInfoSelect(info)}
-              className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                formData.device_info_id === info.id ? 'bg-blue-50 text-blue-700 font-medium' : ''
-              } ${isLoading ? 'cursor-not-allowed' : ''}`}
-            >
-              {info.model}
-            </div>
-          ))
-        ) : searchTerm.length > 0 ? (
-          <div className="px-3 py-2 text-gray-500">Không tìm thấy thiết bị</div>
-        ) : (
-          <div className="px-3 py-2 text-gray-500">Nhập tên thiết bị để tìm kiếm</div>
+      <LabeledField
+        label="Thiết bị"
+        required
+        hintText="Tìm và chọn mẫu thiết bị (model). Gợi ý: gõ tối thiểu 2 ký tự để tìm nhanh."
+        hintPosition="right"
+      >
+        {formData.device_info_id && (
+          <div className="mb-2">
+            <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
+              {deviceInfos.find(d => d.id === formData.device_info_id)?.model}
+            </span>
+            {(() => {
+              const device = deviceInfos.find(d => d.id === formData.device_info_id);
+              if (device && device.materials && device.materials.length > 0) {
+                return (
+                  <div className="mt-1 text-xs text-red-600">
+                    Vật liệu: {device.materials.map(m => m.name).join(', ')}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
         )}
-      </div>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Tìm kiếm thiết bị..."
+            value={localSearchTerm}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            disabled={isLoading}
+          />
+          <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
+        </div>
+        <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+          {isLoading ? (
+            <div className="px-3 py-2 text-gray-500">Đang tìm kiếm...</div>
+          ) : deviceInfos.length > 0 ? (
+            deviceInfos.map(info => (
+              <div
+                key={info.id}
+                onClick={() => onDeviceInfoSelect(info)}
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
+                  formData.device_info_id === info.id ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                } ${isLoading ? 'cursor-not-allowed' : ''}`}
+              >
+                {info.model}
+              </div>
+            ))
+          ) : searchTerm.length > 0 ? (
+            <div className="px-3 py-2 text-gray-500">Không tìm thấy thiết bị</div>
+          ) : (
+            <div className="px-3 py-2 text-gray-500">Nhập tên thiết bị để tìm kiếm</div>
+          )}
+        </div>
+      </LabeledField>
     </div>
   );
 });
@@ -96,9 +101,11 @@ const ColorSelectionSection = memo<{
 }>(({ formData, colors, isLoading, onColorToggle, onSelectAllColors }) => {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">
-        Màu sắc
-      </label>
+      <LabeledField
+        label="Màu sắc"
+        hintText="Chọn một hoặc nhiều màu cho thiết bị. Dùng 'Chọn tất cả' để áp dụng mọi màu."
+        hintPosition="right"
+      >
       {formData.color_ids && formData.color_ids.length > 0 && (
         <div className="mb-2">
           <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium text-sm">
@@ -134,26 +141,30 @@ const ColorSelectionSection = memo<{
           </div>
         )}
       </div>
+      </LabeledField>
     </div>
   );
 });
 
 // Memoized StorageSelectionSection component
 const StorageSelectionSection = memo<{
-  formData: { device_storage_id?: string; device_info_id?: string };
+  formData: { storage_ids?: string[]; device_info_id?: string };
   storages: DeviceStorage[];
   isLoading: boolean;
-  onStorageSelect: (storageId: string) => void;
-}>(({ formData, storages, isLoading, onStorageSelect }) => {
+  onStorageToggle: (storageId: string) => void;
+  onSelectAllStorages: () => void;
+}>(({ formData, storages, isLoading, onStorageToggle, onSelectAllStorages }) => {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">
-        Dung lượng
-      </label>
-      {formData.device_storage_id && (
+      <LabeledField
+        label="Dung lượng"
+        hintText="Chọn một hoặc nhiều dung lượng bộ nhớ. Dùng 'Chọn tất cả' để áp dụng mọi dung lượng."
+        hintPosition="right"
+      >
+      {formData.storage_ids && formData.storage_ids.length > 0 && (
         <div className="mb-2">
-          <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
-            {storages.find(s => s.id === formData.device_storage_id)?.capacity} GB
+          <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium text-sm">
+            {formData.storage_ids.length} dung lượng đã chọn
           </span>
         </div>
       )}
@@ -161,20 +172,20 @@ const StorageSelectionSection = memo<{
         {storages.length > 0 ? (
           <>
             <div
-              key="clear-storage"
-              onClick={() => onStorageSelect('')}
+              key="select-all-storages"
+              onClick={onSelectAllStorages}
               className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                !formData.device_storage_id ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                formData.storage_ids?.length === storages.length ? 'bg-blue-50 text-blue-700 font-medium' : ''
               } ${isLoading ? 'cursor-not-allowed' : ''} border-b border-gray-200`}
             >
-              Không chọn dung lượng
+              {formData.storage_ids?.length === storages.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
             </div>
             {storages.map(storage => (
               <div
                 key={storage.id}
-                onClick={() => onStorageSelect(storage.id)}
+                onClick={() => onStorageToggle(storage.id)}
                 className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                  formData.device_storage_id === storage.id ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                  formData.storage_ids?.includes(storage.id) ? 'bg-blue-50 text-blue-700 font-medium' : ''
                 } ${isLoading ? 'cursor-not-allowed' : ''}`}
               >
                 {storage.capacity} GB
@@ -187,6 +198,7 @@ const StorageSelectionSection = memo<{
           </div>
         )}
       </div>
+      </LabeledField>
     </div>
   );
 });
@@ -202,7 +214,7 @@ interface DeviceFormModalProps {
 interface DeviceFormData extends Partial<UserDevice> {
   device_info_id?: string;
   color_ids?: string[];
-  device_storage_id?: string;
+  storage_ids?: string[];
 }
 
 const defaultFormData: DeviceFormData = {
@@ -217,7 +229,7 @@ const defaultFormData: DeviceFormData = {
   notes: '',
   device_info_id: '',
   color_ids: [],
-  device_storage_id: '',
+  storage_ids: [],
 };
 
 const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSave, device }) => {
@@ -236,7 +248,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           ...device,
           device_info_id: device.device_info?.id || '',
           color_ids: device.color?.id ? [device.color.id] : [],
-          device_storage_id: device.device_storage?.id || '',
+          storage_ids: device.device_storage?.id ? [device.device_storage.id] : [],
         });
       } else {
         setFormData(defaultFormData);
@@ -350,7 +362,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
 
   const handleDeviceInfoSelect = useCallback((info: DeviceInfo) => {
     if (isSearchLoading || isDependentDataLoading) return;
-    setFormData(prev => ({ ...prev, device_info_id: info.id, color_ids: [], device_storage_id: '' }));
+    setFormData(prev => ({ ...prev, device_info_id: info.id, color_ids: [], storage_ids: [] }));
     setSearchTerm('');
   }, [isSearchLoading, isDependentDataLoading]);
 
@@ -379,13 +391,30 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
     }
   }, [isDependentDataLoading, colors, formData.color_ids]);
 
-  const handleStorageSelect = useCallback((storageId: string) => {
+  const handleStorageToggle = useCallback((storageId: string) => {
     if (isDependentDataLoading) return;
-    setFormData(prev => ({ 
-      ...prev, 
-      device_storage_id: storageId 
-    }));
+    setFormData(prev => {
+      const currentStorages = prev.storage_ids || [];
+      const idx = currentStorages.indexOf(storageId);
+      if (idx > -1) {
+        currentStorages.splice(idx, 1);
+      } else {
+        currentStorages.push(storageId);
+      }
+      return { ...prev, storage_ids: [...currentStorages] };
+    });
   }, [isDependentDataLoading]);
+
+  const handleSelectAllStorages = useCallback(() => {
+    if (isDependentDataLoading) return;
+    const allStorageIds = storages.map(s => s.id);
+    const currentSelected = formData.storage_ids || [];
+    if (currentSelected.length === storages.length) {
+      setFormData(prev => ({ ...prev, storage_ids: [] }));
+    } else {
+      setFormData(prev => ({ ...prev, storage_ids: allStorageIds }));
+    }
+  }, [isDependentDataLoading, storages, formData.storage_ids]);
 
   const handleDeviceTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
@@ -461,13 +490,17 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
               formData={formData}
               storages={storages}
               isLoading={isDependentDataLoading}
-              onStorageSelect={handleStorageSelect}
+              onStorageToggle={handleStorageToggle}
+              onSelectAllStorages={handleSelectAllStorages}
             />
           </div>
           {/* Hàng 2: Loại thiết bị, Tình trạng, Tình trạng pin */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Loại thiết bị</label>
+            <LabeledField
+              label="Loại thiết bị"
+              hintText="Chọn 'Mới' hoặc 'Cũ'. Khi chọn 'Cũ' sẽ mở các trường tình trạng."
+              hintPosition="right"
+            >
               <select
                 name="device_type"
                 value={formData.device_type || ''}
@@ -477,9 +510,12 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 <option value="Mới">Mới</option>
                 <option value="Cũ">Cũ</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Tình trạng</label>
+            </LabeledField>
+            <LabeledField
+              label="Tình trạng"
+              hintText="Mô tả tổng quan tình trạng máy (chỉ áp dụng khi là máy 'Cũ')."
+              hintPosition="right"
+            >
               <input
                 type="text"
                 name="device_condition"
@@ -489,9 +525,12 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 disabled={formData.device_type === 'Mới'}
                 placeholder={formData.device_type === 'Cũ' ? "Nhập tình trạng thiết bị" : ""}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Tình trạng pin</label>
+            </LabeledField>
+            <LabeledField
+              label="Tình trạng pin"
+              hintText="Nhập % pin còn lại hoặc tình trạng pin (chỉ áp dụng khi là máy 'Cũ')."
+              hintPosition="right"
+            >
               <input
                 type="text"
                 name="battery_condition"
@@ -501,12 +540,15 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 disabled={formData.device_type === 'Mới'}
                 placeholder={formData.device_type === 'Cũ' ? "Nhập tình trạng pin" : ""}
               />
-            </div>
+            </LabeledField>
           </div>
           {/* Hàng 3: Giá, Giá bán buôn, Tồn kho */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Giá</label>
+            <LabeledField
+              label="Giá"
+              hintText="Nhập giá bán lẻ (tự động định dạng)."
+              hintPosition="right"
+            >
               <input
                 type="text"
                 name="price"
@@ -514,9 +556,12 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 onChange={handlePriceChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Giá bán buôn</label>
+            </LabeledField>
+            <LabeledField
+              label="Giá bán buôn"
+              hintText="Giá dành cho đại lý/khách mua số lượng."
+              hintPosition="right"
+            >
               <input
                 type="text"
                 name="wholesale_price"
@@ -524,9 +569,12 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 onChange={handleWholesalePriceChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Tồn kho</label>
+            </LabeledField>
+            <LabeledField
+              label="Tồn kho"
+              hintText="Số lượng hàng tồn kho hiện có."
+              hintPosition="right"
+            >
               <input
                 type="number"
                 name="inventory"
@@ -534,12 +582,15 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
-            </div>
+            </LabeledField>
           </div>
           {/* Hàng 4: Bảo hành, Ghi chú */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Bảo hành</label>
+            <LabeledField
+              label="Bảo hành"
+              hintText="Ví dụ: 12 tháng, 6 tháng, hoặc theo chính sách cửa hàng."
+              hintPosition="right"
+            >
               <input
                 type="text"
                 name="warranty"
@@ -547,9 +598,13 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
               />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Ghi chú</label>
+            </LabeledField>
+            <LabeledField
+              label="Ghi chú"
+              hintText="Thêm mô tả chi tiết hoặc thông tin đặc biệt về sản phẩm."
+              hintPosition="right"
+              className="md:col-span-2"
+            >
               <textarea
                 name="notes"
                 value={formData.notes || ''}
@@ -557,7 +612,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
                 className="mt-1 block w-full rounded-md border-2 border-gray-500 shadow-sm"
                 rows={2}
               ></textarea>
-            </div>
+            </LabeledField>
           </div>
           <div className="mt-6 flex justify-end gap-4">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Hủy</button>

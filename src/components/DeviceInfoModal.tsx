@@ -1,6 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { DeviceInfo, Material } from '../types/deviceTypes';
 import { X, Save, Smartphone, Calendar, Monitor, Cpu, Camera, Battery, Wifi, Palette, Ruler, Shield, Layers } from 'lucide-react';
+import LabeledField from './LabeledField';
 
 interface DeviceInfoModalProps {
   isOpen: boolean;
@@ -136,10 +137,7 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                 Thông tin cơ bản
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Model <span className="text-red-500">*</span>
-                  </label>
+                <LabeledField label="Model" required hintText="Tên/mã mẫu máy. Ví dụ: iPhone 15 Pro Max" hintPosition="right">
                   <input
                     type="text"
                     name="model"
@@ -149,9 +147,8 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                     placeholder="VD: iPhone 15 Pro Max"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Thương hiệu</label>
+                </LabeledField>
+                <LabeledField label="Thương hiệu" hintText="Hãng sản xuất: Apple, Samsung, Xiaomi..." hintPosition="right">
                   <input
                     type="text"
                     name="brand"
@@ -160,23 +157,21 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="VD: Apple, Samsung, Xiaomi"
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Calendar className="mr-2 text-gray-500" size={16} />
-                    Ngày ra mắt
-                  </label>
-                  <input
-                    type="text"
-                    name="release_date"
-                    value={formData.release_date || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: Tháng 9/2023"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Bảo hành</label>
+                </LabeledField>
+                <LabeledField label="Ngày ra mắt" hintText="Thời điểm thiết bị được công bố/bán ra (tháng/năm)." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="release_date"
+                      value={formData.release_date || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: Tháng 9/2023"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Bảo hành" hintText="Ví dụ: 12 tháng chính hãng hoặc theo cửa hàng." hintPosition="right">
                   <input
                     type="text"
                     name="warranty"
@@ -185,7 +180,7 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="VD: 12 tháng chính hãng"
                   />
-                </div>
+                </LabeledField>
               </div>
             </div>
 
@@ -248,118 +243,110 @@ const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({ isOpen, onClose, onSa
                 Thông số kỹ thuật
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Monitor className="mr-2 text-gray-500" size={16} />
-                    Màn hình
-                  </label>
-                  <input
-                    type="text"
-                    name="screen"
-                    value={formData.screen || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: 6.7 inch, OLED, 120Hz"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Cpu className="mr-2 text-gray-500" size={16} />
-                    Chip, RAM
-                  </label>
-                  <input
-                    type="text"
-                    name="chip_ram"
-                    value={formData.chip_ram || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: A17 Pro, 8GB RAM"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Camera className="mr-2 text-gray-500" size={16} />
-                    Camera
-                  </label>
-                  <input
-                    type="text"
-                    name="camera"
-                    value={formData.camera || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: 48MP + 12MP + 12MP"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Battery className="mr-2 text-gray-500" size={16} />
-                    Pin
-                  </label>
-                  <input
-                    type="text"
-                    name="battery"
-                    value={formData.battery || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: 4441mAh, 20W"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Wifi className="mr-2 text-gray-500" size={16} />
-                    Kết nối, Hệ điều hành
-                  </label>
-                  <input
-                    type="text"
-                    name="connectivity_os"
-                    value={formData.connectivity_os || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: 5G, iOS 17"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Palette className="mr-2 text-gray-500" size={16} />
-                    Màu sắc (Tiếng Anh)
-                  </label>
-                  <input
-                    type="text"
-                    name="color_english"
-                    value={formData.color_english || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: Natural Titanium, Blue Titanium"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Ruler className="mr-2 text-gray-500" size={16} />
-                    Kích thước, Trọng lượng
-                  </label>
-                  <input
-                    type="text"
-                    name="dimensions_weight"
-                    value={formData.dimensions_weight || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: 159.9 x 76.7 x 8.25 mm, 221g"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 flex items-center">
-                    <Shield className="mr-2 text-gray-500" size={16} />
-                    Cảm biến & Tính năng sức khỏe
-                  </label>
-                  <input
-                    type="text"
-                    name="sensors_health_features"
-                    value={formData.sensors_health_features || ''}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="VD: Face ID, Cảm biến gia tốc, Con quay hồi chuyển"
-                  />
-                </div>
+                <LabeledField label="Màn hình" hintText="Kích thước, công nghệ, tần số quét." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Monitor className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="screen"
+                      value={formData.screen || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: 6.7 inch, OLED, 120Hz"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Chip, RAM" hintText="Tên chip và dung lượng RAM." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="chip_ram"
+                      value={formData.chip_ram || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: A17 Pro, 8GB RAM"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Camera" hintText="Thông số camera trước/sau." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Camera className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="camera"
+                      value={formData.camera || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: 48MP + 12MP + 12MP"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Pin" hintText="Dung lượng và công nghệ sạc." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Battery className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="battery"
+                      value={formData.battery || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: 4441mAh, 20W"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Kết nối, Hệ điều hành" hintText="Chuẩn kết nối và phiên bản hệ điều hành." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="connectivity_os"
+                      value={formData.connectivity_os || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: 5G, iOS 17"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField label="Màu sắc (Tiếng Anh)" hintText="Tên màu theo tiếng Anh để đồng bộ với hãng." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Palette className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="color_english"
+                      value={formData.color_english || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: Natural Titanium, Blue Titanium"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField className="md:col-span-2" label="Kích thước, Trọng lượng" hintText="Thông số kích thước (DxRxC) và cân nặng." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Ruler className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="dimensions_weight"
+                      value={formData.dimensions_weight || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: 159.9 x 76.7 x 8.25 mm, 221g"
+                    />
+                  </div>
+                </LabeledField>
+                <LabeledField className="md:col-span-2" label="Cảm biến & Tính năng sức khỏe" hintText="Liệt kê các cảm biến/tính năng nổi bật." hintPosition="right">
+                  <div className="flex items-center gap-2">
+                    <Shield className="text-gray-500" size={16} />
+                    <input
+                      type="text"
+                      name="sensors_health_features"
+                      value={formData.sensors_health_features || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      placeholder="VD: Face ID, Cảm biến gia tốc, Con quay hồi chuyển"
+                    />
+                  </div>
+                </LabeledField>
               </div>
             </div>
 

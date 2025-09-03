@@ -153,6 +153,30 @@ function App() {
           } 
         />
         <Route 
+          path="/chatbot-tabs/:tab" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPageWithTabs />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chatbot-tabs/:tab/:page" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPageWithTabs />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chatbot-tabs/:tab/:page/:limit" 
+          element={
+            <ProtectedRoute>
+              <ChatbotPageWithTabs />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/api-integration" 
           element={
             <ProtectedRoute>
