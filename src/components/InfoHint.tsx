@@ -26,7 +26,7 @@ const InfoHint: React.FC<InfoHintProps> = ({ text, position = 'top', className =
         i
       </span>
       <span
-        className={`pointer-events-none absolute ${tooltipPos[position]} whitespace-pre rounded-md bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20 shadow`}
+        className={`pointer-events-none absolute ${tooltipPos[position]} whitespace-normal break-normal hyphens-auto text-pretty min-w-[12rem] max-w-sm sm:max-w-md lg:max-w-lg rounded-md bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20 shadow text-left`}
         role="tooltip"
       >
         {text}

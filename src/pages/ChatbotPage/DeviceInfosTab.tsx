@@ -498,7 +498,7 @@ const DeviceInfosTab: React.FC<DeviceInfosTabProps> = ({ currentPage: urlPage = 
       <div className="flex justify-between items-center mt-4">
         <div>
           <select
-            value={pagination.limit}
+            value={urlLimit}
             onChange={(e) => handleLimitChange(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >

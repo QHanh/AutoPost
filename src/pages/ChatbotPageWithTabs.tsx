@@ -37,37 +37,42 @@ type SubTab =
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien'; // Added for single tab
 
-const getMainTabsConfig = (currentPage: number, currentLimit: number, onPageChange: (page: number) => void, onLimitChange: (limit: number) => void, urlPage: number, urlLimit: number) => ({
+const getMainTabsConfig = (
+  page: number,
+  limit: number,
+  onPageChange: (page: number) => void,
+  onLimitChange: (limit: number) => void,
+) => ({
   dienthoai: {
     label: 'Điện thoại',
     icon: Smartphone,
     subTabs: [
-      { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'device-info', label: 'Thông tin thiết bị', component: <DeviceInfosTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'colors', label: 'Màu sắc', component: <ColorsTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'device-colors', label: 'Thiết bị - Màu sắc', component: <DeviceColorsTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'device-storage', label: 'Thiết bị - Dung lượng', component: <DeviceStorageTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'device-info', label: 'Thông tin thiết bị', component: <DeviceInfosTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'colors', label: 'Màu sắc', component: <ColorsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'device-colors', label: 'Thiết bị - Màu sắc', component: <DeviceColorsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'device-storage', label: 'Thiết bị - Dung lượng', component: <DeviceStorageTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
     ]
   },
   dichvu: {
     label: 'Dịch vụ',
     icon: Settings,
     isSingleTab: true,
-    component: <ErrorBoundary><ServiceManagementPage currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    component: <ErrorBoundary><ServiceManagementPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   },
   linhkien: {
     label: 'Linh kiện',
     icon: Component,
     isSingleTab: true,
-    component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={urlPage} currentLimit={urlLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   },
   caidat: {
     label: 'Cài đặt',
     icon: Settings,
     subTabs: [
-      { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
     ]
   },
 
@@ -75,14 +80,14 @@ const getMainTabsConfig = (currentPage: number, currentLimit: number, onPageChan
     label: 'Chatbot Agent',
     icon: MessageSquare,
     isSingleTab: true,
-    component: <ErrorBoundary><ChatbotTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   },
 
   'chatbot-linhkien': {
     label: 'Chatbot tùy chỉnh',
     icon: Bot,
     isSingleTab: true,
-    component: <ErrorBoundary><ChatbotLinhKienTab currentPage={currentPage} currentLimit={currentLimit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   }
 });
 
@@ -92,28 +97,17 @@ const ChatbotPageWithTabs: React.FC = () => {
   const navigate = useNavigate();
   const [openCategory, setOpenCategory] = useState<MainCategory | null>('dienthoai');
   const [activeTab, setActiveTab] = useState<SubTab>('my-devices');
-  const [currentPage, setCurrentPage] = useState<number>(() => {
-    const pageNum = parseInt(page || '1', 10);
-    return !isNaN(pageNum) && pageNum > 0 ? pageNum : 1;
-  });
-  const [currentLimit, setCurrentLimit] = useState<number>(() => {
-    const limitNum = parseInt(limit || '15', 10);
-    return !isNaN(limitNum) && limitNum > 0 ? limitNum : 15;
-  });
-
-  // Extract URL parameters for direct use
+  // Extract URL parameters for direct use (single source of truth)
   const urlPage = parseInt(page || '1', 10);
   const urlLimit = parseInt(limit || '15', 10);
 
   const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage);
     localStorage.setItem(`chatbot-pagination-${activeTab}-page`, newPage.toString());
-    navigate(`/chatbot-tabs/${activeTab}/${newPage}/${currentLimit}`);
-  }, [activeTab, currentLimit, navigate]);
+    // Use urlLimit to avoid drift with state
+    navigate(`/chatbot-tabs/${activeTab}/${newPage}/${urlLimit}`);
+  }, [activeTab, urlLimit, navigate]);
 
   const handleLimitChange = useCallback((newLimit: number) => {
-    setCurrentLimit(newLimit);
-    setCurrentPage(1); // Reset to page 1 when changing limit
     localStorage.setItem(`chatbot-pagination-${activeTab}-limit`, newLimit.toString());
     localStorage.setItem(`chatbot-pagination-${activeTab}-page`, '1');
     navigate(`/chatbot-tabs/${activeTab}/1/${newLimit}`);
@@ -129,7 +123,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       setActiveTab(tab as SubTab);
       
       // Determine which category should be open based on the tab
-      const mainTabsConfig = getMainTabsConfig(1, 10, handlePageChange, handleLimitChange, urlPage, urlLimit);
+      const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
       const categoryForTab = Object.entries(mainTabsConfig).find(([key, config]) => {
         if (config.isSingleTab && key === tab) {
           return true;
@@ -154,8 +148,6 @@ const ChatbotPageWithTabs: React.FC = () => {
         const pageNum = parseInt(page, 10);
         const limitNum = parseInt(limit, 10);
         if (!isNaN(pageNum) && pageNum > 0 && !isNaN(limitNum) && limitNum > 0) {
-          setCurrentPage(pageNum);
-          setCurrentLimit(limitNum);
           // Save to localStorage
           localStorage.setItem(`chatbot-pagination-${tab}-page`, pageNum.toString());
           localStorage.setItem(`chatbot-pagination-${tab}-limit`, limitNum.toString());
@@ -188,7 +180,7 @@ const ChatbotPageWithTabs: React.FC = () => {
   }
 
   const renderTabContent = () => {
-    const mainTabsConfig = getMainTabsConfig(currentPage, currentLimit, handlePageChange, handleLimitChange, urlPage, urlLimit);
+    const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
     
     // Xử lý các tab đơn lẻ trước
     if (activeTab === 'chat') {
@@ -217,7 +209,7 @@ const ChatbotPageWithTabs: React.FC = () => {
   };
 
   const handleCategoryClick = (categoryKey: MainCategory) => {
-    const mainTabsConfig = getMainTabsConfig(currentPage, currentLimit, handlePageChange, handleLimitChange, urlPage, urlLimit);
+    const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
     const category = mainTabsConfig[categoryKey];
     
     if (category.isSingleTab) {
@@ -252,7 +244,7 @@ const ChatbotPageWithTabs: React.FC = () => {
         </div>
         <nav className="flex-1 overflow-y-auto">
           <ul className="select-none p-2">
-            {Object.entries(getMainTabsConfig(currentPage, currentLimit, handlePageChange, handleLimitChange, urlPage, urlLimit)).map(([key, value]) => (
+            {Object.entries(getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange)).map(([key, value]) => (
                 <li key={key} className="mb-1">
                     <div
                         className={`flex items-center justify-between p-3 cursor-pointer rounded-lg hover:bg-gray-200 transition-colors ${

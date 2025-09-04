@@ -6,7 +6,14 @@ import { storageService } from '../../services/storageService';
 import { deviceStorageService } from '../../services/deviceStorageService';
 import { Plus, Trash2, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const DeviceStorageTab: React.FC = () => {
+interface DeviceStorageTabProps {
+  currentPage?: number;
+  currentLimit?: number;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+}
+
+const DeviceStorageTab: React.FC<DeviceStorageTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
   const { isAuthenticated } = useAuth();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [storages, setStorages] = useState<DeviceStorage[]>([]);
@@ -249,7 +256,7 @@ const DeviceStorageTab: React.FC = () => {
               <div className="flex justify-between items-center mt-4">
                   <div>
                       <select
-                          value={pagination.limit}
+                          value={urlLimit}
                           onChange={(e) => handleLimitChange(Number(e.target.value))}
                           className="px-3 py-1 rounded-lg bg-gray-200"
                       >
