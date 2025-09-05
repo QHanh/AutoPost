@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Search, MessageCircle, HelpCircle, Save, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Trash2, Edit, Search, MessageCircle, Check, X, Upload, Download } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Swal from 'sweetalert2';
 import { faqMobileService, FaqItem, FaqCreate } from '../../services/faqMobileService';
@@ -16,9 +16,12 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
-  const [formData, setFormData] = useState<FaqCreate>({ question: '', answer: '' });
+  const [newFaq, setNewFaq] = useState<FaqCreate>({ question: '', answer: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<FaqCreate>({ question: '', answer: '' });
+  const [importLoading, setImportLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter FAQs based on search term
   const filteredFaqs = faqs.filter(faq =>
@@ -48,10 +51,9 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
     fetchFaqs();
   }, []);
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.question.trim() || !formData.answer.trim()) {
+  // Handle add new FAQ
+  const handleAddFaq = async () => {
+    if (!newFaq.question.trim() || !newFaq.answer.trim()) {
       Swal.fire({
         icon: 'warning',
         title: 'Thông báo',
@@ -62,30 +64,60 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
     setLoading(true);
     try {
-      if (editingFaq) {
-        await faqMobileService.updateFaq(editingFaq.faq_id, formData);
-      } else {
-        await faqMobileService.addFaq(formData);
-      }
-      
+      await faqMobileService.addFaq(newFaq);
       await fetchFaqs();
-      setIsModalOpen(false);
-      setEditingFaq(null);
-      setFormData({ question: '', answer: '' });
+      setNewFaq({ question: '', answer: '' });
       
       Swal.fire({
         icon: 'success',
         title: 'Thành công',
-        text: editingFaq ? 'FAQ đã được cập nhật!' : 'FAQ đã được thêm mới!',
-        timer: 2000,
+        text: 'FAQ đã được thêm mới!',
+        timer: 1500,
         showConfirmButton: false,
       });
     } catch (error) {
-      console.error('Error saving FAQ:', error);
+      console.error('Error adding FAQ:', error);
       Swal.fire({
         icon: 'error',
         title: 'Lỗi',
-        text: error instanceof Error ? error.message : 'Không thể lưu FAQ. Vui lòng thử lại.',
+        text: error instanceof Error ? error.message : 'Không thể thêm FAQ. Vui lòng thử lại.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle update FAQ
+  const handleUpdateFaq = async (faqId: string) => {
+    if (!editingData.question.trim() || !editingData.answer.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Thông báo',
+        text: 'Vui lòng nhập đầy đủ câu hỏi và câu trả lời.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await faqMobileService.updateFaq(faqId, editingData);
+      await fetchFaqs();
+      setEditingId(null);
+      setEditingData({ question: '', answer: '' });
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công',
+        text: 'FAQ đã được cập nhật!',
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error updating FAQ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể cập nhật FAQ. Vui lòng thử lại.',
       });
     } finally {
       setLoading(false);
@@ -168,25 +200,103 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
     }
   };
 
-  // Open edit modal
+  // Handle edit mode
   const handleEdit = (faq: FaqItem) => {
-    setEditingFaq(faq);
-    setFormData({ question: faq.question, answer: faq.answer });
-    setIsModalOpen(true);
+    setEditingId(faq.faq_id);
+    setEditingData({ question: faq.question, answer: faq.answer });
   };
 
-  // Open add modal
-  const handleAdd = () => {
-    setEditingFaq(null);
-    setFormData({ question: '', answer: '' });
-    setIsModalOpen(true);
+  // Cancel edit
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingData({ question: '', answer: '' });
   };
 
-  // Close modal
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingFaq(null);
-    setFormData({ question: '', answer: '' });
+  // Handle import FAQ from file
+  const handleImportFaq = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: 'Vui lòng chọn file Excel (.xlsx hoặc .xls)',
+      });
+      return;
+    }
+
+    setImportLoading(true);
+    try {
+      const result = await faqMobileService.importFaqFromFile(file);
+      await fetchFaqs();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Import thành công!',
+        html: `
+          <p>Đã import FAQ thành công:</p>
+          <p><strong>Thành công:</strong> ${result.data?.successfully_indexed || 0} mục</p>
+          <p><strong>Thất bại:</strong> ${result.data?.failed_items?.length || 0} mục</p>
+        `,
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error importing FAQ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể import FAQ. Vui lòng thử lại.',
+      });
+    } finally {
+      setImportLoading(false);
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle export FAQ to Excel
+  const handleExportFaq = async () => {
+    setExportLoading(true);
+    try {
+      const blob = await faqMobileService.exportFaqToExcel();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `faq_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Export thành công!',
+        text: 'File Excel đã được tải xuống.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error('Error exporting FAQ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể export FAQ. Vui lòng thử lại.',
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Trigger file input
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -203,14 +313,36 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
               <p className="text-gray-600">Quản lý câu hỏi thường gặp cho ứng dụng mobile</p>
             </div>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-3">
+            {/* Import Button */}
             <button
-              onClick={handleAdd}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={triggerFileInput}
+              disabled={importLoading}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="h-4 w-4" />
-              <span>Thêm FAQ</span>
+              {importLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              <span>{importLoading ? 'Đang import...' : 'Import Excel'}</span>
             </button>
+
+            {/* Export Button */}
+            <button
+              onClick={handleExportFaq}
+              disabled={exportLoading}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span>{exportLoading ? 'Đang export...' : 'Export Excel'}</span>
+            </button>
+
+            {/* Delete All Button */}
             {faqs.length > 0 && (
               <button
                 onClick={handleDeleteAll}
@@ -234,146 +366,171 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
+
+        {/* Hidden File Input for Import */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleImportFaq}
+          style={{ display: 'none' }}
+        />
       </div>
 
-      {/* FAQ List */}
-      <div className="bg-white rounded-lg shadow-sm">
+      {/* FAQ Table */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
           </div>
-        ) : filteredFaqs.length === 0 ? (
-          <div className="text-center py-12">
-            <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? 'Không tìm thấy FAQ nào' : 'Chưa có FAQ nào'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm 
-                ? 'Thử tìm kiếm với từ khóa khác' 
-                : 'Bắt đầu bằng cách thêm FAQ đầu tiên của bạn'
-              }
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={handleAdd}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Thêm FAQ đầu tiên</span>
-              </button>
-            )}
-          </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredFaqs.map((faq, index) => (
-              <div key={faq.faq_id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        FAQ #{index + 1}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-start">
-                      <HelpCircle className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-                      {faq.question}
-                    </h3>
-                    <div className="text-gray-700 bg-gray-50 rounded-lg p-4">
-                      <div className="whitespace-pre-wrap">{faq.answer}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 ml-4">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                    Câu hỏi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                    Câu trả lời
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Hành động
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {/* Add new FAQ row - always first */}
+                <tr className="bg-blue-50">
+                  <td className="px-6 py-4">
+                    <textarea
+                      value={newFaq.question}
+                      onChange={(e) => setNewFaq({ ...newFaq, question: e.target.value })}
+                      placeholder="Nhập câu hỏi mới..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <textarea
+                      value={newFaq.answer}
+                      onChange={(e) => setNewFaq({ ...newFaq, answer: e.target.value })}
+                      placeholder="Nhập câu trả lời..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => handleEdit(faq)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Chỉnh sửa"
+                      onClick={handleAddFaq}
+                      disabled={!newFaq.question.trim() || !newFaq.answer.trim() || loading}
+                      className="inline-flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Check className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => handleDelete(faq.faq_id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Xóa"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                  </td>
+                </tr>
+                
+                {/* Existing FAQs */}
+                {filteredFaqs.map((faq) => (
+                  <tr key={faq.faq_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      {editingId === faq.faq_id ? (
+                        <textarea
+                          value={editingData.question}
+                          onChange={(e) => setEditingData({ ...editingData, question: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.question}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingId === faq.faq_id ? (
+                        <textarea
+                          value={editingData.answer}
+                          onChange={(e) => setEditingData({ ...editingData, answer: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">{faq.answer}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        {editingId === faq.faq_id ? (
+                          <>
+                            <button
+                              onClick={() => handleUpdateFaq(faq.faq_id)}
+                              disabled={!editingData.question.trim() || !editingData.answer.trim() || loading}
+                              className="inline-flex items-center px-2 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              title="Lưu"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="inline-flex items-center px-2 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                              title="Hủy"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEdit(faq)}
+                              className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(faq.faq_id)}
+                              className="inline-flex items-center px-2 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                              title="Xóa"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                
+                {/* Empty state when no FAQs */}
+                {filteredFaqs.length === 0 && !searchTerm && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center">
+                      <div className="text-gray-500">
+                        <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-lg font-medium mb-2">Chưa có FAQ nào</p>
+                        <p className="text-sm">Sử dụng dòng đầu tiên để thêm FAQ mới</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                
+                {/* No search results */}
+                {filteredFaqs.length === 0 && searchTerm && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center">
+                      <div className="text-gray-500">
+                        <Search className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-lg font-medium mb-2">Không tìm thấy FAQ nào</p>
+                        <p className="text-sm">Thử tìm kiếm với từ khóa khác</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {editingFaq ? 'Chỉnh sửa FAQ' : 'Thêm FAQ mới'}
-                </h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Câu hỏi <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                  placeholder="Nhập câu hỏi..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Câu trả lời <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={formData.answer}
-                  onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
-                  placeholder="Nhập câu trả lời..."
-                  rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>{editingFaq ? 'Cập nhật' : 'Thêm mới'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -116,7 +116,7 @@ const Filter: React.FC<FilterProps> = ({ config, onFilterChange }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+        <div className="absolute z-50 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
           {/* {console.log('Filter dropdown is open, rendering with config:', config)} */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Bộ lọc</h3>

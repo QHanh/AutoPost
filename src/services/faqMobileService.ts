@@ -128,4 +128,48 @@ export const faqMobileService = {
 
     return await response.json();
   },
+
+  /**
+   * Import FAQ từ file Excel
+   */
+  async importFaqFromFile(file: File): Promise<any> {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/mobile-faq/import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to import FAQ');
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Export FAQ ra file Excel
+   */
+  async exportFaqToExcel(): Promise<Blob> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/mobile-faq/export`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to export FAQ');
+    }
+
+    return await response.blob();
+  },
 };
