@@ -18,7 +18,7 @@ interface DevicesTabProps {
   onLimitChange?: (limit: number) => void;
 }
 
-const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
+const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 15, onPageChange, onLimitChange }) => {
   const [userDevices, setUserDevices] = useState<UserDevice[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<UserDevice | null>(null);
@@ -66,15 +66,16 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
   // Sync internal pagination with URL parameters and fetch data
   useEffect(() => {
     setPagination(prev => {
-      const newPagination = { ...prev, page: urlPage, limit: urlLimit };
-      // Only fetch if pagination actually changed
-      if (prev.page !== urlPage || prev.limit !== urlLimit) {
-        // Use setTimeout to avoid state update during render
-        setTimeout(() => {
-          fetchUserDevices(newPagination);
-          setSelectedDeviceIds(new Set());
-        }, 0);
+      // Do not overwrite local state if it already matches the incoming URL values
+      if (prev.page === urlPage && prev.limit === urlLimit) {
+        return prev;
       }
+      const newPagination = { ...prev, page: urlPage, limit: urlLimit };
+      // Fetch only when the values actually changed
+      setTimeout(() => {
+        fetchUserDevices(newPagination);
+        setSelectedDeviceIds(new Set());
+      }, 0);
       return newPagination;
     });
   }, [urlPage, urlLimit]);
@@ -228,7 +229,10 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
         // Removed success notification
       }
       
-      fetchUserDevices();
+      // After saving, reset to first page and sort by product_code, then refetch
+      setPagination(prev => ({ ...prev, page: 1 }));
+      setSortConfig({ key: 'product_code', direction: 'descending' });
+      fetchUserDevices({ page: 1, limit: pagination.limit });
       handleCloseModal();
     } catch (error: any) {
       console.error('Error saving device:', error);
@@ -333,7 +337,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
     },
     {
       key: 'price',
-      label: 'Giá',
+      label: 'Giá bán lẻ',
       type: 'range-number',
     },
     {
@@ -376,13 +380,14 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
 
   const handleLimitChangeInternal = (newLimit: number) => {
     console.log('DevicesTab: handleLimitChangeInternal called with', newLimit);
-    // Update URL through parent component
+    // Optimistically update local pagination so UI reflects selection immediately
+    setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
+    // Update URL/state via parent to persist selection
     if (onLimitChange) {
       onLimitChange(newLimit);
-    } else {
-      // Fallback to internal state if no URL sync
-      setPagination(prev => ({ ...prev, page: 1, limit: newLimit }));
     }
+    // Ensure data reloads immediately even if props change to the same values
+    fetchUserDevices({ page: 1, limit: newLimit });
   };
 
   // Price formatting function
@@ -539,12 +544,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
             <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
               <Plus className="mr-2" size={18} /> Thêm thiết bị
             </button>
-            <InfoHint
-              text={
-                'Thêm thiết bị mới vào kho của bạn.\nMẹo: Chọn nhiều màu trong form sẽ tạo nhiều bản ghi tương ứng.'
-              }
-              position="right"
-            />
+            
           </div>
           <button onClick={handleDeleteAll} className="flex items-center px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900">
               <Trash2 className="mr-2" size={18} /> Xóa tất cả
@@ -582,7 +582,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
                 { key: 'product_code', label: 'Mã sản phẩm' },
                 { key: 'deviceModel', label: 'Thiết bị' },
                 { key: 'inventory', label: 'Tồn kho' },
-                { key: 'price', label: 'Giá' },
+                { key: 'price', label: 'Giá bán lẻ' },
                 { key: 'wholesale_price', label: 'Giá bán buôn' },
                 { key: 'colorName', label: 'Màu sắc' },
                 { key: 'storageCapacity', label: 'Bộ nhớ' },
@@ -616,8 +616,8 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.product_code}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.deviceModel}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.inventory}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPrice(device.price)} đ</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPrice(device.wholesale_price || 0)} đ</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style={{ textAlign: 'right' }}>{formatPrice(device.price)} đ</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" style={{ textAlign: 'right' }}>{formatPrice(device.wholesale_price || 0)} đ</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.colorName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.storageCapacity} GB</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{device.device_type}</td>
@@ -637,7 +637,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
       <div className="flex justify-between items-center mt-4">
         <div>
           <select
-            value={pagination.limit}
+            value={urlLimit}
             onChange={(e) => handleLimitChangeInternal(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >

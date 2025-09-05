@@ -6,7 +6,14 @@ import { colorService } from '../../services/colorService';
 import { deviceColorService } from '../../services/deviceColorService';
 import { Plus, Trash2, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const DeviceColorsTab: React.FC = () => {
+interface DeviceColorsTabProps {
+  currentPage?: number;
+  currentLimit?: number;
+  onPageChange?: (page: number) => void;
+  onLimitChange?: (limit: number) => void;
+}
+
+const DeviceColorsTab: React.FC<DeviceColorsTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 10, onPageChange, onLimitChange }) => {
   const { isAuthenticated } = useAuth();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [colors, setColors] = useState<Color[]>([]);
@@ -275,7 +282,7 @@ const DeviceColorsTab: React.FC = () => {
               <div className="flex justify-between items-center mt-4">
                   <div>
                       <select
-                          value={pagination.limit}
+                          value={urlLimit}
                           onChange={(e) => handleLimitChange(Number(e.target.value))}
                           className="px-3 py-1 rounded-lg bg-gray-200"
                       >

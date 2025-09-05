@@ -338,6 +338,40 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
     }
   };
 
+  // Export sample Excel template
+  const handleExportSample = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/product-components/export-sample`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mau_linh_kien.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting sample Excel:', error);
+    }
+  };
+
   // Import product components from Excel
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -759,6 +793,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
             Xuất Excel
           </button>
           <button
+            onClick={handleExportSample}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+          >
+            <Download size={20} className="mr-2" />
+            Tải Excel mẫu
+          </button>
+          <button
             onClick={triggerFileInput}
             className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
@@ -775,12 +817,6 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
               <Plus size={20} className="mr-2" />
               Thêm Linh Kiện
             </button>
-            <InfoHint
-              text={
-                'Thêm linh kiện mới vào danh sách.\nGợi ý: Bạn có thể nhập Excel để thêm hàng loạt nhanh hơn.'
-              }
-              position="right"
-            />
           </div>
           {productComponents.length > 0 && (
             <button
@@ -896,7 +932,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
                   onClick={() => handleSort('amount')}
                 >
                   <div className="flex items-center justify-end">
-                    Giá Tiền
+                    Giá bán lẻ
                     {renderSortIcon('amount')}
                   </div>
                 </th>
@@ -1110,7 +1146,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
                     {formErrors.product_name && <p className="text-red-500 text-xs mt-2">{formErrors.product_name}</p>}
                   </LabeledField>
                   
-                  <LabeledField label="Giá Tiền" required hintText="Lưu ý: Với dịch vụ liên quan đến vỏ máy, mỗi màu có thể có giá khác nhau." hintPosition="right">
+                  <LabeledField label="Giá bán lẻ" required hintText="Lưu ý: Với dịch vụ liên quan đến vỏ máy, mỗi màu có thể có giá khác nhau." hintPosition="right">
                     <input
                       type="number"
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${formErrors.amount ? 'border-red-500' : 'border-gray-300'}`}

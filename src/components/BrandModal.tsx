@@ -822,13 +822,13 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onSave,
 
     {/* Price */}
     <div>
-      <LabeledField label="Giá" hintText="Nếu giá khác theo màu (dịch vụ vỏ), hãy nhập theo từng màu." hintPosition="right" className="w-full">
+      <LabeledField label="Giá bán lẻ" hintText="Nếu giá khác theo màu (dịch vụ vỏ), hãy nhập theo từng màu." hintPosition="right" className="w-full">
         <input
           type="text"
           value={formatPrice(currentBrand?.price || '')}
           onChange={handlePriceChange}
           className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base ${currentBrand?.price ? 'text-right' : 'text-left'}`}
-          placeholder="Nhập giá"
+          placeholder="Nhập giá bán lẻ"
         />
       </LabeledField>
     </div>

@@ -589,7 +589,7 @@ export const ServiceManagementPage: React.FC = () => {
                            {renderSortableHeader('device_brand_id', 'Thương hiệu')}
                            {renderSortableHeader('device_type', 'Loại máy')}
                            {renderSortableHeader('color', 'Màu sắc')}
-                           {renderSortableHeader('price', 'Giá')}
+                           {renderSortableHeader('price', 'Giá bán lẻ')}
                            {renderSortableHeader('wholesale_price', 'Giá bán buôn')}
                            {renderSortableHeader('warranty', 'Bảo hành')}
                            {renderSortableHeader('note', 'Ghi chú')}
@@ -613,8 +613,8 @@ export const ServiceManagementPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap">{deviceBrands.find(db => db.id === brand.device_brand_id)?.name || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.device_type || ''}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.color || ''}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.price)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap">{formatPrice(brand.wholesale_price)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right">{formatPrice(brand.price)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right">{formatPrice(brand.wholesale_price)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">{brand.warranty}</td>
                                 <td className="px-6 py-4" style={{ maxWidth: '250px' }}>
                                     {brand.note ? (

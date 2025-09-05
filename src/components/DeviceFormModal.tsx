@@ -545,7 +545,7 @@ const DeviceFormModal: React.FC<DeviceFormModalProps> = ({ isOpen, onClose, onSa
           {/* Hàng 3: Giá, Giá bán buôn, Tồn kho */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <LabeledField
-              label="Giá"
+              label="Giá bán lẻ"
               hintText="Nhập giá bán lẻ (tự động định dạng)."
               hintPosition="right"
             >
