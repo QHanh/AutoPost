@@ -225,7 +225,7 @@ const DeviceColorsTab: React.FC<DeviceColorsTabProps> = ({ currentPage: urlPage 
                   }}
               />
               {isColorDropdownOpen && (
-                  <div className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
+                  <div className="absolute z-50 w-full bg-white border rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
                       {availableColors.map(color => (
                           <div
                               key={color.id}

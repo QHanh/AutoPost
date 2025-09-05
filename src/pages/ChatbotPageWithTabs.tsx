@@ -8,6 +8,7 @@ import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
+import StoreSettingsTab from './ChatbotPage/StoreSettingsTab';
 import DocumentsTab from './ChatbotPage/DocumentsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
@@ -33,11 +34,13 @@ type SubTab =
   | 'documents'
   | 'api-integration' // Added
   | 'settings'
+  | 'store-settings' // Added for store settings
   | 'chat' // Added for single tab
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
-  | 'chatbot-linhkien'; // Added for single tab
+  | 'chatbot-linhkien' // Added for single tab
+  | 'caidat'; // Added for single tab
 
 const getMainTabsConfig = (
   page: number,
@@ -71,11 +74,8 @@ const getMainTabsConfig = (
   caidat: {
     label: 'Cài đặt',
     icon: Settings,
-    subTabs: [
-      { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'api-integration', label: 'Tích hợp API', component: <ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'settings', label: 'Cài đặt chung', component: <SettingsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-    ]
+    isSingleTab: true,
+    component: <ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} />
   },
 
   chat: {
@@ -84,14 +84,18 @@ const getMainTabsConfig = (
     subTabs: [
       { id: 'chat', label: 'Chat với Bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'faq-mobile', label: 'FAQ Mobile', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'settings', label: 'Cài đặt Chatbot', component: <ErrorBoundary><SettingsTab /></ErrorBoundary> },
     ]
   },
 
   'chatbot-linhkien': {
     label: 'Chatbot tùy chỉnh',
     icon: Bot,
-    isSingleTab: true,
-    component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    subTabs: [
+      { id: 'chatbot-linhkien', label: 'Chat tùy chỉnh', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'store-settings', label: 'Thông tin Cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
+    ]
   }
 });
 
@@ -193,8 +197,8 @@ const ChatbotPageWithTabs: React.FC = () => {
     if (activeTab === 'linhkien') {
         return mainTabsConfig.linhkien.component;
     }
-    if (activeTab === 'chatbot-linhkien') {
-        return mainTabsConfig['chatbot-linhkien'].component;
+    if (activeTab === 'caidat') {
+        return mainTabsConfig.caidat.component;
     }
     
     // Xử lý các sub-tabs

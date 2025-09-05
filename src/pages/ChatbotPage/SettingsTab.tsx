@@ -109,6 +109,9 @@ const SettingsTab: React.FC = () => {
   };
 
   const saveConfig = async () => {
+    // Store original config before any changes
+    const originalConfig = { ...config };
+    
     try {
       setIsSaving(true);
       const token = localStorage.getItem('auth_token');
@@ -118,7 +121,6 @@ const SettingsTab: React.FC = () => {
       }
 
       // Optimistic update - show success message immediately
-      const originalConfig = { ...config };
       setMessage({ type: 'success', text: 'Cấu hình đã được lưu thành công!' });
       setTimeout(() => setMessage(null), 3000);
 
@@ -192,6 +194,9 @@ const SettingsTab: React.FC = () => {
       return;
     }
 
+    // Store original config before any changes
+    const originalConfig = { ...config };
+    
     try {
       setIsSaving(true);
       const token = localStorage.getItem('auth_token');
@@ -201,7 +206,6 @@ const SettingsTab: React.FC = () => {
       }
 
       // Optimistic update - reset to default values immediately
-      const originalConfig = { ...config };
       setConfig({
         ai_name: 'Mai',
         ai_role: 'trợ lý ảo',
