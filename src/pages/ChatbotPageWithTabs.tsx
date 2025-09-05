@@ -18,6 +18,7 @@ import { ServiceManagementPage } from './ServiceManagementPage';
 import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
 import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
 import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
+import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'caidat'; // Added 'chatbot-linhkien'
@@ -33,6 +34,7 @@ type SubTab =
   | 'api-integration' // Added
   | 'settings'
   | 'chat' // Added for single tab
+  | 'faq-mobile' // Added for FAQ Mobile sub-tab
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien'; // Added for single tab
@@ -79,8 +81,10 @@ const getMainTabsConfig = (
   chat: {
     label: 'Chatbot Agent',
     icon: MessageSquare,
-    isSingleTab: true,
-    component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    subTabs: [
+      { id: 'chat', label: 'Chat với Bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'faq-mobile', label: 'FAQ Mobile', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+    ]
   },
 
   'chatbot-linhkien': {
@@ -183,9 +187,6 @@ const ChatbotPageWithTabs: React.FC = () => {
     const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
     
     // Xử lý các tab đơn lẻ trước
-    if (activeTab === 'chat') {
-        return mainTabsConfig.chat.component;
-    }
     if (activeTab === 'dichvu') {
         return mainTabsConfig.dichvu.component;
     }
