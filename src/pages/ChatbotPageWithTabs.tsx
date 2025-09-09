@@ -19,6 +19,7 @@ import { ServiceManagementPage } from './ServiceManagementPage';
 import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
 import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
 import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
+import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab'; // Import API Data Sync tab
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
@@ -31,6 +32,7 @@ type SubTab =
   | 'device-storage'
   | 'services'
   | 'components'
+  | 'api-data-sync' // Added for API data sync
   | 'documents'
   | 'api-integration' // Added
   | 'settings'
@@ -68,8 +70,10 @@ const getMainTabsConfig = (
   linhkien: {
     label: 'Linh kiện',
     icon: Component,
-    isSingleTab: true,
-    component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    subTabs: [
+      { id: 'components', label: 'Quản lý linh kiện', component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'api-data-sync', label: 'Nạp dữ liệu API', component: <ErrorBoundary><ApiDataSyncTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+    ]
   },
   caidat: {
     label: 'Cài đặt',
@@ -172,9 +176,9 @@ const ChatbotPageWithTabs: React.FC = () => {
       }
     } else {
       // If no tab is specified, redirect to default tab with saved pagination
-      const savedPage = localStorage.getItem('chatbot-pagination-my-devices-page') || '1';
-      const savedLimit = localStorage.getItem('chatbot-pagination-my-devices-limit') || '15';
-      navigate(`/chatbot-tabs/my-devices/${savedPage}/${savedLimit}`, { replace: true });
+      const savedPage = localStorage.getItem('chatbot-pagination-components-page') || '1';
+      const savedLimit = localStorage.getItem('chatbot-pagination-components-limit') || '15';
+      navigate(`/chatbot-tabs/components/${savedPage}/${savedLimit}`, { replace: true });
       return;
     }
   }, [tab, page, limit, navigate, isAuthenticated, isLoading, handlePageChange, handleLimitChange]);
@@ -193,9 +197,6 @@ const ChatbotPageWithTabs: React.FC = () => {
     // Xử lý các tab đơn lẻ trước
     if (activeTab === 'dichvu') {
         return mainTabsConfig.dichvu.component;
-    }
-    if (activeTab === 'linhkien') {
-        return mainTabsConfig.linhkien.component;
     }
     if (activeTab === 'caidat') {
         return mainTabsConfig.caidat.component;

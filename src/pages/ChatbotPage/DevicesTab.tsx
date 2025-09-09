@@ -274,6 +274,34 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
     }
   };
 
+  const handleExportTemplate = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/user-devices/export-template`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'mau_thiet_bi.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Error downloading template:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error exporting template:', error);
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -539,6 +567,9 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
           <input type="file" ref={fileInputRef} onChange={handleImport} style={{ display: 'none' }} accept=".xlsx, .xls" />
           <button onClick={handleExport} className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             <FileDown className="mr-2" size={18} /> Export Excel
+          </button>
+          <button onClick={handleExportTemplate} className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+            <FileDown className="mr-2" size={18} /> Tải Excel mẫu
           </button>
           <div className="flex items-center gap-2">
             <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">

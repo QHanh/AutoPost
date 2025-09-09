@@ -308,7 +308,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({
               Media Files ({post.media_assets.length})
             </h5>
             <div className="space-y-2">
-              {post.media_assets.map((asset) => (
+              {post.media_assets
+                .filter(asset => asset.url && asset.url.length > 0)
+                .map((asset) => (
                 <div key={asset.id} className="relative group">
                   {asset.file_type === 'image' ? (
                     <img
