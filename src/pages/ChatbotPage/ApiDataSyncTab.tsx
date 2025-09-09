@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download, RefreshCw } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
@@ -46,7 +46,7 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-interface ProductComponentsTabProps {
+interface ApiDataSyncTabProps {
   isAuthenticated: boolean;
   currentPage: number;
   currentLimit: number;
@@ -54,7 +54,7 @@ interface ProductComponentsTabProps {
   onLimitChange: (limit: number) => void;
 }
 
-const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({ 
+const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({ 
   isAuthenticated,
   currentPage,
   currentLimit,
@@ -71,6 +71,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof ProductComponent; direction: 'ascending' | 'descending' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [paginationInfo, setPaginationInfo] = useState({
     total: 0,
     totalPages: 1,
@@ -224,6 +225,57 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
       setFilterOptions(newFilterOptions);
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  // Sync data from external API
+  const handleSyncData = async () => {
+    if (syncing) return;
+
+    setSyncing(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000'}/api/v1/product-components/sync-from-api`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Lỗi đồng bộ dữ liệu');
+      }
+
+      const result = await response.json();
+      
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Đồng bộ thành công!',
+        html: `
+          <div class="text-left">
+            <p><strong>Tổng số xử lý:</strong> ${result.total_synced}</p>
+            <p><strong>Tạo mới:</strong> ${result.total_created}</p>
+            <p><strong>Cập nhật:</strong> ${result.total_updated}</p>
+            <p><strong>Bỏ qua:</strong> ${result.total_skipped}</p>
+          </div>
+        `,
+        confirmButtonText: 'OK'
+      });
+      
+      // Refresh data after sync
+      await fetchProductComponents();
+    } catch (error) {
+      console.error('Lỗi đồng bộ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi đồng bộ',
+        text: error.message || 'Có lỗi xảy ra khi đồng bộ dữ liệu',
+      });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -777,36 +829,19 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
         </div>
       )}
             <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
+        <h2 className="text-2xl font-bold">Nạp dữ liệu từ API</h2>
         <div className="flex items-center gap-2">
-          <Filter 
-            key={`filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`}
-            config={filterConfig} 
-            onFilterChange={handleFilterChange} 
-          />
           <button
-            onClick={handleExport}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
+            onClick={handleSyncData}
+            disabled={syncing || isLoading}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white disabled:opacity-50 disabled:cursor-not-allowed ${
+              syncing || isLoading
+                ? 'bg-gray-400'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
-            <Download size={20} className="mr-2" />
-            Xuất Excel
-          </button>
-          <button
-            onClick={handleExportSample}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            <Download size={20} className="mr-2" />
-            Tải Excel mẫu
-          </button>
-          <button
-            onClick={triggerFileInput}
-            className="bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            <Upload size={20} className="mr-2" />
-            Nhập Excel
+            <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Đang nạp dữ liệu...' : 'Nạp dữ liệu ngay'}
           </button>
           {/* <div className="flex items-center gap-2">
             <button
@@ -1324,4 +1359,4 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
   );
 };
 
-export default ProductComponentsTab;
+export default ApiDataSyncTab;
