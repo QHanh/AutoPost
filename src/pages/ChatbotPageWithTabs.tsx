@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate, useParams, useNavigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot, MessageCircle } from 'lucide-react';
 
 // Import all tab components
 import DevicesTab from './ChatbotPage/DevicesTab';
@@ -21,9 +21,10 @@ import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab
 import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
 import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab'; // Import API Data Sync tab
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
+import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
-type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'caidat'; // Added 'chatbot-linhkien'
+type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat'; // Added 'chatbot-linhkien' and 'zalo'
 type SubTab =
   | 'my-devices'
   | 'device-info'
@@ -39,6 +40,7 @@ type SubTab =
   | 'store-settings' // Added for store settings
   | 'chat' // Added for single tab
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
+  | 'zalo' // Added for Zalo tab
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien' // Added for single tab
@@ -100,6 +102,13 @@ const getMainTabsConfig = (
       { id: 'chatbot-linhkien', label: 'Chat tùy chỉnh', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'store-settings', label: 'Thông tin Cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
     ]
+  },
+
+  zalo: {
+    label: 'Zalo',
+    icon: MessageCircle,
+    isSingleTab: true,
+    component: <ErrorBoundary><ZaloTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   }
 });
 
@@ -200,6 +209,9 @@ const ChatbotPageWithTabs: React.FC = () => {
     }
     if (activeTab === 'caidat') {
         return mainTabsConfig.caidat.component;
+    }
+    if (activeTab === 'zalo') {
+        return mainTabsConfig.zalo.component;
     }
     
     // Xử lý các sub-tabs
