@@ -267,12 +267,13 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
       
       // Refresh data after sync
       await fetchProductComponents();
-    } catch (error) {
-      console.error('Lỗi đồng bộ:', error);
+    } catch (err) {
+      console.error('Lỗi đồng bộ:', err);
+      const message = err instanceof Error ? err.message : 'Có lỗi xảy ra khi đồng bộ dữ liệu';
       Swal.fire({
         icon: 'error',
         title: 'Lỗi đồng bộ',
-        text: error.message || 'Có lỗi xảy ra khi đồng bộ dữ liệu',
+        text: message,
       });
     } finally {
       setSyncing(false);
@@ -667,6 +668,15 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     setIsSelectAll(false);
   };
 
+  // Reset to page 1 whenever search term changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    if (currentPage !== 1) {
+      onPageChange(1);
+    }
+  };
+
   const renderSortIcon = (key: keyof ProductComponent) => {
     if (!sortConfig || sortConfig.key !== key) return <ChevronsUpDown className="ml-1 h-4 w-4" />;
     return sortConfig.direction === 'ascending' ? 
@@ -899,7 +909,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
             placeholder="Tìm kiếm theo tên hoặc mã sản phẩm..."
             className="w-full pl-10 pr-4 py-2 border rounded-lg"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
           />
           {searchTerm && (
             <button

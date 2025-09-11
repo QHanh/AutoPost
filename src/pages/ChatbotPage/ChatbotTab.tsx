@@ -2,10 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { chatbotStream } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
-import { MoreHorizontal, Plus, X, Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { faqMobileService } from '../../services/faqMobileService';
-import Swal from 'sweetalert2';
+import remarkGfm from 'remark-gfm';
+import MessageActionDropdown from '../../components/MessageActionDropdown';
 
 interface Message {
   text: string;
@@ -22,11 +21,7 @@ const ChatbotTab: React.FC = () => {
   });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [faqQuestion, setFaqQuestion] = useState('');
-  const [faqAnswer, setFaqAnswer] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const [showFaqFormIndex, setShowFaqFormIndex] = useState<number | null>(null);
-  const [isSavingFaq, setIsSavingFaq] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,292 +40,173 @@ const ChatbotTab: React.FC = () => {
     localStorage.removeItem('chatbotMessages');
   };
 
-  const handleAddToFaq = (messageText: string, messageIndex: number) => {
-    setFaqQuestion(messageText);
-    setFaqAnswer('');
-    setShowFaqFormIndex(messageIndex);
-    setActiveDropdown(null);
-  };
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
 
-  const handleCopyMessage = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      Swal.fire({
-        icon: 'success',
-        title: 'Đã sao chép',
-        text: 'Nội dung đã được sao chép vào clipboard!',
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-      });
-    } catch (error) {
-      console.error('Failed to copy text:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Lỗi',
-        text: 'Không thể sao chép nội dung.',
-        timer: 1500,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-      });
-    }
-  };
+    const userMessage: Message = {
+      text: input,
+      sender: 'user',
+      id: Date.now().toString()
+    };
 
-  const handleSaveFaq = async () => {
-    if (!faqQuestion.trim() || !faqAnswer.trim()) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Thông báo',
-        text: 'Vui lòng nhập đầy đủ câu hỏi và câu trả lời.',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        showConfirmButton: false,
-      });
-      return;
-    }
-
-    setIsSavingFaq(true);
-    try {
-      await faqMobileService.addFaq({
-        question: faqQuestion,
-        answer: faqAnswer
-      });
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Thành công',
-        text: 'FAQ đã được thêm thành công!',
-        timer: 2000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top-end'
-      });
-      
-      setShowFaqFormIndex(null);
-      setFaqQuestion('');
-      setFaqAnswer('');
-    } catch (error) {
-      console.error('Error adding FAQ:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Lỗi',
-        text: error instanceof Error ? error.message : 'Không thể thêm FAQ. Vui lòng thử lại.',
-        toast: true,
-        position: 'top-end',
-        timer: 3000,
-        showConfirmButton: false,
-      });
-    } finally {
-      setIsSavingFaq(false);
-    }
-  };
-
-  const handleCloseFaqForm = () => {
-    setShowFaqFormIndex(null);
-    setFaqQuestion('');
-    setFaqAnswer('');
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !user) return;
-
-    const userMessage: Message = { text: input, sender: 'user', id: Date.now().toString() };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    // Add a placeholder for the bot's response
-    const botMessagePlaceholder: Message = { text: '', sender: 'bot', id: (Date.now() + 1).toString() };
-    setMessages((prev) => [...prev, botMessagePlaceholder]);
+    try {
+      const botMessage: Message = {
+        text: '',
+        sender: 'bot',
+        id: (Date.now() + 1).toString()
+      };
 
-    await chatbotStream(
-      input,
-      (chunk) => {
-        try {
-          // Assuming the chunk is a JSON string like {"response": "..."}
-          const parsed = JSON.parse(chunk);
-          const text = parsed.response || '';
+      setMessages(prev => [...prev, botMessage]);
 
-          setMessages((prev) => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.sender === 'bot') {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMessage, text: lastMessage.text + text },
-              ];
+      await chatbotStream(
+        input,
+        (chunk) => {
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage.sender === 'bot') {
+              lastMessage.text += chunk;
             }
-            return prev;
+            return newMessages;
           });
-        } catch (error) {
-          // If chunk is not a valid JSON, append it directly.
-          // This handles cases where the stream might send plain text chunks.
-          setMessages((prev) => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage && lastMessage.sender === 'bot') {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMessage, text: lastMessage.text + chunk },
-              ];
+        },
+        () => {
+          // onComplete callback - called when streaming is finished
+          console.log('Chatbot streaming completed');
+        },
+        (error) => {
+          console.error('Chatbot error:', error);
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage.sender === 'bot') {
+              lastMessage.text = 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.';
             }
-            return prev;
+            return newMessages;
           });
         }
-      },
-      () => {
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error('Error sending message:', error);
-        let errorText = 'Sorry, something went wrong.';
-        if (error.message) {
-          errorText = error.message;
-        }
-        const errorMessage: Message = { text: errorText, sender: 'bot' };
-        setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
-        setIsLoading(false);
-      }
-    );
+      );
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Chatbot</h2>
-        <button 
+    <div className="flex flex-col h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-center p-4 border-b bg-white">
+        <h2 className="text-2xl font-bold text-gray-800">Chatbot AI</h2>
+        <button
           onClick={clearChat}
-          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+          className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
         >
-          Clear Chat
+          Xóa lịch sử
         </button>
       </div>
-      <div className="flex-grow p-4 border rounded-md mb-4 overflow-y-auto">
-        <div className="space-y-4">
-          {messages.map((msg, index) => (
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 mt-8">
+            <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
+          </div>
+        ) : (
+          messages.map((msg, index) => (
             <div
               key={msg.id || index}
-              className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex items-start space-x-2 ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}
             >
-              {/* FAQ Form for this specific message - positioned to the left */}
-              {showFaqFormIndex === index && msg.sender === 'user' && (
-                <div className="mr-4 bg-blue-50 border border-blue-200 rounded p-2 space-y-2 w-64 self-start">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-900">Thêm FAQ</span>
-                    <button
-                      onClick={handleCloseFaqForm}
-                      className="p-0.5 text-blue-400 hover:text-blue-600 rounded"
+              <div
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  msg.sender === 'user'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-900'
+                }`}
+              >
+                {(() => {
+                  // Progressively strip JSON wrapper if backend returns {"response":"..."}
+                  let displayText = msg.text ?? '';
+                  if (displayText.startsWith('{"response":"')) {
+                    // Remove leading wrapper
+                    displayText = displayText.replace(/^\{\"response\":\"/, '');
+                    // Remove trailing wrapper if present
+                    displayText = displayText.replace(/\"\}\s*$/, '');
+                    // Unescape common sequences for nicer rendering
+                    displayText = displayText
+                      .split('\\n').join('\n')
+                      .split('\\t').join('\t')
+                      .replace(/\\"/g, '"');
+                  }
+                  // Auto-convert direct image URLs to Markdown image syntax for inline preview
+                  const imageUrlRegex = /(https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|svg))/gi;
+                  displayText = displayText.replace(imageUrlRegex, (url) => `![image](${url})`);
+                  return (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a {...props} target="_blank" rel="noopener noreferrer" />
+                        ),
+                        img: (props) => (
+                          // eslint-disable-next-line jsx-a11y/alt-text
+                          <img {...props} style={{ maxWidth: '100%', borderRadius: '0.5rem' }} loading="lazy" />
+                        ),
+                      }}
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div>
-                      <input
-                        value={faqQuestion}
-                        onChange={(e) => setFaqQuestion(e.target.value)}
-                        placeholder="Câu hỏi..."
-                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    
-                    <div>
-                      <input
-                        value={faqAnswer}
-                        onChange={(e) => setFaqAnswer(e.target.value)}
-                        placeholder="Câu trả lời..."
-                        className="w-full px-2 py-1 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-end space-x-1">
-                    <button
-                      onClick={handleCloseFaqForm}
-                      className="px-2 py-1 text-xs text-blue-700 bg-blue-100 rounded hover:bg-blue-200"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      onClick={handleSaveFaq}
-                      disabled={!faqQuestion.trim() || !faqAnswer.trim() || isSavingFaq}
-                      className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isSavingFaq ? (
-                        <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Check className="h-2 w-2" />
-                      )}
-                      <span>{isSavingFaq ? 'Lưu...' : 'Lưu'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className={`flex items-start space-x-2 ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    msg.sender === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-900'
-                  }`}
-                >
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
-                </div>
-                {msg.sender === 'user' && msg.text.trim() && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setActiveDropdown(activeDropdown === index ? null : index)}
-                      className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                      title="Thêm vào FAQ"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                    {activeDropdown === index && (
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[150px]">
-                        <button
-                          onClick={() => handleAddToFaq(msg.text, index)}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 rounded-lg"
-                        >
-                          <Plus className="h-4 w-4" />
-                          <span>Thêm vào FAQ</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {msg.sender === 'bot' && msg.text.trim() && (
-                  <div className="relative">
-                    <button
-                      onClick={() => handleCopyMessage(msg.text)}
-                      className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                      title="Sao chép nội dung"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
+                      {displayText}
+                    </ReactMarkdown>
+                  );
+                })()}
               </div>
+              {msg.sender === 'user' && msg.text.trim() && (
+                <MessageActionDropdown
+                  messageText={msg.text}
+                  isVisible={activeDropdown === index}
+                  onToggle={() => setActiveDropdown(activeDropdown === index ? null : index)}
+                  onClose={() => setActiveDropdown(null)}
+                />
+              )}
             </div>
-          ))}
-          <div ref={messagesEndRef} />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input - Fixed at bottom */}
+      <div className="p-4 bg-white border-t">
+        <div className="flex gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Nhập tin nhắn của bạn..."
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={2}
+            disabled={isLoading}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || isLoading}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <PaperPlaneIcon className="w-4 h-4" />
+            {isLoading ? 'Đang gửi...' : 'Gửi'}
+          </button>
         </div>
       </div>
-      <form onSubmit={handleSendMessage} className="flex space-x-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-grow p-2 border rounded-md"
-        />
-        <button type="submit" disabled={isLoading} className="p-2 bg-blue-500 text-white rounded-md">
-          <PaperPlaneIcon className="h-5 w-5" />
-        </button>
-      </form>
     </div>
   );
 };

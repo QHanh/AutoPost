@@ -1,22 +1,168 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, QRResponse } from '../../services/zaloService';
+import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw } from 'lucide-react';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage } from '../../services/zaloService';
+import MessageActionDropdown from '../../components/MessageActionDropdown';
 
 interface ZaloTabProps {
   currentPage?: number;
   currentLimit?: number;
   onPageChange?: (page: number) => void;
   onLimitChange?: (limit: number) => void;
+  initialActiveTab?: 'login' | 'messages';
 }
 
 
-const ZaloTab: React.FC<ZaloTabProps> = () => {
+const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [qrCode, setQrCode] = useState<string>('');
   const [status, setStatus] = useState<string>('idle');
   const [message, setMessage] = useState<string>('');
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(true);
+  
+  // New state for messages functionality
+  const [conversations, setConversations] = useState<ZaloConversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<ZaloConversation | null>(null);
+  const [messages, setMessages] = useState<ZaloMessage[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState<boolean>(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
+  // Use initialActiveTab directly instead of state since parent controls the view
+  const activeTab = initialActiveTab || 'login';
+  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+
+  // Utility: stable color for a given sender name
+  const senderColorClasses = [
+    'text-rose-700',
+    'text-emerald-700',
+    'text-indigo-700',
+    'text-amber-700',
+    'text-fuchsia-700',
+    'text-cyan-700',
+    'text-lime-700',
+    'text-sky-700',
+  ];
+
+  const getColorClassForName = (name?: string) => {
+    if (!name) return 'text-green-700';
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash << 5) - hash + name.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+    const idx = Math.abs(hash) % senderColorClasses.length;
+    return senderColorClasses[idx];
+  };
+
+  // Date helpers: support ISO string or ms (number/string)
+  const parseToDate = (v?: number | string): Date | null => {
+    if (v === undefined || v === null) return null;
+    if (typeof v === 'number') {
+      return new Date(v);
+    }
+    // string: could be ISO or millis as string
+    if (/^\d+$/.test(v)) {
+      const ms = parseInt(v, 10);
+      if (!isNaN(ms)) return new Date(ms);
+    }
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatDateTime = (v?: number | string): string => {
+    const d = parseToDate(v);
+    return d ? d.toLocaleString('vi-VN') : '';
+  };
+
+  const formatTime = (v?: number | string, fallbackIso?: string): string => {
+    const d = parseToDate(v);
+    if (d) return d.toLocaleTimeString('vi-VN');
+    if (fallbackIso) {
+      const d2 = parseToDate(fallbackIso);
+      if (d2) return d2.toLocaleTimeString('vi-VN');
+    }
+    return '';
+  };
+
+  // Quote helpers: normalize various formats to human-readable
+  const normalizeQuote = (q: any): { text?: string; author?: string; ts?: number | string } => {
+    if (!q) return {};
+    let obj: any = q;
+    if (typeof q === 'string') {
+      try {
+        const parsed = JSON.parse(q);
+        obj = parsed;
+      } catch {
+        // plain string, treat as the text
+        return { text: q };
+      }
+    }
+    if (obj && typeof obj === 'object') {
+      const text = typeof obj.msg === 'string' ? obj.msg : undefined;
+      const author = typeof obj.fromD === 'string' ? obj.fromD : undefined;
+      const ts = obj.ts as number | string | undefined;
+      if (text || author || ts) return { text, author, ts };
+    }
+    return { text: (typeof q === 'string' ? q : undefined) };
+  };
+
+  // Content helpers: detect structured content like photo payloads
+  type NormalizedContent =
+    | { kind: 'text'; text: string }
+    | { kind: 'photo'; href?: string; thumb?: string; width?: number | null; height?: number | null; title?: string; description?: string };
+
+  const normalizeContent = (c: unknown): NormalizedContent => {
+    // default to text
+    if (c === null || c === undefined) return { kind: 'text', text: '' };
+    if (typeof c === 'string') {
+      // Try to parse JSON that might be a structured content (e.g., photo)
+      if (c.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(c);
+          if (parsed && parsed.type === 'photo') {
+            return {
+              kind: 'photo',
+              href: parsed.href,
+              thumb: parsed.thumb,
+              width: parsed.width ?? (parsed.params ? JSON.parse(parsed.params || '{}').width : undefined),
+              height: parsed.height ?? (parsed.params ? JSON.parse(parsed.params || '{}').height : undefined),
+              title: parsed.title,
+              description: parsed.description,
+            };
+          }
+        } catch {
+          // fall through to text
+        }
+      }
+      return { kind: 'text', text: c };
+    }
+    if (typeof c === 'object') {
+      const obj: any = c;
+      // listener may send object for photos
+      if (obj.type === 'photo' || obj.msgType === 'chat.photo') {
+        // params may be JSON string
+        let width: number | null = null;
+        let height: number | null = null;
+        try {
+          const params = typeof obj.params === 'string' ? JSON.parse(obj.params) : obj.params;
+          if (params) {
+            width = params.width ?? null;
+            height = params.height ?? null;
+          }
+        } catch {}
+        return {
+          kind: 'photo',
+          href: obj.href,
+          thumb: obj.thumb || obj.href,
+          width,
+          height,
+          title: obj.title,
+          description: obj.description,
+        };
+      }
+    }
+    // Anything else becomes text
+    return { kind: 'text', text: String(c) };
+  };
 
   const getStatusIcon = () => {
     switch (status) {
@@ -149,6 +295,41 @@ const ZaloTab: React.FC<ZaloTabProps> = () => {
     setMessage('');
   };
 
+  // Load conversations when user is logged in
+  const loadConversations = async () => {
+    if (status !== 'SessionSaved') return;
+    
+    setIsLoadingConversations(true);
+    try {
+      const data = await getZaloConversations();
+      setConversations(data.items || []);
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  // Load messages for selected conversation
+  const loadMessages = async (conversation: ZaloConversation) => {
+    setIsLoadingMessages(true);
+    setSelectedConversation(conversation);
+    
+    try {
+      const data = await getZaloMessages(
+        conversation.thread_id,
+        conversation.peer_id,
+        50,
+        'asc'
+      );
+      setMessages(data.items || []);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
   // Kiểm tra trạng thái phiên Zalo khi mở tab
   useEffect(() => {
     let mounted = true;
@@ -177,95 +358,315 @@ const ZaloTab: React.FC<ZaloTabProps> = () => {
     };
   }, [eventSource]);
 
+  // Load conversations when status changes to SessionSaved
+  useEffect(() => {
+    if (status === 'SessionSaved') {
+      // Auto-load conversations when logged in; if user is on Messages tab, refresh
+      loadConversations();
+      // If user is on Messages tab, list will be shown automatically
+    }
+  }, [status]);
+
+  // When switching to Messages tab and already logged in, load conversations
+  useEffect(() => {
+    if (activeTab === 'messages' && status === 'SessionSaved') {
+      loadConversations();
+    }
+  }, [activeTab]);
+
+  // Determine if current conversation is a group
+  const isGroupConversation = !!(selectedConversation && (selectedConversation.type === 1 || selectedConversation.group_name));
+
+  const handleRefresh = async () => {
+    await loadConversations();
+    if (selectedConversation) {
+      await loadMessages(selectedConversation);
+    }
+  };
+
   return (
-    <div className="p-6 bg-white rounded-lg shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Đăng nhập Zalo</h2>
-        <p className="text-gray-600">
-          Kết nối tài khoản Zalo của bạn để sử dụng các tính năng chatbot.
-        </p>
-      </div>
+    <div className="p-4 bg-white rounded-lg shadow-sm h-full">
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* QR Code Section */}
-        <div className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center min-h-[300px] flex flex-col items-center justify-center">
-            {qrCode ? (
-              <div className="space-y-4">
-                <img 
-                  src={qrCode} 
-                  alt="Zalo QR Code" 
-                  className="mx-auto max-w-full h-auto border rounded-lg shadow-sm"
-                />
-                <p className="text-sm text-gray-600">
-                  Quét mã QR bằng ứng dụng Zalo trên điện thoại
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <QrCode size={64} className="text-gray-400 mx-auto" />
-                <p className="text-gray-500">
-                  Mã QR sẽ hiển thị ở đây
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={connectToZalo}
-              disabled={isConnecting || isCheckingStatus}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              {isCheckingStatus ? 'Đang kiểm tra trạng thái...' : (isConnecting ? 'Đang kết nối...' : 'Tạo mã QR')}
-            </button>
-            
-            {isConnecting && (
-              <button
-                onClick={disconnectFromZalo}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                Hủy
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Status Section */}
-        <div className="space-y-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">Trạng thái kết nối</h3>
-            
-            <div className="flex items-center space-x-3 mb-3">
-              {getStatusIcon()}
-              <span className="font-medium text-gray-700 capitalize">
-                {status === 'idle' ? 'Chưa kết nối' : status}
-              </span>
+      {activeTab === 'login' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* QR Code Section */}
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center min-h-[300px] flex flex-col items-center justify-center">
+              {qrCode ? (
+                <div className="space-y-4">
+                  <img 
+                    src={qrCode} 
+                    alt="Zalo QR Code" 
+                    className="mx-auto max-w-full h-auto border rounded-lg shadow-sm"
+                  />
+                  <p className="text-sm text-gray-600">
+                    Quét mã QR bằng ứng dụng Zalo trên điện thoại
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <QrCode size={64} className="text-gray-400 mx-auto" />
+                  <p className="text-gray-500">
+                    Mã QR sẽ hiển thị ở đây
+                  </p>
+                </div>
+              )}
             </div>
-            
-            <p className="text-sm text-gray-600 leading-relaxed">
-              {getStatusMessage()}
-            </p>
-            
-            {message && status !== 'SessionSaveError' && (
-              <div className="mt-3 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
-                <p className="text-sm text-blue-700">{message}</p>
-              </div>
-            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={connectToZalo}
+                disabled={isConnecting || isCheckingStatus}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                {isCheckingStatus ? 'Đang kiểm tra trạng thái...' : (isConnecting ? 'Đang kết nối...' : 'Tạo mã QR')}
+              </button>
+              
+              {isConnecting && (
+                <button
+                  onClick={disconnectFromZalo}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Hủy
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h4 className="font-medium text-yellow-800 mb-2">Hướng dẫn:</h4>
-            <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-              <li>Nhấn "Tạo mã QR" để bắt đầu</li>
-              <li>Mở ứng dụng Zalo trên điện thoại</li>
-              <li>Quét mã QR hiển thị trên màn hình</li>
-              <li>Xác nhận đăng nhập trên điện thoại</li>
-              <li>Chờ hệ thống lưu thông tin phiên</li>
-            </ol>
+          {/* Status Section */}
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-800 mb-3">Trạng thái kết nối</h3>
+              
+              <div className="flex items-center space-x-3 mb-3">
+                {getStatusIcon()}
+                <span className="font-medium text-gray-700 capitalize">
+                  {status === 'idle' ? 'Chưa kết nối' : status}
+                </span>
+              </div>
+              
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {getStatusMessage()}
+              </p>
+              
+              {message && status !== 'SessionSaveError' && (
+                <div className="mt-3 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <p className="text-sm text-blue-700">{message}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-800 mb-2">Hướng dẫn:</h4>
+              <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+                <li>Nhấn "Tạo mã QR" để bắt đầu</li>
+                <li>Mở ứng dụng Zalo trên điện thoại</li>
+                <li>Quét mã QR hiển thị trên màn hình</li>
+                <li>Xác nhận đăng nhập trên điện thoại</li>
+                <li>Chờ hệ thống lưu thông tin phiên</li>
+              </ol>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'messages' && (
+        status !== 'SessionSaved' ? (
+          <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
+            Vui lòng đăng nhập Zalo trước để xem tin nhắn.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 rounded-lg p-4">
+            {/* Conversations List */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                  <h4 className="font-semibold text-gray-800">Cuộc trò chuyện</h4>
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isLoadingConversations || isLoadingMessages}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                    title="Làm mới"
+                  >
+                    <RefreshCw size={16} className={(isLoadingConversations || isLoadingMessages) ? 'animate-spin' : ''} />
+                    Làm mới
+                  </button>
+                </div>
+                <div className="max-h-[70vh] overflow-y-auto">
+                  {isLoadingConversations ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <Clock className="animate-spin mx-auto mb-2" size={20} />
+                      Đang tải...
+                    </div>
+                  ) : conversations.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      Không có cuộc trò chuyện nào
+                    </div>
+                  ) : (
+                    conversations.map((conv) => (
+                      <div
+                        key={conv.conversation_id}
+                        onClick={() => loadMessages(conv)}
+                        className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                          selectedConversation?.conversation_id === conv.conversation_id ? 'bg-blue-50 border-r-4 border-r-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {(conv.type === 1 || conv.group_name) ? <Users size={16} className="text-gray-500" /> : <User size={16} className="text-gray-500" />}
+                          <span
+                            className={`font-semibold text-sm truncate ${
+                              (conv.type === 1 || conv.group_name) ? 'text-indigo-700' : 'text-teal-700'
+                            }`}
+                          >
+                            {(conv.type === 1 || conv.group_name)
+                              ? (conv.group_name || conv.conversation_id || 'Không có tên')
+                              : (conv.d_name || conv.conversation_id || 'Không có tên')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 truncate">
+                          {(() => {
+                            if (!conv.last_content) return 'Không có tin nhắn';
+                            const nc = normalizeContent(conv.last_content);
+                            if (nc.kind === 'photo') return '[Ảnh]';
+                            return nc.text;
+                          })()}
+                        </p>
+                        {(conv.last_created_at || conv.last_ts) && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {conv.last_created_at ? formatDateTime(conv.last_created_at) : formatDateTime(conv.last_ts)}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Messages Display */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow-sm">
+                <div className="p-4 border-b border-gray-200">
+                  <h4 className="font-semibold text-gray-800">
+                    {selectedConversation
+                      ? ((selectedConversation.type === 1 || selectedConversation.group_name)
+                          ? (selectedConversation.group_name || selectedConversation.conversation_id)
+                          : (selectedConversation.d_name || selectedConversation.conversation_id))
+                      : 'Chọn cuộc trò chuyện'}
+                  </h4>
+                </div>
+                <div className="h-[70vh] overflow-y-auto p-4 bg-gray-50">
+                  {!selectedConversation ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      Chọn một cuộc trò chuyện để xem tin nhắn
+                    </div>
+                  ) : isLoadingMessages ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      <Clock className="animate-spin mr-2" size={20} />
+                      Đang tải tin nhắn...
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      Không có tin nhắn nào trong cuộc trò chuyện này
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {messages.map((msg, index) => (
+                        <div
+                          key={msg.id || index}
+                          className={`flex items-start space-x-2 ${msg.is_self ? 'flex-row-reverse space-x-reverse' : ''}`}
+                        >
+                          <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            msg.is_self 
+                              ? 'bg-blue-500 text-white rounded-br-sm' 
+                              : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
+                          }`}>
+                            {!msg.is_self && isGroupConversation && msg.d_name && (
+                              <div className={`text-xs font-semibold mb-1 ${getColorClassForName(msg.d_name)}`}>
+                                {msg.d_name}
+                              </div>
+                            )}
+                            {msg.quote && (() => {
+                              const q = normalizeQuote(msg.quote);
+                              return (
+                                <div className={`text-xs mb-2 p-2 rounded ${
+                                  msg.is_self ? 'bg-blue-400 bg-opacity-50' : 'bg-gray-100'
+                                }`}>
+                                  <div className="flex items-start gap-1">
+                                    <span>↳</span>
+                                    <div className="min-w-0">
+                                      {q.author && (
+                                        <div className="font-semibold text-gray-700 truncate">{q.author}</div>
+                                      )}
+                                      {q.text && (
+                                        <div className="text-gray-700 whitespace-pre-wrap break-words">{q.text}</div>
+                                      )}
+                                      {!q.text && (typeof msg.quote === 'string') && (
+                                        <div className="text-gray-700 whitespace-pre-wrap break-words">{msg.quote}</div>
+                                      )}
+                                      {!q.text && typeof msg.quote !== 'string' && (
+                                        <div className="text-gray-500 italic">(trích dẫn)</div>
+                                      )}
+                                      {q.ts && (
+                                        <div className="text-[10px] text-gray-500 mt-1">{formatTime(q.ts)}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              const nc = normalizeContent(msg.content);
+                              if (nc.kind === 'photo') {
+                                const src = nc.thumb || nc.href;
+                                return (
+                                  <div className="space-y-1">
+                                    {src && (
+                                      <a href={nc.href} target="_blank" rel="noopener noreferrer" className="inline-block">
+                                        <img
+                                          src={src}
+                                          alt={nc.title || 'Ảnh'}
+                                          className="rounded-md border border-gray-200 max-w-full h-auto"
+                                          style={{ maxHeight: '40vh' }}
+                                        />
+                                      </a>
+                                    )}
+                                    {nc.description && (
+                                      <div className="text-xs text-gray-600">{nc.description}</div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="text-sm">
+                                  {nc.text}
+                                </div>
+                              );
+                            })()}
+                            <div className={`text-xs mt-1 ${msg.is_self ? 'text-blue-100' : 'text-gray-500'}`}>
+                              {!msg.is_self && !isGroupConversation && msg.d_name && `${msg.d_name} • `}
+                              {formatTime(msg.ts, msg.created_at)}
+                            </div>
+                          </div>
+                          {msg.is_self && msg.content && (
+                            <MessageActionDropdown
+                              messageText={typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}
+                              isVisible={activeDropdown === index}
+                              onToggle={() => setActiveDropdown(activeDropdown === index ? null : index)}
+                              onClose={() => setActiveDropdown(null)}
+                            />
+                          )}
+                        </div>
+                      ))
+}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 };

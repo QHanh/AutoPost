@@ -418,6 +418,18 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
     fetchUserDevices({ page: 1, limit: newLimit });
   };
 
+  // Reset to page 1 whenever search term changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    // Reset pagination to first page to ensure API fetch starts from page 1
+    if (onPageChange) {
+      onPageChange(1);
+    } else {
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
+  };
+
   // Price formatting function
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('vi-VN').format(price);
@@ -590,7 +602,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
             type="text"
             placeholder="Tìm kiếm theo Model hoặc Mã SP..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
           />
         </div>

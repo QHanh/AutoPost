@@ -40,7 +40,8 @@ type SubTab =
   | 'store-settings' // Added for store settings
   | 'chat' // Added for single tab
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
-  | 'zalo' // Added for Zalo tab
+  | 'zalo-login' // Zalo Login sub-tab
+  | 'zalo-messages' // Zalo Messages sub-tab
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien' // Added for single tab
@@ -107,8 +108,10 @@ const getMainTabsConfig = (
   zalo: {
     label: 'Zalo',
     icon: MessageCircle,
-    isSingleTab: true,
-    component: <ErrorBoundary><ZaloTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
+    subTabs: [
+      { id: 'zalo-login', label: 'Đăng nhập', component: <ErrorBoundary><ZaloTab initialActiveTab="login" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'zalo-messages', label: 'Tin nhắn', component: <ErrorBoundary><ZaloTab initialActiveTab="messages" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+    ]
   }
 });
 
@@ -209,9 +212,6 @@ const ChatbotPageWithTabs: React.FC = () => {
     }
     if (activeTab === 'caidat') {
         return mainTabsConfig.caidat.component;
-    }
-    if (activeTab === 'zalo') {
-        return mainTabsConfig.zalo.component;
     }
     
     // Xử lý các sub-tabs

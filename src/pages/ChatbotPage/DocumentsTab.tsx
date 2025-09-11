@@ -15,7 +15,6 @@ const DocumentsTab: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [textInput, setTextInput] = useState('');
-  const [showTextInput, setShowTextInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -109,7 +108,6 @@ const DocumentsTab: React.FC = () => {
       if (response.ok) {
         setMessage({ type: 'success', text: 'Văn bản đã được upload thành công!' });
         setTextInput('');
-        setShowTextInput(false);
         // Reload to get real data
         loadDocuments();
         loadSources();
@@ -290,42 +288,34 @@ const DocumentsTab: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-gray-900">Tải lên văn bản</h4>
-                <button
-                  onClick={() => setShowTextInput(!showTextInput)}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  {showTextInput ? 'Ẩn' : 'Hiện'}
-                </button>
               </div>
               
-              {showTextInput && (
-                <div className="space-y-3">
-                  <textarea
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập nội dung văn bản..."
-                  />
-                  <button
-                    onClick={uploadText}
-                    disabled={isUploading || !textInput.trim()}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Đang tải lên...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Tải lên văn bản
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+              <div className="space-y-3">
+                <textarea
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập nội dung văn bản..."
+                />
+                <button
+                  onClick={uploadText}
+                  disabled={isUploading || !textInput.trim()}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang tải lên...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Tải lên văn bản
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Upload File */}
@@ -476,7 +466,7 @@ const DocumentsTab: React.FC = () => {
               {sources.map((source, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-gray-900 text-sm truncate" title={source}>
                         {source}
                       </h4>

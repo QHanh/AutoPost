@@ -132,3 +132,92 @@ export const logoutZalo = async (): Promise<any> => {
 
   return await response.json();
 };
+
+export interface ZaloConversation {
+  conversation_id: string;
+  thread_id?: string;
+  peer_id?: string;
+  d_name?: string;
+  group_name?: string;
+  last_content?: string;
+  last_ts?: number | string;
+  last_created_at?: string; // ISO timestamp from backend
+  type?: number;
+}
+
+export interface ZaloMessage {
+  id: string;
+  content: string;
+  is_self: boolean;
+  d_name?: string;
+  uid_from?: string;
+  ts?: number | string; // may arrive as string ms
+  created_at?: string;
+  quote?: any;
+  mentions?: any;
+}
+
+export const getZaloConversations = async (): Promise<{ items: ZaloConversation[]; count: number }> => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Không tìm thấy token xác thực');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/conversations`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || `Error: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+export const getZaloMessages = async (
+  threadId?: string,
+  peerId?: string,
+  limit: number = 50,
+  order: string = 'asc'
+): Promise<{ items: ZaloMessage[]; count: number; conversation_id?: string }> => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Không tìm thấy token xác thực');
+  }
+
+  if (!threadId && !peerId) {
+    throw new Error('Cần cung cấp thread_id hoặc peer_id');
+  }
+
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    order: order
+  });
+
+  if (threadId) {
+    params.set('thread_id', threadId);
+  }
+  if (peerId) {
+    params.set('peer_id', peerId);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/messages?${params}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || `Error: ${response.status}`);
+  }
+
+  return await response.json();
+};
