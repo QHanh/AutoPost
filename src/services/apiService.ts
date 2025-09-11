@@ -18,6 +18,14 @@ export const getAuthToken = () => {
     return localStorage.getItem('auth_token');
 };
 
+// Helper function to handle token expiry
+const handleTokenExpiry = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    window.location.href = '/login';
+};
+
 apiClient.interceptors.request.use(
     (config) => {
         const token = getAuthToken();
@@ -34,6 +42,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
+        // Handle 401 Unauthorized - token expired
+        if (error.response && error.response.status === 401) {
+            handleTokenExpiry();
+            return Promise.reject(new Error('Token đã hết hạn. Vui lòng đăng nhập lại.'));
+        }
+        
         // If there's a response with error details, pass them through
         if (error.response && error.response.data && error.response.data.detail) {
             return Promise.reject(error);
@@ -54,7 +68,7 @@ export const getAuthHeader = (isFormData = false): HeadersInit => {
 };
 
 
-export const apiGet = async (endpoint: string, options: ApiGetOptions = {}): Promise<any> => {
+export const apiGet = async <T>(endpoint: string, options: ApiGetOptions = {}): Promise<T> => {
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
@@ -64,6 +78,12 @@ export const apiGet = async (endpoint: string, options: ApiGetOptions = {}): Pro
     });
 
     if (!response.ok) {
+        // Handle 401 Unauthorized - token expired
+        if (response.status === 401) {
+            handleTokenExpiry();
+            throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+        }
+        
         // Handle non-JSON responses for blob errors
         if (options.responseType === 'blob') {
             throw new Error(`Error: ${response.status}`);
@@ -73,13 +93,13 @@ export const apiGet = async (endpoint: string, options: ApiGetOptions = {}): Pro
     }
     
     if (options.responseType === 'blob') {
-        return await response.blob();
+        return await response.blob() as T;
     }
 
     return await response.json();
 };
 
-export const apiPost = async (endpoint: string, data: any): Promise<any> => {
+export const apiPost = async <T>(endpoint: string, data: any): Promise<T> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -90,6 +110,12 @@ export const apiPost = async (endpoint: string, data: any): Promise<any> => {
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     const errorData = await response.json();
     throw new Error(errorData.detail || `Error: ${response.status}`);
   }
@@ -97,7 +123,7 @@ export const apiPost = async (endpoint: string, data: any): Promise<any> => {
   return await response.json();
 };
 
-export const apiPostForm = async (endpoint: string, formData: FormData): Promise<any> => {
+export const apiPostForm = async <T>(endpoint: string, formData: FormData): Promise<T> => {
     const token = getAuthToken();
     if (!token) throw new Error('Unauthorized');
 
@@ -108,6 +134,12 @@ export const apiPostForm = async (endpoint: string, formData: FormData): Promise
     });
 
     if (!response.ok) {
+        // Handle 401 Unauthorized - token expired
+        if (response.status === 401) {
+            handleTokenExpiry();
+            throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+        }
+        
         const errorData = await response.json();
         throw new Error(errorData.detail || `Error: ${response.status}`);
     }
@@ -116,7 +148,7 @@ export const apiPostForm = async (endpoint: string, formData: FormData): Promise
 };
 
 
-export const apiPut = async (endpoint: string, data: any): Promise<any> => {
+export const apiPut = async <T>(endpoint: string, data: any): Promise<T> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -127,6 +159,12 @@ export const apiPut = async (endpoint: string, data: any): Promise<any> => {
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     const errorData = await response.json();
     throw new Error(errorData.detail || `Error: ${response.status}`);
   }
@@ -134,7 +172,7 @@ export const apiPut = async (endpoint: string, data: any): Promise<any> => {
   return await response.json();
 };
 
-export const apiDelete = async (endpoint: string, data?: any): Promise<any> => {
+export const apiDelete = async <T>(endpoint: string, data?: any): Promise<T> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -150,13 +188,19 @@ export const apiDelete = async (endpoint: string, data?: any): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, config);
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     const errorData = await response.json();
     throw new Error(errorData.detail || `Error: ${response.status}`);
   }
 
   // Handle 204 No Content (successful deletion with no response body)
   if (response.status === 204) {
-    return { success: true, message: 'Deleted successfully' };
+    return { success: true, message: 'Deleted successfully' } as T;
   }
 
   // For other successful responses, try to parse JSON
@@ -164,11 +208,11 @@ export const apiDelete = async (endpoint: string, data?: any): Promise<any> => {
     return await response.json();
   } catch (error) {
     // If response is empty or not JSON, return success
-    return { success: true };
+    return { success: true } as T;
   }
 };
 
-export const apiPostFormData = async (endpoint: string, formData: FormData): Promise<any> => {
+export const apiPostFormData = async <T>(endpoint: string, formData: FormData): Promise<T> => {
   const token = getAuthToken();
   if (!token) throw new Error('Unauthorized');
 
@@ -184,6 +228,12 @@ export const apiPostFormData = async (endpoint: string, formData: FormData): Pro
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     const errorData = await response.json();
     throw new Error(errorData.detail || `Error: ${response.status}`);
   }
@@ -202,6 +252,12 @@ export const apiGetBlob = async (endpoint: string): Promise<Blob> => {
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     throw new Error(`Error: ${response.status}`);
   }
 
@@ -219,6 +275,12 @@ export const apiPostAndGetBlob = async (endpoint: string, data: any): Promise<Bl
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      handleTokenExpiry();
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    
     throw new Error(`Error: ${response.status}`);
   }
 
@@ -249,6 +311,12 @@ export const chatbotStream = async (
     });
 
     if (!response.ok || !response.body) {
+      // Handle 401 Unauthorized - token expired
+      if (response.status === 401) {
+        handleTokenExpiry();
+        throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+      }
+      
       let errorText = `Error: ${response.status}`;
       try {
         const errorData = await response.json();
@@ -292,6 +360,16 @@ export const chatbot = async (query: string) => {
         return response.data.data;
     } catch (error) {
         // Re-throw the error so it can be handled by the calling function
+        throw error;
+    }
+};
+
+export const resetChatbotHistory = async () => {
+    try {
+        const response = await apiClient.post('/chatbot/clear-history-chat', {});
+        return response.data;
+    } catch (error) {
+        console.error("Error resetting chatbot history:", error);
         throw error;
     }
 };

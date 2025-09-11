@@ -99,3 +99,9 @@ export interface ImportResult {
   error: number;
   errors?: string[];
 }
+
+export interface PaginatedProductComponents {
+  data: ProductComponent[];
+  total: number;
+  total_pages: number;
+}

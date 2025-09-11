@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { chatbotStream } from '../../services/apiService';
+import { chatbotStream, resetChatbotHistory } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
 import { MoreHorizontal, Plus, X, Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -27,6 +27,7 @@ const ChatbotTab: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const [showFaqFormIndex, setShowFaqFormIndex] = useState<number | null>(null);
   const [isSavingFaq, setIsSavingFaq] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -134,6 +135,35 @@ const ChatbotTab: React.FC = () => {
     setFaqAnswer('');
   };
 
+  const handleResetBot = async () => {
+    setIsResetting(true);
+    try {
+      await resetChatbotHistory();
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công',
+        text: 'Bot đã được reset.',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+    } catch (error) {
+      console.error('Error resetting bot:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể reset bot. Vui lòng thử lại.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !user) return;
@@ -200,12 +230,22 @@ const ChatbotTab: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Chatbot</h2>
-        <button 
-          onClick={clearChat}
-          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-        >
-          Clear Chat
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleResetBot}
+            className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50"
+            title="Reset bot nếu bạn vừa chỉnh sửa cài đặt, prompt."
+            disabled={isResetting}
+          >
+            {isResetting ? 'Đang reset...' : 'Reset bot'}
+          </button>
+          <button 
+            onClick={clearChat}
+            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+          >
+            Clear Chat
+          </button>
+        </div>
       </div>
       <div className="flex-grow p-4 border rounded-md mb-4 overflow-y-auto">
         <div className="space-y-4">
