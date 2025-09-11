@@ -47,15 +47,6 @@ const ChatbotTab: React.FC = () => {
     localStorage.removeItem('chatbotMessages');
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      text: input,
-      sender: 'user',
-      id: Date.now().toString()
-    };
-
   const handleSaveFaq = async () => {
     if (!faqQuestion.trim() || !faqAnswer.trim()) {
       Swal.fire({
