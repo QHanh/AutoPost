@@ -21,6 +21,12 @@ export default defineConfig({
       port: 5174
     }
   },
+  preview: {
+    host: "0.0.0.0",
+    port: 4173,
+    strictPort: true,
+    allowedHosts: ["doiquanai.vn"],
+  },
   appType: 'spa', // Thêm dòng này để xử lý SPA routing
   build: {
     sourcemap: false,

@@ -192,7 +192,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
     try {
       console.log('Fetching properties...');
       const response = await productComponentService.getAllProperties();
-      setProperties(Array.isArray(response) ? response : response.data || []);
+      setProperties(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error fetching properties:', error);
     }
@@ -786,7 +786,7 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
         </div>
       )}
             <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Quản lý Linh Kiện</h2>
+        <h2 className="text-2xl font-bold">Quản lý Linh Kiện ({paginationInfo.total})</h2>
         <div className="flex items-center gap-2">
           <Filter 
             key={`filter-${Object.keys(filters).filter(key => key.startsWith('property_')).length}-${filterConfig.length}`}

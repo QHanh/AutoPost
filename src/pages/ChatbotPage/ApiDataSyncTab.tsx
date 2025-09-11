@@ -10,6 +10,16 @@ import PopupModal from '../../components/PopupModal';
 import InfoHint from '../../components/InfoHint';
 import LabeledField from '../../components/LabeledField';
 
+interface SyncNowResult {
+  message: string;
+  sync_details: {
+    total_synced: number;
+    total_created: number;
+    total_updated: number;
+    total_skipped: number;
+  };
+}
+
 // Component hiển thị mô tả với tính năng popup
 const DescriptionDisplay: React.FC<{ 
   description: string | null | undefined;
@@ -72,6 +82,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: keyof ProductComponent; direction: 'ascending' | 'descending' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncingNow, setSyncingNow] = useState(false);
   const [paginationInfo, setPaginationInfo] = useState({
     total: 0,
     totalPages: 1,
@@ -193,7 +204,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     try {
       console.log('Fetching properties...');
       const response = await productComponentService.getAllProperties();
-      setProperties(Array.isArray(response) ? response : response.data || []);
+      setProperties(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Error fetching properties:', error);
     }
@@ -256,10 +267,10 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
         title: 'Đồng bộ thành công!',
         html: `
           <div class="text-left">
-            <p><strong>Tổng số xử lý:</strong> ${result.total_synced}</p>
-            <p><strong>Tạo mới:</strong> ${result.total_created}</p>
-            <p><strong>Cập nhật:</strong> ${result.total_updated}</p>
-            <p><strong>Bỏ qua:</strong> ${result.total_skipped}</p>
+            <p><strong>Tổng số xử lý:</strong> ${result.sync_details.total_synced}</p>
+            <p><strong>Tạo mới:</strong> ${result.sync_details.total_created}</p>
+            <p><strong>Cập nhật:</strong> ${result.sync_details.total_updated}</p>
+            <p><strong>Bỏ qua:</strong> ${result.sync_details.total_skipped}</p>
           </div>
         `,
         confirmButtonText: 'OK'
@@ -277,6 +288,43 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
       });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // Sync data from external API for today
+  const handleSyncNow = async () => {
+    if (syncingNow) return;
+
+    setSyncingNow(true);
+    try {
+      const result = await productComponentService.syncNowFromApi() as SyncNowResult;
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Yêu cầu đồng bộ thành công!',
+        html: `
+          <div class="text-left">
+            <p>${result.message}</p>
+            <hr class="my-2" />
+            <p><strong>Tổng số xử lý:</strong> ${result.sync_details.total_synced}</p>
+            <p><strong>Tạo mới:</strong> ${result.sync_details.total_created}</p>
+            <p><strong>Cập nhật:</strong> ${result.sync_details.total_updated}</p>
+            <p><strong>Bỏ qua:</strong> ${result.sync_details.total_skipped}</p>
+          </div>
+        `,
+        confirmButtonText: 'OK'
+      });
+      
+      await fetchProductComponents();
+    } catch (error) {
+      console.error('Lỗi đồng bộ ngay:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi đồng bộ ngay',
+        text: error instanceof Error ? error.message : 'Có lỗi xảy ra khi yêu cầu đồng bộ ngay',
+      });
+    } finally {
+      setSyncingNow(false);
     }
   };
 
@@ -839,7 +887,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
         </div>
       )}
             <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Nạp dữ liệu từ API</h2>
+        <h2 className="text-2xl font-bold">Nạp dữ liệu từ API ({paginationInfo.total})</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={handleSyncData}
@@ -851,7 +899,19 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
             }`}
           >
             <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Đang nạp dữ liệu...' : 'Nạp dữ liệu ngay'}
+            {syncing ? 'Đang nạp dữ liệu...' : 'Nạp dữ tất cả dữ liệu'}
+          </button>
+          <button
+            onClick={handleSyncNow}
+            disabled={syncingNow || isLoading}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white disabled:opacity-50 disabled:cursor-not-allowed ${
+              syncingNow || isLoading
+                ? 'bg-gray-400'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            <RefreshCw className={`w-5 h-5 ${syncingNow ? 'animate-spin' : ''}`} />
+            {syncingNow ? 'Đang đồng bộ...' : 'Nạp dữ liệu trong ngày'}
           </button>
           {/* <div className="flex items-center gap-2">
             <button

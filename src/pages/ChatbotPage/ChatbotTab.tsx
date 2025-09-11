@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { chatbotStream } from '../../services/apiService';
+import { chatbotStream, resetChatbotHistory } from '../../services/apiService';
 import { PaperPlaneIcon } from '@radix-ui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
+import Swal from 'sweetalert2';
+import { faqMobileService } from '../../services/faqMobileService';
 
 interface Message {
   text: string;
@@ -22,6 +24,11 @@ const ChatbotTab: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+  const [showFaqFormIndex, setShowFaqFormIndex] = useState<number | null>(null);
+  const [isSavingFaq, setIsSavingFaq] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [faqQuestion, setFaqQuestion] = useState('');
+  const [faqAnswer, setFaqAnswer] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,6 +45,100 @@ const ChatbotTab: React.FC = () => {
   const clearChat = () => {
     setMessages([]);
     localStorage.removeItem('chatbotMessages');
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      text: input,
+      sender: 'user',
+      id: Date.now().toString()
+    };
+
+  const handleSaveFaq = async () => {
+    if (!faqQuestion.trim() || !faqAnswer.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Thông báo',
+        text: 'Vui lòng nhập đầy đủ câu hỏi và câu trả lời.',
+        toast: true,
+        position: 'top-end',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
+    setIsSavingFaq(true);
+    try {
+      await faqMobileService.addFaq({
+        question: faqQuestion,
+        answer: faqAnswer
+      });
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công',
+        text: 'FAQ đã được thêm thành công!',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+      
+      setShowFaqFormIndex(null);
+      setFaqQuestion('');
+      setFaqAnswer('');
+    } catch (error) {
+      console.error('Error adding FAQ:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể thêm FAQ. Vui lòng thử lại.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    } finally {
+      setIsSavingFaq(false);
+    }
+  };
+
+  const handleCloseFaqForm = () => {
+    setShowFaqFormIndex(null);
+    setFaqQuestion('');
+    setFaqAnswer('');
+  };
+
+  const handleResetBot = async () => {
+    setIsResetting(true);
+    try {
+      await resetChatbotHistory();
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công',
+        text: 'Bot đã được reset.',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+    } catch (error) {
+      console.error('Error resetting bot:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi',
+        text: error instanceof Error ? error.message : 'Không thể reset bot. Vui lòng thử lại.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -105,16 +206,25 @@ const ChatbotTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b bg-white">
-        <h2 className="text-2xl font-bold text-gray-800">Chatbot AI</h2>
-        <button
-          onClick={clearChat}
-          className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-        >
-          Xóa lịch sử
-        </button>
+    <div className="flex flex-col h-[calc(100vh-8rem)]">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Chatbot</h2>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleResetBot}
+            className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50"
+            title="Reset bot nếu bạn vừa chỉnh sửa cài đặt, prompt."
+            disabled={isResetting}
+          >
+            {isResetting ? 'Đang reset...' : 'Reset bot'}
+          </button>
+          <button 
+            onClick={clearChat}
+            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+          >
+            Clear Chat
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

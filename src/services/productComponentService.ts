@@ -8,7 +8,8 @@ import {
   CategoryUpdate,
   Property,
   PropertyCreate,
-  PropertyUpdate
+  PropertyUpdate,
+  PaginatedProductComponents
 } from '../types/productComponentTypes';
 
 // Product Component APIs
@@ -53,7 +54,7 @@ export const productComponentService = {
       });
     }
 
-    return await apiGet<ProductComponent[]>(`/product-components?${params.toString()}`);
+    return await apiGet<PaginatedProductComponents>(`/product-components?${params.toString()}`);
   },
 
   // Get product component by ID
@@ -148,5 +149,10 @@ export const productComponentService = {
       property_values: { [key: string]: string[] };
       trademarks: string[];
     }>('/product-components/filter-options');
+  },
+
+  // Sync now from API
+  syncNowFromApi: async () => {
+    return await apiPost('/product-components/sync-now', {});
   },
 };
