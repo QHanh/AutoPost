@@ -70,6 +70,19 @@ class BrandService {
     return this.makeRequest(`/brands/${brandId}`, { method: 'DELETE' });
   }
 
+  async restoreBrand(brandId: string) {
+    return this.makeRequest(`/brands/${brandId}/restore`, { method: 'POST' });
+  }
+
+  async getDeletedBrandsToday() {
+    const response = await this.makeRequest('/brands/deleted-today');
+    return response.data;
+  }
+
+  async restoreAllDeletedBrandsToday() {
+    return this.makeRequest('/brands/restore-all-today', { method: 'POST' });
+  }
+
   async importBrands(file: File) {
       const formData = new FormData();
       formData.append('file', file);

@@ -91,6 +91,21 @@ export const productComponentService = {
     return await apiDelete('/product-components/all');
   },
 
+  // Restore product component
+  restoreProductComponent: async (id: string) => {
+    return await apiPost<ProductComponent>(`/product-components/${id}/restore`, {});
+  },
+
+  // Get product components deleted today
+  getDeletedToday: async () => {
+    return await apiGet<ProductComponent[]>(`/product-components/deleted-today`);
+  },
+
+  // Restore all product components deleted today
+  restoreAllDeletedToday: async () => {
+    return await apiPost<{ restored_count: number; message: string }>(`/product-components/restore-all-today`, {});
+  },
+
   // Get all categories
   getAllCategories: async (skip: number = 0, limit: number = 100) => {
     return await apiGet<Category[]>(`/categories?skip=${skip}&limit=${limit}`);

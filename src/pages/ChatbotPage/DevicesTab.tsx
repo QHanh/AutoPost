@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Search, FileDown, FileUp, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { UserDevice } from '../../types/deviceTypes';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { userDeviceService } from '../../services/userDeviceService';
+import { UserDevice } from '../../types/deviceTypes';
+import { Plus, Edit, Trash2, RotateCcw, ChevronsUpDown, FileUp, FileDown, Search } from 'lucide-react';
+import Swal from 'sweetalert2';
 import DeviceFormModal from '../../components/DeviceFormModal';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useRestoreAllDeletedModal } from '../../components/RestoreAllDeletedModal';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
 import { deviceInfoService } from '../../services/deviceInfoService';
-import { deviceStorageService } from '../../services/deviceStorageService';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import InfoHint from '../../components/InfoHint';
-import Swal from 'sweetalert2';
 
 interface DevicesTabProps {
   currentPage?: number;
@@ -94,7 +94,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
 
       const params = new URLSearchParams();
       if (sortConfig) {
-        params.append('sort_by', sortConfig.key);
+        params.append('sort_by', String(sortConfig.key));
         params.append('sort_order', sortConfig.direction === 'ascending' ? 'asc' : 'desc');
       }
       params.append('skip', ((currentPagination.page - 1) * currentPagination.limit).toString());
@@ -264,6 +264,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
       }
     }
   };
+
 
   const handleExport = async () => {
     try {
@@ -524,6 +525,16 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
     }
   };
 
+  // Sử dụng hook chung cho việc khôi phục tất cả devices đã xóa
+  const { handleRestoreAll: handleRestoreAllDeletedToday } = useRestoreAllDeletedModal({
+    itemType: 'devices',
+    getDeletedItems: userDeviceService.getDeletedDevicesToday,
+    restoreAllItems: userDeviceService.restoreAllDeletedToday,
+    onSuccess: () => {
+      fetchUserDevices();
+    }
+  });
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       {/* Loading overlay toàn màn hình khi import */}
@@ -589,6 +600,9 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
             </button>
             
           </div>
+          <button onClick={handleRestoreAllDeletedToday} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            <RotateCcw className="mr-2" size={18} /> Khôi phục sản phẩm xóa trong ngày
+          </button>
           <button onClick={handleDeleteAll} className="flex items-center px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900">
               <Trash2 className="mr-2" size={18} /> Xóa tất cả
           </button>

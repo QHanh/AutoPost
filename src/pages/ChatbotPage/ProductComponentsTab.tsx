@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download, RotateCcw } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
 import Pagination from '../../components/Pagination';
 import Filter, { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
+import { useRestoreAllDeletedModal } from '../../components/RestoreAllDeletedModal';
 import PopupModal from '../../components/PopupModal';
 import InfoHint from '../../components/InfoHint';
 import LabeledField from '../../components/LabeledField';
@@ -101,6 +102,20 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
   
   // Popup modal state
   const [descriptionModal, setDescriptionModal] = useState({ isOpen: false, title: '', content: '' });
+
+  // Restore-all deleted today (linh kiện)
+  const { handleRestoreAll: handleRestoreAllDeletedComponents } = useRestoreAllDeletedModal({
+    itemType: 'components',
+    getDeletedItems: () => productComponentService.getDeletedToday(),
+    restoreAllItems: () => productComponentService.restoreAllDeletedToday(),
+    onSuccess: () => {
+      fetchProductComponents();
+    },
+    formatPrice: (price: string | number) => {
+      const num = typeof price === 'string' ? parseFloat(price) : (price ?? 0);
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(isNaN(num as number) ? 0 : (num as number));
+    }
+  });
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -601,6 +616,39 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
     }
   };
 
+  const handleRestoreProductComponent = async (id: string) => {
+    if (window.confirm('Bạn có chắc chắn muốn khôi phục thành phần sản phẩm này?')) {
+      try {
+        setIsLoading(true);
+        console.log('Restoring product component with ID:', id);
+        await productComponentService.restoreProductComponent(id);
+        console.log('Product component restored successfully');
+        
+        Swal.fire({
+          title: 'Thành công!',
+          text: 'Thành phần sản phẩm đã được khôi phục thành công.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        
+        // Load lại dữ liệu để đảm bảo đồng bộ với server
+        await fetchProductComponents();
+        
+        console.log('Data refreshed after restoration');
+      } catch (error) {
+        console.error('Error restoring product component:', error);
+        Swal.fire({
+          title: 'Lỗi!',
+          text: 'Khôi phục thành phần sản phẩm không thành công.',
+          icon: 'error'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const handlePageChange = (newPage: number) => {
     onPageChange(newPage);
     // Clear selection when changing pages
@@ -816,6 +864,15 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
           >
             <Upload size={20} className="mr-2" />
             Nhập Excel
+          </button>
+          <button
+            onClick={handleRestoreAllDeletedComponents}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+            title="Khôi phục tất cả linh kiện đã xóa trong ngày"
+          >
+            <RotateCcw size={20} className="mr-2" />
+            Khôi phục linh kiện xóa trong ngày
           </button>
           {/* <div className="flex items-center gap-2">
             <button
@@ -1077,6 +1134,14 @@ const ProductComponentsTab: React.FC<ProductComponentsTabProps> = ({
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
                         <Edit size={20} />
+                      </button>
+                      <button 
+                        onClick={() => handleRestoreProductComponent(productComponent.id)}
+                        className="text-green-600 hover:text-green-900 mr-4"
+                        disabled={isLoading}
+                        title="Khôi phục"
+                      >
+                        <RotateCcw size={20} />
                       </button>
                       <button 
                         onClick={() => handleDeleteProductComponent(productComponent.id)}

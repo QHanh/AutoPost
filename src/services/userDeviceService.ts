@@ -18,7 +18,7 @@ export const userDeviceService = {
         params.append('sort_order', sort_order);
       }
       const response = await apiGet<UserDevice[]>(`/user-devices/my-devices?${params.toString()}`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error fetching user devices:', error);
       throw error;
@@ -34,7 +34,7 @@ export const userDeviceService = {
   getUserDeviceById: async (deviceId: string): Promise<UserDevice> => {
     try {
       const response = await apiGet<UserDevice>(`/user-devices/${deviceId}`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error(`Error fetching user device with ID ${deviceId}:`, error);
       throw error;
@@ -48,7 +48,7 @@ export const userDeviceService = {
   addUserDevice: async (deviceData: UserDevice): Promise<UserDevice> => {
     try {
       const response = await apiPost<UserDevice>('/user-devices', deviceData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error adding user device:', error);
       throw error;
@@ -63,7 +63,7 @@ export const userDeviceService = {
   updateUserDevice: async (deviceId: string, updateData: Partial<UserDevice>): Promise<UserDevice> => {
     try {
       const response = await apiPut<UserDevice>(`/user-devices/${deviceId}`, updateData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error(`Error updating user device with ID ${deviceId}:`, error);
       throw error;
@@ -108,6 +108,46 @@ export const userDeviceService = {
     }
   },
 
+  /**
+   * Khôi phục thiết bị đã xóa mềm
+   * @param deviceId ID của thiết bị cần khôi phục
+   */
+  restoreUserDevice: async (deviceId: string): Promise<UserDevice> => {
+    try {
+      const response = await apiPost<UserDevice>(`/user-devices/${deviceId}/restore`, {});
+      return response;
+    } catch (error) {
+      console.error(`Error restoring user device with ID ${deviceId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách thiết bị đã xóa mềm trong ngày
+   */
+  getDeletedDevicesToday: async (): Promise<UserDevice[]> => {
+    try {
+      const response = await apiGet<UserDevice[]>('/user-devices/deleted-today');
+      return response;
+    } catch (error) {
+      console.error('Error fetching deleted devices today:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Khôi phục tất cả thiết bị đã xóa trong ngày
+   */
+  restoreAllDeletedToday: async (): Promise<{ restored_count: number; message: string }> => {
+    try {
+      const response = await apiPost<{ restored_count: number; message: string }>('/user-devices/restore-all-today', {});
+      return response;
+    } catch (error) {
+      console.error('Error restoring all deleted devices today:', error);
+      throw error;
+    }
+  },
+
   // /**
   //  * Tải template Excel
   //  */
@@ -144,7 +184,7 @@ export const userDeviceService = {
       formData.append('file', file);
 
       const response = await apiPostFormData<ImportResult>('/user-devices/import', formData);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error importing from Excel:', error);
       throw error;

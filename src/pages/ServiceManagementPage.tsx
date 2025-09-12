@@ -3,7 +3,7 @@ import { serviceService } from '../services/serviceService';
 import { brandService } from '../services/brandService';
 import { Service } from '../types/Service';
 import { Brand } from '../types/Brand';
-import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight, ChevronsUpDown, ArrowDown, ArrowUp, FileDown, FileUp, GripVertical, RotateCcw } from 'lucide-react';
 import Swal from 'sweetalert2';
 import deviceBrandService from '../services/deviceBrandService';
 import { DeviceBrand } from '../types/deviceBrand';
@@ -14,6 +14,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PopupModal from '../components/PopupModal';
+import { useRestoreAllDeletedModal } from '../components/RestoreAllDeletedModal';
 
 type SortConfig = {
     key: keyof Brand;
@@ -317,6 +318,23 @@ export const ServiceManagementPage: React.FC = () => {
             }
         });
     };
+
+
+
+    // Sử dụng hook chung cho việc khôi phục tất cả dịch vụ đã xóa (kèm chi tiết brand)
+    const { handleRestoreAll: handleRestoreAllDeletedServices } = useRestoreAllDeletedModal({
+        itemType: 'services',
+        getDeletedItems: () => serviceService.getDeletedServicesToday(),
+        restoreAllItems: () => serviceService.restoreAllDeletedServicesToday(),
+        onSuccess: () => {
+            fetchServices();
+            if (selectedService) {
+                fetchBrands(selectedService.id, debouncedSearchQuery);
+            }
+        },
+        // formatPrice dùng cho hiển thị giá trong danh sách brand của từng service
+        formatPrice: (price: string | number) => formatPrice(price?.toString())
+    });
     
     // onSave cho BrandModal: MEMO HOÁ để tránh thay đổi identity mỗi render
     const handleBrandModalSave = useCallback(() => {
@@ -583,6 +601,9 @@ export const ServiceManagementPage: React.FC = () => {
                 </button>
                 <button onClick={handleExportTemplate} className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
                     <FileDown className="mr-2" size={18} /> Tải Excel mẫu
+                </button>
+                <button onClick={handleRestoreAllDeletedServices} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <RotateCcw className="mr-2" size={18} /> Khôi phục dịch vụ xóa trong ngày
                 </button>
                 {selectedService && (
                     <button onClick={() => handleOpenBrandModal()} className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
