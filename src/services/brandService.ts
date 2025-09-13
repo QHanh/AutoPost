@@ -35,10 +35,10 @@ class BrandService {
     return response.json();
   }
 
-  async getAllBrands(skip = 0, limit = 100, search = '', service_id?: string, sort_by?: keyof Brand, sort_order?: 'asc' | 'desc') {
+  async getAllBrands(skip = 0, limit = 1000, search = '', service_id?: string, sort_by?: keyof Brand, sort_order?: 'asc' | 'desc') {
     const params = new URLSearchParams({
       skip: String(skip),
-      limit: String(limit),
+      
       ...(search && { search }),
       ...(service_id && { service_id }),
       ...(sort_by && { sort_by }),
