@@ -2,6 +2,7 @@ import React from 'react';
 import { PostComposer } from '../components/PostComposer';
 import { PostHistory } from '../components/PostHistory';
 import { PlatformAccount } from '../types/platform';
+import { PromptManager } from '../components/PromptManager';
 
 interface BackendPost {
   id: string;
@@ -55,6 +56,11 @@ export const PostsPage: React.FC<PostsPageProps> = ({
           trên tất cả các tài khoản mạng xã hội của bạn.
         </p>
       </div>
+
+      {/* Prompt Management */}
+      <section className="mb-8">
+        <PromptManager />
+      </section>
 
       {/* Post Composer - Full Width Row */}
       <section className="mb-8">

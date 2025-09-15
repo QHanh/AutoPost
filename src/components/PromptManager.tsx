@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Book, Loader2, Save, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Book, Loader2, Save, AlertTriangle, CheckCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const PromptManager: React.FC = () => {
   const [prompt, setPrompt] = useState('');
@@ -9,6 +9,7 @@ export const PromptManager: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
 
   const getApiBaseUrl = () => {
@@ -102,16 +103,28 @@ export const PromptManager: React.FC = () => {
           System Prompt
         </h2>
         
-        {/* --- ADDED: Reload Button --- */}
-        <button
-          onClick={fetchPrompt}
-          disabled={isLoading || isSaving}
-          className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-          title="Tải lại prompt từ cơ sở dữ liệu"
-        >
-          <RefreshCw size={14} />
-          Tải lại
-        </button>
+        <div className="flex items-center gap-2">
+          {/* --- ADDED: Reload Button --- */}
+          <button
+            onClick={fetchPrompt}
+            disabled={isLoading || isSaving}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+            title="Tải lại prompt từ cơ sở dữ liệu"
+          >
+            <RefreshCw size={14} />
+            Tải lại
+          </button>
+          
+          {/* --- ADDED: Collapse/Expand Button --- */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+            title={isCollapsed ? "Hiện nội dung" : "Ẩn nội dung"}
+          >
+            {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            {isCollapsed ? "Hiện" : "Ẩn"}
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -128,7 +141,7 @@ export const PromptManager: React.FC = () => {
         </div>
       )}
 
-      {!isLoading && !error && (
+      {!isLoading && !error && !isCollapsed && (
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
             System prompt này sẽ được sử dụng làm chỉ dẫn mặc định cho AI khi tạo nội dung. 

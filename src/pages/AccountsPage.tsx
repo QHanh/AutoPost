@@ -111,11 +111,6 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({
         </section>
       )}
 
-      {/* Prompt Management */}
-      <section className="mb-8">
-        <PromptManager />
-      </section>
-
       {/* API Key Management */}
       <section className="mb-8">
         <ApiKeyManager />
