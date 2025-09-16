@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
-  Users, Home, DollarSign, Send, LogOut, 
-  Lightbulb, Video, Menu, X, Bot, Building2 
+  Home, DollarSign, Send, LogOut, 
+  Lightbulb, Video, Menu, X, Bot, Building2, MessageSquare 
 } from 'lucide-react';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
@@ -222,6 +222,23 @@ export const Header: React.FC<HeaderProps> = () => {
             {navLinks}
             {isAuthenticated && (
               <>
+                {/* Mobile-specific quick links for Chatbot tabs */}
+                <Link
+                  to="/chatbot-tabs/chatbot-linhkien/1/15"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/chatbot-tabs/chatbot-linhkien') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Bot size={16} /> Chatbot tùy chỉnh
+                </Link>
+                <Link
+                  to="/chatbot-tabs/chat/1/15"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/chatbot-tabs/chat') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <MessageSquare size={16} /> Chatbot Agent
+                </Link>
                 <div className="border-t border-gray-200 my-2"></div>
                 <button
                   onClick={handleLogout}

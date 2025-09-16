@@ -90,7 +90,7 @@ const getMainTabsConfig = (
     icon: MessageSquare,
     subTabs: [
       { id: 'chat', label: 'Chat với Bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
-      { id: 'faq-mobile', label: 'FAQ Mobile', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'faq-mobile', label: 'câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'settings', label: 'Cài đặt Chatbot', component: <ErrorBoundary><SettingsTab /></ErrorBoundary> },
     ]
@@ -255,8 +255,8 @@ const ChatbotPageWithTabs: React.FC = () => {
 
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <aside className="w-64 bg-white shadow-md flex flex-col">
+    <div className="flex h-[calc(100svh-6rem)] bg-gray-100">
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-white shadow-md flex-col">
         <div className="p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800">Chatbot</h2>
         </div>

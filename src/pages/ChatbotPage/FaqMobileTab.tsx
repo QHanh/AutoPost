@@ -309,7 +309,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
               <MessageCircle className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý FAQ Mobile</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Quản lý câu hỏi thường gặp</h1>
               <p className="text-gray-600">Quản lý câu hỏi thường gặp cho ứng dụng mobile</p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage } from '../../services/zaloService';
+import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus } from 'lucide-react';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo } from '../../services/zaloService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
 
 interface ZaloTabProps {
@@ -29,6 +29,73 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   // Use initialActiveTab directly instead of state since parent controls the view
   const activeTab = initialActiveTab || 'login';
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+  const [openConvMenu, setOpenConvMenu] = useState<string | null>(null);
+  const [isCreatingStaff, setIsCreatingStaff] = useState<boolean>(false);
+  const [subTab, setSubTab] = useState<'messages' | 'staff'>('messages');
+  const [isLoadingStaff, setIsLoadingStaff] = useState<boolean>(false);
+  const [staffItems, setStaffItems] = useState<Array<{ id: string; zalo_uid: string; name: string; role: string; is_active: boolean; can_control_bot?: boolean; can_view_all_conversations?: boolean; can_manage_staff?: boolean }>>([]);
+  const [deletingStaffId, setDeletingStaffId] = useState<string | null>(null);
+
+  const addStaffFromConversation = async (conv: ZaloConversation) => {
+    try {
+      // Chỉ hỗ trợ thêm nhân viên cho chat 1-1 (không phải nhóm)
+      if (conv.type === 1 || conv.group_name) {
+        alert('Chỉ hỗ trợ thêm nhân viên từ cuộc trò chuyện 1-1.');
+        return;
+      }
+      const zalo_uid = conv.peer_id || conv.conversation_id;
+      const name = conv.d_name || conv.conversation_id || 'Zalo User';
+      if (!zalo_uid) {
+        alert('Không xác định được Zalo UID của người dùng.');
+        return;
+      }
+      setIsCreatingStaff(true);
+      await createStaffZalo({ zalo_uid, name, role: 'staff', permissions: { can_control_bot: true } });
+      alert(`Đã thêm ${name} làm nhân viên thành công`);
+      setOpenConvMenu(null);
+    } catch (e: any) {
+      alert(`Lỗi khi thêm nhân viên: ${e?.message || e}`);
+    } finally {
+      setIsCreatingStaff(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: string, name: string) => {
+    if (!id) return;
+    if (!confirm(`Xóa nhân viên "${name}"?`)) return;
+    setDeletingStaffId(id);
+    try {
+      await deleteStaffZalo(id);
+      // Refresh list
+      await loadStaff();
+    } catch (e: any) {
+      alert(`Lỗi khi xóa nhân viên: ${e?.message || e}`);
+    } finally {
+      setDeletingStaffId(null);
+    }
+  };
+
+  const loadStaff = async () => {
+    setIsLoadingStaff(true);
+    try {
+      const resp = await listStaffZalo({ includeInactive: true, limit: 100, offset: 0 });
+      const items = (resp.items || resp.data || []) as any[];
+      setStaffItems(items.map((it) => ({
+        id: it.id,
+        zalo_uid: it.zalo_uid,
+        name: it.name,
+        role: it.role,
+        is_active: it.is_active !== false,
+        can_control_bot: it.can_control_bot,
+        can_view_all_conversations: it.can_view_all_conversations,
+        can_manage_staff: it.can_manage_staff,
+      })));
+    } catch (e) {
+      console.error('Error loading staff:', e);
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  };
 
   // Utility: stable color for a given sender name
   const senderColorClasses = [
@@ -374,6 +441,13 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     }
   }, [activeTab]);
 
+  // Load staff when switching to staff sub-tab
+  useEffect(() => {
+    if (status === 'SessionSaved' && subTab === 'staff') {
+      loadStaff();
+    }
+  }, [subTab, status]);
+
   // Determine if current conversation is a group
   const isGroupConversation = !!(selectedConversation && (selectedConversation.type === 1 || selectedConversation.group_name));
 
@@ -476,86 +550,123 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
             Vui lòng đăng nhập Zalo trước để xem tin nhắn.
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 rounded-lg p-4">
-            {/* Conversations List */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                  <h4 className="font-semibold text-gray-800">Cuộc trò chuyện</h4>
-                  <button
-                    onClick={handleRefresh}
-                    disabled={isLoadingConversations || isLoadingMessages}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
-                    title="Làm mới"
-                  >
-                    <RefreshCw size={16} className={(isLoadingConversations || isLoadingMessages) ? 'animate-spin' : ''} />
-                    Làm mới
-                  </button>
-                </div>
-                <div className="max-h-[70vh] overflow-y-auto">
-                  {isLoadingConversations ? (
-                    <div className="p-4 text-center text-gray-500">
-                      <Clock className="animate-spin mx-auto mb-2" size={20} />
-                      Đang tải...
-                    </div>
-                  ) : conversations.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">
-                      Không có cuộc trò chuyện nào
-                    </div>
-                  ) : (
-                    conversations.map((conv) => (
-                      <div
-                        key={conv.conversation_id}
-                        onClick={() => loadMessages(conv)}
-                        className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                          selectedConversation?.conversation_id === conv.conversation_id ? 'bg-blue-50 border-r-4 border-r-blue-500' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          {(conv.type === 1 || conv.group_name) ? <Users size={16} className="text-gray-500" /> : <User size={16} className="text-gray-500" />}
-                          <span
-                            className={`font-semibold text-sm truncate ${
-                              (conv.type === 1 || conv.group_name) ? 'text-indigo-700' : 'text-teal-700'
-                            }`}
-                          >
-                            {(conv.type === 1 || conv.group_name)
-                              ? (conv.group_name || conv.conversation_id || 'Không có tên')
-                              : (conv.d_name || conv.conversation_id || 'Không có tên')}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600 truncate">
-                          {(() => {
-                            if (!conv.last_content) return 'Không có tin nhắn';
-                            const nc = normalizeContent(conv.last_content);
-                            if (nc.kind === 'photo') return '[Ảnh]';
-                            return nc.text;
-                          })()}
-                        </p>
-                        {(conv.last_created_at || conv.last_ts) && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {conv.last_created_at ? formatDateTime(conv.last_created_at) : formatDateTime(conv.last_ts)}
-                          </p>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            {/* Sub-tabs */}
+            <div className="mb-4 flex gap-2">
+              <button
+                className={`px-3 py-1.5 rounded border text-sm ${subTab === 'messages' ? 'bg-white border-gray-300 font-semibold' : 'border-transparent hover:bg-gray-100'}`}
+                onClick={() => setSubTab('messages')}
+              >Tin nhắn</button>
+              <button
+                className={`px-3 py-1.5 rounded border text-sm ${subTab === 'staff' ? 'bg-white border-gray-300 font-semibold' : 'border-transparent hover:bg-gray-100'}`}
+                onClick={() => setSubTab('staff')}
+              >Quản lý nhân viên</button>
             </div>
 
-            {/* Messages Display */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="p-4 border-b border-gray-200">
-                  <h4 className="font-semibold text-gray-800">
-                    {selectedConversation
-                      ? ((selectedConversation.type === 1 || selectedConversation.group_name)
-                          ? (selectedConversation.group_name || selectedConversation.conversation_id)
-                          : (selectedConversation.d_name || selectedConversation.conversation_id))
-                      : 'Chọn cuộc trò chuyện'}
-                  </h4>
+            {subTab === 'messages' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Conversations List */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg shadow-sm">
+                  <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-800">Cuộc trò chuyện</h4>
+                    <button
+                      onClick={handleRefresh}
+                      disabled={isLoadingConversations || isLoadingMessages}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                      title="Làm mới"
+                    >
+                      <RefreshCw size={16} className={(isLoadingConversations || isLoadingMessages) ? 'animate-spin' : ''} />
+                      Làm mới
+                    </button>
+                  </div>
+                  <div className="max-h-[70vh] overflow-y-auto">
+                    {isLoadingConversations ? (
+                      <div className="p-4 text-center text-gray-500">
+                        <Clock className="animate-spin mx-auto mb-2" size={20} />
+                        Đang tải...
+                      </div>
+                    ) : conversations.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        Không có cuộc trò chuyện nào
+                      </div>
+                    ) : (
+                      conversations.map((conv) => (
+                        <div
+                          key={conv.conversation_id}
+                          onClick={() => loadMessages(conv)}
+                          className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors relative ${
+                            selectedConversation?.conversation_id === conv.conversation_id ? 'bg-blue-50 border-r-4 border-r-blue-500' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1 pr-8">
+                            {(conv.type === 1 || conv.group_name) ? <Users size={16} className="text-gray-500" /> : <User size={16} className="text-gray-500" />}
+                            <span
+                              className={`font-semibold text-sm truncate ${
+                                (conv.type === 1 || conv.group_name) ? 'text-indigo-700' : 'text-teal-700'
+                              }`}
+                            >
+                              {(conv.type === 1 || conv.group_name)
+                                ? (conv.group_name || conv.conversation_id || 'Không có tên')
+                                : (conv.d_name || conv.conversation_id || 'Không có tên')}
+                            </span>
+                          </div>
+                          {/* Three-dot menu for actions */}
+                          {!(conv.type === 1 || conv.group_name) && (
+                            <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="p-1 rounded hover:bg-gray-100"
+                                title="Thao tác"
+                                onClick={() => setOpenConvMenu(openConvMenu === conv.conversation_id ? null : conv.conversation_id)}
+                              >
+                                <MoreVertical size={16} />
+                              </button>
+                              {openConvMenu === conv.conversation_id && (
+                                <div className="mt-1 w-48 bg-white border border-gray-200 rounded shadow-md absolute right-0 z-10">
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+                                    onClick={() => addStaffFromConversation(conv)}
+                                    disabled={isCreatingStaff}
+                                  >
+                                    <Plus size={14} /> Thêm làm nhân viên
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-600 truncate">
+                            {(() => {
+                              if (!conv.last_content) return 'Không có tin nhắn';
+                              const nc = normalizeContent(conv.last_content);
+                              if (nc.kind === 'photo') return '[Ảnh]';
+                              return nc.text;
+                            })()}
+                          </p>
+                          {(conv.last_created_at || conv.last_ts) && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {conv.last_created_at ? formatDateTime(conv.last_created_at) : formatDateTime(conv.last_ts)}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-                <div className="h-[70vh] overflow-y-auto p-4 bg-gray-50">
+              </div>
+
+              {/* Messages Display */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-lg shadow-sm">
+                  <div className="p-4 border-b border-gray-200">
+                    <h4 className="font-semibold text-gray-800">
+                      {selectedConversation
+                        ? ((selectedConversation.type === 1 || selectedConversation.group_name)
+                            ? (selectedConversation.group_name || selectedConversation.conversation_id)
+                            : (selectedConversation.d_name || selectedConversation.conversation_id))
+                        : 'Chọn cuộc trò chuyện'}
+                    </h4>
+                  </div>
+                  <div className="h-[70vh] overflow-y-auto p-4 bg-gray-50">
                   {!selectedConversation ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
                       Chọn một cuộc trò chuyện để xem tin nhắn
@@ -661,9 +772,74 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
 }
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             </div>
+            )}
+
+            {subTab === 'staff' && (
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-800">Danh sách nhân viên</h4>
+                  <button
+                    onClick={loadStaff}
+                    disabled={isLoadingStaff}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    <RefreshCw size={16} className={isLoadingStaff ? 'animate-spin' : ''} />
+                    Làm mới
+                  </button>
+                </div>
+                {isLoadingStaff ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <Clock className="animate-spin mx-auto mb-2" size={20} />
+                    Đang tải danh sách nhân viên...
+                  </div>
+                ) : staffItems.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">Chưa có nhân viên nào</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b">
+                          <th className="py-2 pr-4">Tên</th>
+                          <th className="py-2 pr-4">Zalo UID</th>
+                          <th className="py-2 pr-4">Vai trò</th>
+                          <th className="py-2 pr-4">Kích hoạt</th>
+                          <th className="py-2 pr-4">Quyền</th>
+                          <th className="py-2 pr-4">Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {staffItems.map((s) => (
+                          <tr key={s.id} className="border-b hover:bg-gray-50">
+                            <td className="py-2 pr-4 font-medium">{s.name}</td>
+                            <td className="py-2 pr-4">{s.zalo_uid}</td>
+                            <td className="py-2 pr-4 capitalize">{s.role}</td>
+                            <td className="py-2 pr-4">{s.is_active ? 'Đang hoạt động' : 'Đã vô hiệu'}</td>
+                            <td className="py-2 pr-4 text-xs text-gray-700">
+                              {(s.can_control_bot ? 'Điều khiển bot' : '')}
+                              {(s.can_view_all_conversations ? (s.can_control_bot ? ', ' : '') + 'Xem tất cả' : '')}
+                              {(s.can_manage_staff ? ((s.can_control_bot || s.can_view_all_conversations) ? ', ' : '') + 'Quản lý nhân viên' : '')}
+                            </td>
+                            <td className="py-2 pr-4">
+                              <button
+                                className="px-2 py-1 text-sm rounded border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                onClick={() => handleDeleteStaff(s.id, s.name)}
+                                disabled={deletingStaffId === s.id}
+                              >
+                                {deletingStaffId === s.id ? 'Đang xóa...' : 'Xóa'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )
       )}

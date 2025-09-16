@@ -49,7 +49,7 @@ function App() {
   const { isLoading } = useAuth();
   
   const location = useLocation();
-  const showChatButtons = location.pathname !== '/chatbot-tabs';
+  const showChatButtons = !location.pathname.startsWith('/chatbot-tabs');
 
   // Only server accounts now
   const connectedAccounts = accounts.filter(acc => acc.connected);

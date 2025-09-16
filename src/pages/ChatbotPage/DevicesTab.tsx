@@ -163,16 +163,20 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
 
   const handleSaveDevice = async (device: any) => {
     try {
-      // Multi-create when multiple colors are selected
-      if (!device.id && device.color_ids && device.color_ids.length > 0) {
+      // Multi-create when multiple colors OR multiple storages are selected
+      if (!device.id && ((device.color_ids && device.color_ids.length > 0) || (device.storage_ids && device.storage_ids.length > 0))) {
         const results: any[] = [];
         const errors: any[] = [];
+
+        const colorIds: (string | undefined)[] = (device.color_ids && device.color_ids.length > 0)
+          ? device.color_ids
+          : [undefined];
 
         const storageIds: (string | undefined)[] = (device.storage_ids && device.storage_ids.length > 0)
           ? device.storage_ids
           : [undefined];
 
-        for (const colorId of device.color_ids) {
+        for (const colorId of colorIds) {
           for (const storageId of storageIds) {
             try {
               const deviceData: any = {

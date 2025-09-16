@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApiKeys } from '../hooks/useApiKeys';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MessageSquare, X, Send, Bot, User as UserIcon, Loader2, Key, RefreshCw, Users, BrainCircuit } from 'lucide-react'; // Renamed User to avoid conflict
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -16,6 +16,10 @@ interface Message {
 type ChatMode = 'ai' | 'live';
 
 export const ChatBot: React.FC = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith('/chatbot-tabs')) {
+    return null;
+  }
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<ChatMode>('ai');
   
@@ -140,12 +144,12 @@ export const ChatBot: React.FC = () => {
 
   return (
     <>
-      <button onClick={handleToggle} className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transform hover:scale-110 transition-transform z-50" aria-label="Open chatbot">
+      <button onClick={handleToggle} className="hidden md:flex fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white w-16 h-16 rounded-full shadow-2xl items-center justify-center transform hover:scale-110 transition-transform z-50" aria-label="Open chatbot">
         <MessageSquare size={32} />
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border-2 border-gray-200">
+        <div className="hidden md:flex fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl flex-col z-50 border-2 border-gray-200">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-t-2xl border-b space-y-3">
             <div className="flex items-center justify-between">

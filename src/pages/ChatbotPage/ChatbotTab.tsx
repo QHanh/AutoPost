@@ -197,8 +197,8 @@ const ChatbotTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex justify-between items-center mb-4">
+    <div className="flex flex-col h-[calc(100svh-2rem)] md:h-full">
+      <div className="flex justify-between items-center mb-4 shrink-0 md:sticky md:top-0 md:z-10 md:bg-white md:py-2">
         <h2 className="text-2xl font-bold">Chatbot</h2>
         <div className="flex items-center space-x-2">
           <button
@@ -219,7 +219,7 @@ const ChatbotTab: React.FC = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 p-4 space-y-4 pb-24 md:pb-4">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
             <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
@@ -286,8 +286,8 @@ const ChatbotTab: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input - Fixed at bottom */}
-      <div className="p-4 bg-white border-t">
+      {/* Input - Sticky at bottom */}
+      <div className="p-4 bg-white border-t sticky bottom-0 z-10 pb-[env(safe-area-inset-bottom)]">
         <div className="flex gap-2">
           <textarea
             value={input}

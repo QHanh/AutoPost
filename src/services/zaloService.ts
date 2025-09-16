@@ -111,6 +111,60 @@ export const getZaloStatus = async (): Promise<any> => {
   return await response.json();
 };
 
+// -------- Staff Zalo helpers --------
+export interface CreateStaffPayload {
+  zalo_uid: string;
+  name: string;
+  role?: 'admin' | 'staff' | 'viewer';
+  permissions?: {
+    can_control_bot?: boolean;
+    can_view_all_conversations?: boolean;
+    can_manage_staff?: boolean;
+  };
+  associated_session_keys?: string[];
+}
+
+export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?: number; offset?: number }) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Không tìm thấy token xác thực');
+  const search = new URLSearchParams();
+  if (params?.includeInactive !== undefined) search.set('includeInactive', String(params.includeInactive));
+  if (params?.limit !== undefined) search.set('limit', String(params.limit));
+  if (params?.offset !== undefined) search.set('offset', String(params.offset));
+
+  const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo${search.toString() ? `?${search}` : ''}` , {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
+  return resp.json();
+};
+
+export const createStaffZalo = async (payload: CreateStaffPayload) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Không tìm thấy token xác thực');
+  const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
+  return resp.json();
+};
+
+export const deleteStaffZalo = async (id: string) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Không tìm thấy token xác thực');
+  const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
+  return resp.json();
+};
+
 export const logoutZalo = async (): Promise<any> => {
   const token = getAuthToken();
   if (!token) {

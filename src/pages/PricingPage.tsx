@@ -564,7 +564,7 @@ export const PricingPage: React.FC = () => {
                 onClick={() => setServiceType('video')}
                 className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'video' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
             >
-                <Video className="inline mr-2" size={20} /> Gói đăng bài tự động
+                <Video className="inline mr-2" size={20} /> Gói đăng bài
             </button>
             <button 
                 onClick={() => setServiceType('chatbot')}
@@ -743,49 +743,53 @@ export const PricingPage: React.FC = () => {
         {/* Detailed Comparison Table */}
         {plansToDisplay && plansToDisplay.length > 0 ? (
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-            {/* Table Header */}
-            <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-              <div className={`grid grid-cols-${plansToDisplay.length + 1} gap-0`}>
-                <div className="p-6 border-r border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Star className="text-gray-600" size={20} />
-                    <h3 className="text-lg font-bold text-gray-900">TÍNH NĂNG</h3>
-                  </div>
-                </div>
-                {plansToDisplay.map((plan) => {
-                  const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
-                  return (
-                    <div key={plan.id} className="p-6 text-center">
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        {uiDetails.icon}
-                        <h3 className={`text-lg font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</h3>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+                  <th scope="col" className="p-6 text-left align-middle border-r border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Star className="text-gray-600" size={20} />
+                      <span className="text-lg font-bold text-gray-900">TÍNH NĂNG</span>
+                    </div>
+                  </th>
+                  {plansToDisplay.map((plan) => {
+                    const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
+                    return (
+                      <th key={plan.id} scope="col" className="p-6 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          {uiDetails.icon}
+                          <span className={`text-lg font-bold ${uiDetails.textColor}`}>{plan.name.toUpperCase()}</span>
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {featureRows.map((feature, featureIndex) => (
+                  <tr
+                    key={featureIndex}
+                    className={`${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}
+                  >
+                    <th scope="row" className="p-4 text-left align-top border-r border-gray-200">
+                      <div>
+                        <div className="font-semibold text-gray-900 flex items-center gap-2">
+                          {feature.name}
+                        </div>
+                        {feature.note && (
+                          <div className="text-xs text-gray-500 italic mt-1">{feature.note}</div>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Features Rows */}
-            {featureRows.map((feature, featureIndex) => (
-              <div key={featureIndex} className={`grid grid-cols-${plansToDisplay.length + 1} gap-0 ${featureIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white'} border-b border-gray-100 hover:bg-blue-50 transition-colors`}>
-                <div className="p-4 border-r border-gray-200 flex items-center">
-                  <div>
-                    <div className="font-semibold text-gray-900 flex items-center gap-2">
-                      {feature.name}
-                    </div>
-                    {feature.note && (
-                      <div className="text-xs text-gray-500 italic mt-1">{feature.note}</div>
-                    )}
-                  </div>
-                </div>
-                {plansToDisplay.map((plan) => (
-                  <div key={plan.id} className="p-4 flex items-center justify-center min-h-[4rem]">
-                    {renderFeatureValue(feature.getValue(plan), feature, plan)}
-                  </div>
+                    </th>
+                    {plansToDisplay.map((plan) => (
+                      <td key={plan.id} className="p-4 text-center align-middle min-h-[4rem]">
+                        {renderFeatureValue(feature.getValue(plan), feature, plan)}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </div>
-            ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="text-center py-12">
