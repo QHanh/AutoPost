@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Trash2, RefreshCw, Eye, X } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -14,7 +14,12 @@ const DocumentsTab: React.FC = () => {
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlSourceName, setUrlSourceName] = useState('');
   const [textInput, setTextInput] = useState('');
+  const [textSourceName, setTextSourceName] = useState('');
+  const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -77,6 +82,11 @@ const DocumentsTab: React.FC = () => {
       return;
     }
 
+    if (!textSourceName.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên tài liệu' });
+      return;
+    }
+
     try {
       setIsUploading(true);
       const token = localStorage.getItem('auth_token');
@@ -84,14 +94,6 @@ const DocumentsTab: React.FC = () => {
         setMessage({ type: 'error', text: 'Vui lòng đăng nhập để upload tài liệu' });
         return;
       }
-
-      // Optimistic update - add temporary document
-      const tempDoc: Document = {
-        id: `temp-${Date.now()}`,
-        text: textInput,
-        source: `Text Upload - ${new Date().toLocaleString('vi-VN')}`
-      };
-      setDocuments(prev => [tempDoc, ...prev]);
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-text`, {
         method: 'POST',
@@ -101,24 +103,72 @@ const DocumentsTab: React.FC = () => {
         },
         body: JSON.stringify({ 
           text: textInput,
-          source: `Text Upload - ${new Date().toLocaleString('vi-VN')}`
+          source: textSourceName
         })
       });
       
       if (response.ok) {
         setMessage({ type: 'success', text: 'Văn bản đã được upload thành công!' });
         setTextInput('');
+        setTextSourceName('');
         // Reload to get real data
         loadDocuments();
         loadSources();
       } else {
-        // Remove temporary document on error
-        setDocuments(prev => prev.filter(doc => doc.id !== tempDoc.id));
         throw new Error('Không thể upload văn bản');
       }
     } catch (error) {
       console.error('Error uploading text:', error);
       setMessage({ type: 'error', text: 'Không thể upload văn bản. Vui lòng thử lại.' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const uploadTextByUrl = async () => {
+    if (!urlInput.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập URL' });
+      return;
+    }
+
+    if (!urlSourceName.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên tài liệu' });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để upload tài liệu' });
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-url`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          url: urlInput,
+          source: urlSourceName
+        })
+      });
+      
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'URL đã được upload thành công!' });
+        setUrlInput('');
+        setUrlSourceName('');
+        // Reload to get real data
+        loadDocuments();
+        loadSources();
+      } else {
+        throw new Error('Không thể upload URL');
+      }
+    } catch (error) {
+      console.error('Error uploading URL:', error);
+      setMessage({ type: 'error', text: 'Không thể upload URL. Vui lòng thử lại.' });
     } finally {
       setIsUploading(false);
     }
@@ -136,17 +186,8 @@ const DocumentsTab: React.FC = () => {
         return;
       }
 
-      // Optimistic update - add temporary document
-      const tempDoc: Document = {
-        id: `temp-${Date.now()}`,
-        text: `Đang xử lý file: ${file.name}`,
-        source: `File Upload - ${file.name} - ${new Date().toLocaleString('vi-VN')}`
-      };
-      setDocuments(prev => [tempDoc, ...prev]);
-
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('source', `File Upload - ${file.name} - ${new Date().toLocaleString('vi-VN')}`);
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-file`, {
         method: 'POST',
@@ -160,8 +201,6 @@ const DocumentsTab: React.FC = () => {
         loadDocuments();
         loadSources();
       } else {
-        // Remove temporary document on error
-        setDocuments(prev => prev.filter(doc => doc.id !== tempDoc.id));
         throw new Error('Không thể upload file');
       }
     } catch (error) {
@@ -259,6 +298,34 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  const viewSourceContent = async (source: string) => {
+    try {
+      setIsLoadingContent(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xem nội dung' });
+        return;
+      }
+
+      // Get document content by source
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents-original/list?source=${encodeURIComponent(source)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setViewingSource({ source, content: data.content || data.text || response.text || 'Không có nội dung' });
+      } else {
+        throw new Error('Không thể tải nội dung tài liệu');
+      }
+    } catch (error) {
+      console.error('Error loading document content:', error);
+      setMessage({ type: 'error', text: 'Không thể tải nội dung tài liệu. Vui lòng thử lại.' });
+    } finally {
+      setIsLoadingContent(false);
+    }
+  };
+
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
@@ -291,6 +358,13 @@ const DocumentsTab: React.FC = () => {
               </div>
               
               <div className="space-y-3">
+                <input
+                  type="text"
+                  value={textSourceName}
+                  onChange={(e) => setTextSourceName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập tên tài liệu..."
+                />
                 <textarea
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
@@ -300,7 +374,7 @@ const DocumentsTab: React.FC = () => {
                 />
                 <button
                   onClick={uploadText}
-                  disabled={isUploading || !textInput.trim()}
+                  disabled={isUploading || !textInput.trim() || !textSourceName.trim()}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isUploading ? (
@@ -317,37 +391,78 @@ const DocumentsTab: React.FC = () => {
                 </button>
               </div>
             </div>
+            <div className="space-y-6">
+              {/* Upload File */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Tải lên file</h4>
+                <div className="space-y-3">
+                  <button
+                    onClick={triggerFileInput}
+                    disabled={isUploading}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang tải lên...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Chọn file
+                      </>
+                    )}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={uploadFile}
+                    accept=".txt,.pdf,.doc,.docx"
+                    className="hidden"
+                  />
+                  <p className="text-sm text-gray-500">
+                    Hỗ trợ: .txt, .pdf, .doc, .docx
+                  </p>
+                </div>
+              </div>
 
-            {/* Upload File */}
-            <div className="space-y-4">
-              <h4 className="font-medium text-gray-900">Tải lên file</h4>
-              <button
-                onClick={triggerFileInput}
-                disabled={isUploading}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {isUploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Đang tải lên...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Chọn file
-                  </>
-                )}
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={uploadFile}
-                accept=".txt,.pdf,.doc,.docx"
-                className="hidden"
-              />
-              <p className="text-sm text-gray-500">
-                Hỗ trợ: .txt, .pdf, .doc, .docx
-              </p>
+              {/* Upload URL */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Tải lên URL</h4>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={urlSourceName}
+                    onChange={(e) => setUrlSourceName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nhập tên tài liệu..."
+                  />
+                  <input
+                    type="text"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nhập URL..."
+                  />
+                  <button
+                    onClick={uploadTextByUrl}
+                    disabled={isUploading || !urlInput.trim() || !urlSourceName.trim()}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang tải lên...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Tải lên URL
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -471,20 +586,73 @@ const DocumentsTab: React.FC = () => {
                         {source}
                       </h4>
                     </div>
-                    <button
-                      onClick={() => deleteDocumentsBySource(source)}
-                      disabled={isLoadingDocuments}
-                      className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 disabled:opacity-50"
-                      title={`Xóa tất cả tài liệu từ nguồn "${source}"`}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => viewSourceContent(source)}
+                        disabled={isLoadingContent}
+                        className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 disabled:opacity-50"
+                        title={`Xem nội dung "${source}"`}
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => deleteDocumentsBySource(source)}
+                        disabled={isLoadingDocuments}
+                        className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 disabled:opacity-50"
+                        title={`Xóa tất cả tài liệu từ nguồn "${source}"`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Document Content Modal */}
+        {viewingSource && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Nội dung: {viewingSource.source}
+                </h3>
+                <button
+                  onClick={() => setViewingSource(null)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6">
+                {isLoadingContent ? (
+                  <div className="flex justify-center items-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <span className="ml-2 text-gray-600">Đang tải nội dung...</span>
+                  </div>
+                ) : (
+                  <div className="prose max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans leading-relaxed">
+                      {viewingSource.content}
+                    </pre>
+                  </div>
+                )}
+              </div>
+              
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+                <button
+                  onClick={() => setViewingSource(null)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
