@@ -22,6 +22,7 @@ import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import
 import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab'; // Import API Data Sync tab
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
+import OrdersTab from './ChatbotPage/OrdersTab'; // Import Orders tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat'; // Added 'chatbot-linhkien' and 'zalo'
@@ -38,6 +39,7 @@ type SubTab =
   | 'api-integration' // Added
   | 'settings'
   | 'store-settings' // Added for store settings
+  | 'orders' // Added for orders tab
   | 'chat' // Added for single tab
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
   | 'zalo-login' // Zalo Login sub-tab
@@ -66,13 +68,13 @@ const getMainTabsConfig = (
   },
   dichvu: {
     label: 'Dịch vụ',
-    icon: Settings,
+    icon: Wrench,
     isSingleTab: true,
     component: <ErrorBoundary><ServiceManagementPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   },
   linhkien: {
     label: 'Linh kiện',
-    icon: Component,
+    icon: Package,
     subTabs: [
       { id: 'components', label: 'Quản lý linh kiện', component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'api-data-sync', label: 'Nạp dữ liệu API', component: <ErrorBoundary><ApiDataSyncTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
@@ -89,10 +91,11 @@ const getMainTabsConfig = (
     label: 'Chatbot Agent',
     icon: MessageSquare,
     subTabs: [
-      { id: 'chat', label: 'Chat với Bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
-      { id: 'faq-mobile', label: 'câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'chat', label: 'Chat với bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'faq-mobile', label: 'Câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
-      { id: 'settings', label: 'Cài đặt Chatbot', component: <ErrorBoundary><SettingsTab /></ErrorBoundary> },
+      { id: 'orders', label: 'Đơn hàng', component: <ErrorBoundary><OrdersTab /></ErrorBoundary> },
+      { id: 'settings', label: 'Cài đặt chatbot', component: <ErrorBoundary><SettingsTab /></ErrorBoundary> },
     ]
   },
 
@@ -101,7 +104,7 @@ const getMainTabsConfig = (
     icon: Bot,
     subTabs: [
       { id: 'chatbot-linhkien', label: 'Chat tùy chỉnh', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
-      { id: 'store-settings', label: 'Thông tin Cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
+      { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
     ]
   },
 
