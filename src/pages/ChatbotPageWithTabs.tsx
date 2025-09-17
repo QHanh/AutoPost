@@ -261,7 +261,7 @@ const ChatbotPageWithTabs: React.FC = () => {
     <div className="flex h-[calc(100svh-6rem)] bg-gray-100">
       <aside className="hidden md:flex w-64 flex-shrink-0 bg-white shadow-md flex-col">
         <div className="p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Chatbot</h2>
+          <h2 className="text-xl font-bold text-gray-800 text-center">Chatbot</h2>
         </div>
         <nav className="flex-1 overflow-y-auto">
           <ul className="select-none p-2">

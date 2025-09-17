@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Smartphone, Settings, Wrench, RefreshCw, Loader2 } from 'lucide-react';
+import { Package, Smartphone, Wrench, RefreshCw, Loader2, Eye } from 'lucide-react';
 
 interface ProductOrder {
   order_id: string;
@@ -13,6 +13,7 @@ interface ProductOrder {
   ma_san_pham: string;
   ten_san_pham: string;
   so_luong: number;
+  is_called: boolean;
 }
 
 interface ServiceOrder {
@@ -28,6 +29,7 @@ interface ServiceOrder {
   ten_dich_vu: string;
   loai_dich_vu: string;
   ten_san_pham_sua_chua: string;
+  is_called: boolean;
 }
 
 interface AccessoryOrder {
@@ -42,6 +44,7 @@ interface AccessoryOrder {
   ma_phu_kien: string;
   ten_phu_kien: string;
   so_luong: number;
+  is_called: boolean;
 }
 
 type OrderType = 'product' | 'service' | 'accessory';
@@ -53,6 +56,7 @@ const OrdersTab: React.FC = () => {
   const [accessoryOrders, setAccessoryOrders] = useState<AccessoryOrder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCell, setExpandedCell] = useState<{row: number, col: string} | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -118,6 +122,74 @@ const OrdersTab: React.FC = () => {
     }
   };
 
+  const updateIsCalled = async (orderId: string, threadId: string, isCalled: boolean) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setError('Vui lòng đăng nhập để cập nhật trạng thái');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/orders/is_called?order_id=${orderId}&thread_id=${threadId}&is_called=${isCalled}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Không thể cập nhật trạng thái liên hệ');
+      }
+
+      // Update local state
+      if (activeOrderType === 'product') {
+        setProductOrders(prev => 
+          prev.map(order => 
+            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+          )
+        );
+      } else if (activeOrderType === 'service') {
+        setServiceOrders(prev => 
+          prev.map(order => 
+            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+          )
+        );
+      } else if (activeOrderType === 'accessory') {
+        setAccessoryOrders(prev => 
+          prev.map(order => 
+            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+          )
+        );
+      }
+
+    } catch (err) {
+      console.error('Error updating is_called:', err);
+      setError('Không thể cập nhật trạng thái liên hệ. Vui lòng thử lại.');
+    }
+  };
+
+  const truncateText = (text: string | number, maxLength: number = 20) => {
+    const textStr = String(text);
+    if (textStr.length <= maxLength) return textStr;
+    return textStr.substring(0, maxLength) + '...';
+  };
+
+  const isLongText = (text: string | number, maxLength: number = 20) => {
+    return String(text).length > maxLength;
+  };
+
+  const toggleExpanded = (rowIndex: number, columnKey: string) => {
+    if (expandedCell?.row === rowIndex && expandedCell?.col === columnKey) {
+      setExpandedCell(null);
+    } else {
+      setExpandedCell({ row: rowIndex, col: columnKey });
+    }
+  };
+
   const getOrderTypeConfig = () => {
     switch (activeOrderType) {
       case 'product':
@@ -126,14 +198,15 @@ const OrdersTab: React.FC = () => {
           icon: Smartphone,
           data: productOrders,
           columns: [
-            { key: 'order_id', label: 'Mã Đơn Hàng' },
-            { key: 'ten_khach_hang', label: 'Tên Khách Hàng' },
-            { key: 'so_dien_thoai', label: 'Số Điện Thoại' },
+            { key: 'order_id', label: 'Mã ĐH' },
+            { key: 'ten_khach_hang', label: 'Tên KH' },
+            { key: 'so_dien_thoai', label: 'SĐT' },
             { key: 'dia_chi', label: 'Địa Chỉ' },
-            { key: 'ma_san_pham', label: 'Mã Sản Phẩm' },
-            { key: 'ten_san_pham', label: 'Tên Sản Phẩm' },
-            { key: 'so_luong', label: 'Số Lượng' },
-            { key: 'created_at', label: 'Ngày Tạo' }
+            { key: 'ma_san_pham', label: 'Mã SP' },
+            { key: 'ten_san_pham', label: 'Tên SP' },
+            { key: 'so_luong', label: 'SL' },
+            { key: 'created_at', label: 'Ngày Tạo' },
+            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
           ]
         };
       case 'service':
@@ -142,15 +215,16 @@ const OrdersTab: React.FC = () => {
           icon: Wrench,
           data: serviceOrders,
           columns: [
-            { key: 'order_id', label: 'Mã Đơn Hàng' },
-            { key: 'ten_khach_hang', label: 'Tên Khách Hàng' },
-            { key: 'so_dien_thoai', label: 'Số Điện Thoại' },
+            { key: 'order_id', label: 'Mã ĐH' },
+            { key: 'ten_khach_hang', label: 'Tên KH' },
+            { key: 'so_dien_thoai', label: 'SĐT' },
             { key: 'dia_chi', label: 'Địa Chỉ' },
-            { key: 'ma_dich_vu', label: 'Mã Dịch Vụ' },
-            { key: 'ten_dich_vu', label: 'Tên Dịch Vụ' },
-            { key: 'loai_dich_vu', label: 'Loại Dịch Vụ' },
-            { key: 'ten_san_pham_sua_chua', label: 'Sản Phẩm Sửa Chữa' },
-            { key: 'created_at', label: 'Ngày Tạo' }
+            { key: 'ma_dich_vu', label: 'Mã DV' },
+            { key: 'ten_dich_vu', label: 'Tên DV' },
+            { key: 'loai_dich_vu', label: 'Loại DV' },
+            { key: 'ten_san_pham_sua_chua', label: 'SP Sửa Chữa' },
+            { key: 'created_at', label: 'Ngày Tạo' },
+            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
           ]
         };
       case 'accessory':
@@ -159,14 +233,15 @@ const OrdersTab: React.FC = () => {
           icon: Package,
           data: accessoryOrders,
           columns: [
-            { key: 'order_id', label: 'Mã Đơn Hàng' },
-            { key: 'ten_khach_hang', label: 'Tên Khách Hàng' },
-            { key: 'so_dien_thoai', label: 'Số Điện Thoại' },
+            { key: 'order_id', label: 'Mã ĐH' },
+            { key: 'ten_khach_hang', label: 'Tên KH' },
+            { key: 'so_dien_thoai', label: 'SĐT' },
             { key: 'dia_chi', label: 'Địa Chỉ' },
-            { key: 'ma_phu_kien', label: 'Mã Phụ Kiện' },
-            { key: 'ten_phu_kien', label: 'Tên Phụ Kiện' },
-            { key: 'so_luong', label: 'Số Lượng' },
-            { key: 'created_at', label: 'Ngày Tạo' }
+            { key: 'ma_phu_kien', label: 'Mã PK' },
+            { key: 'ten_phu_kien', label: 'Tên PK' },
+            { key: 'so_luong', label: 'SL' },
+            { key: 'created_at', label: 'Ngày Tạo' },
+            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
           ]
         };
     }
@@ -291,14 +366,43 @@ const OrdersTab: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {config.data.map((order, index) => (
                     <tr key={order.order_id || index} className="hover:bg-gray-50">
-                      {config.columns.map((column) => (
-                        <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {column.key === 'created_at' 
-                            ? formatDate(order[column.key as keyof typeof order] as string)
-                            : order[column.key as keyof typeof order]
-                          }
-                        </td>
-                      ))}
+                      {config.columns.map((column) => {
+                        const cellValue = order[column.key as keyof typeof order];
+                        const isExpanded = expandedCell?.row === index && expandedCell?.col === column.key;
+                        const cellValueStr = String(cellValue);
+                        const isLong = isLongText(cellValueStr);
+                        
+                        return (
+                          <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
+                            {column.key === 'created_at' 
+                              ? formatDate(cellValue as string)
+                              : column.isCheckbox ? (
+                                <input
+                                  type="checkbox"
+                                  checked={order.is_called || false}
+                                  onChange={(e) => updateIsCalled(order.order_id, order.thread_id, e.target.checked)}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className={isLong && !isExpanded ? 'truncate max-w-[150px]' : ''}>
+                                    {isExpanded ? cellValueStr : truncateText(cellValueStr)}
+                                  </span>
+                                  {isLong && (
+                                    <button
+                                      onClick={() => toggleExpanded(index, column.key)}
+                                      className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                                      title={isExpanded ? 'Thu gọn' : 'Xem đầy đủ'}
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            }
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
