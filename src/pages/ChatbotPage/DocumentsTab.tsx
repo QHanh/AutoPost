@@ -214,46 +214,6 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
-  // const deleteAllDocuments = async () => {
-  //   if (!window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ tài liệu? Hành động này không thể hoàn tác!')) {
-  //     return;
-  //   }
-
-  //   try {
-  //     // Optimistic update - clear documents immediately
-  //     const originalDocuments = [...documents];
-  //     const originalSources = [...sources];
-  //     setDocuments([]);
-  //     setSources([]);
-      
-  //     const token = localStorage.getItem('auth_token');
-  //     if (!token) {
-  //       setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xóa tài liệu' });
-  //       // Restore on error
-  //       setDocuments(originalDocuments);
-  //       setSources(originalSources);
-  //       return;
-  //     }
-
-  //     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/delete-all`, {
-  //       method: 'DELETE',
-  //       headers: { 'Authorization': `Bearer ${token}` }
-  //     });
-      
-  //     if (response.ok) {
-  //       setMessage({ type: 'success', text: 'Tất cả tài liệu đã được xóa thành công!' });
-  //     } else {
-  //       // Restore on error
-  //       setDocuments(originalDocuments);
-  //       setSources(originalSources);
-  //       throw new Error('Không thể xóa tài liệu');
-  //     }
-  //   } catch (error) {
-  //     console.error('Error deleting documents:', error);
-  //     setMessage({ type: 'error', text: 'Không thể xóa tài liệu. Vui lòng thử lại.' });
-  //   }
-  // };
-
   const deleteDocumentsBySource = async (source: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả tài liệu có nguồn "${source}"? Hành động này không thể hoàn tác!`)) {
       return;
@@ -349,14 +309,48 @@ const DocumentsTab: React.FC = () => {
         {/* Upload Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Thêm Tài Liệu Mới</h3>
-          
+
+          {/* Upload File - Centered Top */}
+          <div className="mb-8 flex justify-center">
+            <div className="w-full md:w-1/2 border border-gray-300 rounded-lg p-4 space-y-4">
+              <h4 className="font-medium text-gray-900">Tải lên file</h4>
+              <div className="space-y-3">
+                <button
+                  onClick={triggerFileInput}
+                  disabled={isUploading}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang tải lên...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Chọn file
+                    </>
+                  )}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={uploadFile}
+                  accept=".txt,.pdf,.doc,.docx"
+                  className="hidden"
+                />
+                <p className="text-sm text-gray-500">
+                  Hỗ trợ: .txt, .pdf, .doc, .docx
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload Text & URL - Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Upload Text */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">Tải lên văn bản</h4>
-              </div>
-              
+              <h4 className="font-medium text-gray-900">Tải lên văn bản</h4>
               <div className="space-y-3">
                 <input
                   type="text"
@@ -391,81 +385,47 @@ const DocumentsTab: React.FC = () => {
                 </button>
               </div>
             </div>
-            <div className="space-y-6">
-              {/* Upload File */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Tải lên file</h4>
-                <div className="space-y-3">
-                  <button
-                    onClick={triggerFileInput}
-                    disabled={isUploading}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Đang tải lên...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Chọn file
-                      </>
-                    )}
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={uploadFile}
-                    accept=".txt,.pdf,.doc,.docx"
-                    className="hidden"
-                  />
-                  <p className="text-sm text-gray-500">
-                    Hỗ trợ: .txt, .pdf, .doc, .docx
-                  </p>
-                </div>
-              </div>
 
-              {/* Upload URL */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Tải lên URL</h4>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={urlSourceName}
-                    onChange={(e) => setUrlSourceName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập tên tài liệu..."
-                  />
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nhập URL..."
-                  />
-                  <button
-                    onClick={uploadTextByUrl}
-                    disabled={isUploading || !urlInput.trim() || !urlSourceName.trim()}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Đang tải lên...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Tải lên URL
-                      </>
-                    )}
-                  </button>
-                </div>
+            {/* Upload URL */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900">Tải lên URL</h4>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={urlSourceName}
+                  onChange={(e) => setUrlSourceName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập tên tài liệu..."
+                />
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập URL..."
+                />
+                <button
+                  onClick={uploadTextByUrl}
+                  disabled={isUploading || !urlInput.trim() || !urlSourceName.trim()}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang tải lên...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Tải lên URL
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
         </div>
+
 
         {/* Documents List
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">

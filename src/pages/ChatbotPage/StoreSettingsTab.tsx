@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, Store, MapPin, Phone, Mail, Globe, Facebook, Image, Info } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, RefreshCw, Store, MapPin, Phone, Mail, Globe, Facebook, Image, Info, Upload } from 'lucide-react';
 
 interface StoreInfo {
   store_name: string;
@@ -29,6 +29,8 @@ const StoreSettingsTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadStoreInfo();
@@ -73,22 +75,34 @@ const StoreSettingsTab: React.FC = () => {
         return;
       }
 
-      // Optimistic update - show success message immediately
-      setMessage({ type: 'success', text: 'Thông tin cửa hàng đã được lưu thành công!' });
-      setTimeout(() => setMessage(null), 3000);
+      // Create FormData for multipart/form-data request
+      const formData = new FormData();
+      formData.append('store_info', JSON.stringify(storeInfo));
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/store-info`, {
         method: 'POST',
         headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(storeInfo)
+        body: formData
       });
 
       if (!response.ok) {
         throw new Error('Failed to save store info');
       }
+
+      // Clear selected file after successful upload
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      setMessage({ type: 'success', text: 'Thông tin cửa hàng đã được lưu thành công!' });
+      setTimeout(() => setMessage(null), 3000);
 
     } catch (error) {
       console.error('Error saving store info:', error);
@@ -158,6 +172,27 @@ const StoreSettingsTab: React.FC = () => {
 
   const handleChange = (field: keyof StoreInfo, value: string) => {
     setStoreInfo(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Update store_image with file name for preview
+      setStoreInfo(prev => ({ ...prev, store_image: file.name }));
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setStoreInfo(prev => ({ ...prev, store_image: '' }));
   };
 
   return (
@@ -304,6 +339,49 @@ const StoreSettingsTab: React.FC = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Nhập URL hình ảnh"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Upload className="w-4 h-4 inline mr-1" />
+                    Upload Ảnh Cửa Hàng
+                  </label>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={triggerFileInput}
+                      disabled={isSaving}
+                      className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 text-gray-600 hover:text-blue-600"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {selectedFile ? 'Thay đổi ảnh' : 'Chọn ảnh'}
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    {selectedFile && (
+                      <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Image className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm text-blue-800 truncate">{selectedFile.name}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeSelectedFile}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Hỗ trợ: JPG, PNG, GIF, WebP (tối đa 5MB)
+                    </p>
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">

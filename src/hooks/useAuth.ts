@@ -231,7 +231,7 @@ export const useAuth = () => {
   const forgotPassword = async (email: string) => {
     try {
       const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/api/v1/users/forgot-password`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/registration/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
