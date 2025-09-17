@@ -379,7 +379,7 @@ const StoreSettingsTab: React.FC = () => {
                       </div>
                     )}
                     <p className="text-xs text-gray-500">
-                      Hỗ trợ: JPG, PNG, GIF, WebP (tối đa 5MB)
+                      Hỗ trợ: JPG, PNG, GIF, WebP (tối đa 5MB) (URL ảnh sẽ tự động được tạo)
                     </p>
                   </div>
                 </div>

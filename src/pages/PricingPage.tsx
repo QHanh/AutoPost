@@ -604,7 +604,7 @@ export const PricingPage: React.FC = () => {
                 {/* Gói Video */}
                 <div className="text-center">
                   <Video className="inline mr-2 text-blue-600" size={20} />
-                  <span className="font-medium text-gray-700">Gói Video:</span>
+                  <span className="font-medium text-gray-700">Gói đăng bài:</span>
                   {currentSubs?.video_subscription ? (
                     <div className="mt-1">
                       {console.log('Rendering video subscription:', currentSubs.video_subscription)}

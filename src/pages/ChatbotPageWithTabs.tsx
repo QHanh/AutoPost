@@ -100,10 +100,10 @@ const getMainTabsConfig = (
   },
 
   'chatbot-linhkien': {
-    label: 'Chatbot tùy chỉnh',
+    label: 'Chatbot linh kiện',
     icon: Bot,
     subTabs: [
-      { id: 'chatbot-linhkien', label: 'Chat tùy chỉnh', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'chatbot-linhkien', label: 'Chat linh kiện', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
     ]
   },
