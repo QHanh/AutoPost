@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate, useParams, useNavigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot, MessageCircle } from 'lucide-react';
+import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot, BotMessageSquare, BotIcon } from 'lucide-react';
+import { SiZalo } from "react-icons/si";
 
 // Import all tab components
 import DevicesTab from './ChatbotPage/DevicesTab';
@@ -23,6 +24,7 @@ import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab'; // Import API Data Sy
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
 import OrdersTab from './ChatbotPage/OrdersTab'; // Import Orders tab
+import OrdersCustomTab from './ChatbotPage/OrdersCustomTab'; // Import Orders Custom tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat'; // Added 'chatbot-linhkien' and 'zalo'
@@ -47,6 +49,7 @@ type SubTab =
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien' // Added for single tab
+  | 'orders-custom' // Added for orders custom tab
   | 'caidat'; // Added for single tab
 
 const getMainTabsConfig = (
@@ -57,7 +60,7 @@ const getMainTabsConfig = (
 ) => ({
   dienthoai: {
     label: 'Điện thoại',
-    icon: Smartphone,
+    icon: <Smartphone className="w-5 h-5 text-blue-500" />,
     subTabs: [
       { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'device-info', label: 'Thông tin thiết bị', component: <DeviceInfosTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
@@ -68,13 +71,13 @@ const getMainTabsConfig = (
   },
   dichvu: {
     label: 'Dịch vụ',
-    icon: Wrench,
+    icon: <Wrench className="w-5 h-5 text-orange-500" />,
     isSingleTab: true,
     component: <ErrorBoundary><ServiceManagementPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary>
   },
   linhkien: {
     label: 'Linh kiện',
-    icon: Package,
+    icon: <Package className="w-5 h-5 text-green-500" />,
     subTabs: [
       { id: 'components', label: 'Quản lý linh kiện', component: <ErrorBoundary><ProductComponentsTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'api-data-sync', label: 'Nạp dữ liệu API', component: <ErrorBoundary><ApiDataSyncTab isAuthenticated={true} currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
@@ -82,16 +85,16 @@ const getMainTabsConfig = (
   },
   caidat: {
     label: 'Cài đặt',
-    icon: Settings,
+    icon: <Settings className="w-5 h-5 text-gray-600" />,
     isSingleTab: true,
     component: <ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} />
   },
 
   chat: {
-    label: 'Chatbot Agent',
-    icon: MessageSquare,
+    label: 'Chatbot agent',
+    icon: <BotMessageSquare className="w-5 h-5 text-purple-500" />,
     subTabs: [
-      { id: 'chat', label: 'Chat với bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'chat', label: 'Test chat', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'faq-mobile', label: 'Câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'orders', label: 'Đơn hàng', component: <ErrorBoundary><OrdersTab /></ErrorBoundary> },
@@ -101,16 +104,17 @@ const getMainTabsConfig = (
 
   'chatbot-linhkien': {
     label: 'Chatbot linh kiện',
-    icon: Bot,
+    icon: <BotIcon className="w-5 h-5 text-pink-500" />,
     subTabs: [
-      { id: 'chatbot-linhkien', label: 'Chat linh kiện', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'chatbot-linhkien', label: 'Test chat', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
       { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
     ]
   },
 
   zalo: {
     label: 'Zalo',
-    icon: MessageCircle,
+    icon: <SiZalo className="w-5 h-5 text-sky-500" />,
     subTabs: [
       { id: 'zalo-login', label: 'Đăng nhập', component: <ErrorBoundary><ZaloTab initialActiveTab="login" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'zalo-messages', label: 'Tin nhắn', component: <ErrorBoundary><ZaloTab initialActiveTab="messages" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
@@ -273,8 +277,8 @@ const ChatbotPageWithTabs: React.FC = () => {
                         }`}
                         onClick={() => handleCategoryClick(key as MainCategory)}
                     >
-                        <div className="flex items-center">
-                            <value.icon className={`mr-3 ${ value.isSingleTab && activeTab === key ? 'text-white' : 'text-gray-600'}`} size={20} />
+                        <div className="flex items-center gap-2">
+                            <div className="mr-2">{value.icon}</div>
                             <span className={`font-semibold ${ value.isSingleTab && activeTab === key ? 'text-white' : 'text-gray-700'}`}>{value.label}</span>
                         </div>
                         {!value.isSingleTab && (openCategory === key ? <ChevronDown size={18} /> : <ChevronRight size={18} />)}
