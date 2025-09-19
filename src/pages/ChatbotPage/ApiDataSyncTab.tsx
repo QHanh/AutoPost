@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download, RefreshCw } from 'lucide-react';
+import { Trash2, Edit, Save, X, Search, ChevronsUpDown, RefreshCw } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
 import Pagination from '../../components/Pagination';
-import Filter, { FilterConfig } from '../../components/Filter';
+import { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
 import PopupModal from '../../components/PopupModal';
-import InfoHint from '../../components/InfoHint';
 import LabeledField from '../../components/LabeledField';
 
 interface SyncNowResult {

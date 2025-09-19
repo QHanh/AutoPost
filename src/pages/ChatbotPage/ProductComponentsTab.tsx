@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download, RotateCcw } from 'lucide-react';
+import { Trash2, Edit, Save, X, Search, ChevronsUpDown, Upload, Download, RotateCcw } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
@@ -8,7 +8,6 @@ import Filter, { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
 import { useRestoreAllDeletedModal } from '../../components/RestoreAllDeletedModal';
 import PopupModal from '../../components/PopupModal';
-import InfoHint from '../../components/InfoHint';
 import LabeledField from '../../components/LabeledField';
 
 // Component hiển thị mô tả với tính năng popup

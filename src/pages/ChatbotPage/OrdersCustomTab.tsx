@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, RefreshCw, Loader2, Eye, User, Phone, MapPin, Calendar, DollarSign } from 'lucide-react';
+import { Package, RefreshCw, Loader2, Eye, User, Phone, MapPin } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface CustomerInfo {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { PlatformCard } from '../components/PlatformCard';
 import { ApiKeyManager } from '../components/ApiKeyManager';
-import { PromptManager } from '../components/PromptManager';
 import { Platform, PlatformAccount } from '../types/platform';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
