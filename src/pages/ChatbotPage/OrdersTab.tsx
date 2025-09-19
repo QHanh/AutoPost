@@ -13,7 +13,7 @@ interface ProductOrder {
   ma_san_pham: string;
   ten_san_pham: string;
   so_luong: number;
-  is_called: boolean;
+  status?: string;
 }
 
 interface ServiceOrder {
@@ -29,7 +29,7 @@ interface ServiceOrder {
   ten_dich_vu: string;
   loai_dich_vu: string;
   ten_san_pham_sua_chua: string;
-  is_called: boolean;
+  status?: string;
 }
 
 interface AccessoryOrder {
@@ -44,7 +44,7 @@ interface AccessoryOrder {
   ma_phu_kien: string;
   ten_phu_kien: string;
   so_luong: number;
-  is_called: boolean;
+  status?: string;
 }
 
 type OrderType = 'product' | 'service' | 'accessory';
@@ -122,7 +122,15 @@ const OrdersTab: React.FC = () => {
     }
   };
 
-  const updateIsCalled = async (orderId: string, threadId: string, isCalled: boolean) => {
+  const STATUS_OPTIONS = ['Chưa gọi', 'Không nghe', 'Đã gọi chưa chốt', 'Đã chốt'] as const;
+  const statusToIndex = (status?: string) => {
+    const idx = STATUS_OPTIONS.indexOf((status || '').trim() as any);
+    return idx >= 0 ? idx : 0;
+  };
+
+  const indexToStatus = (index: number) => STATUS_OPTIONS[Math.min(Math.max(index, 0), STATUS_OPTIONS.length - 1)];
+
+  const updateStatus = async (orderId: string, threadId: string, status: string) => {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -131,7 +139,7 @@ const OrdersTab: React.FC = () => {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/v1/orders/is_called?order_id=${orderId}&thread_id=${threadId}&is_called=${isCalled}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/orders/status?order_id=${orderId}&thread_id=${threadId}&status=${encodeURIComponent(status)}`,
         {
           method: 'PUT',
           headers: {
@@ -142,33 +150,33 @@ const OrdersTab: React.FC = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Không thể cập nhật trạng thái liên hệ');
+        throw new Error('Không thể cập nhật trạng thái');
       }
 
       // Update local state
       if (activeOrderType === 'product') {
         setProductOrders(prev => 
           prev.map(order => 
-            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+            order.order_id === orderId ? { ...order, status } : order
           )
         );
       } else if (activeOrderType === 'service') {
         setServiceOrders(prev => 
           prev.map(order => 
-            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+            order.order_id === orderId ? { ...order, status } : order
           )
         );
       } else if (activeOrderType === 'accessory') {
         setAccessoryOrders(prev => 
           prev.map(order => 
-            order.order_id === orderId ? { ...order, is_called: isCalled } : order
+            order.order_id === orderId ? { ...order, status } : order
           )
         );
       }
 
     } catch (err) {
-      console.error('Error updating is_called:', err);
-      setError('Không thể cập nhật trạng thái liên hệ. Vui lòng thử lại.');
+      console.error('Error updating status:', err);
+      setError('Không thể cập nhật trạng thái. Vui lòng thử lại.');
     }
   };
 
@@ -206,7 +214,7 @@ const OrdersTab: React.FC = () => {
             { key: 'ten_san_pham', label: 'Tên SP' },
             { key: 'so_luong', label: 'SL' },
             { key: 'created_at', label: 'Ngày Tạo' },
-            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
+            { key: 'status', label: 'Trạng Thái' }
           ]
         };
       case 'service':
@@ -224,7 +232,7 @@ const OrdersTab: React.FC = () => {
             { key: 'loai_dich_vu', label: 'Loại DV' },
             { key: 'ten_san_pham_sua_chua', label: 'SP Sửa Chữa' },
             { key: 'created_at', label: 'Ngày Tạo' },
-            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
+            { key: 'status', label: 'Trạng Thái' }
           ]
         };
       case 'accessory':
@@ -241,7 +249,7 @@ const OrdersTab: React.FC = () => {
             { key: 'ten_phu_kien', label: 'Tên PK' },
             { key: 'so_luong', label: 'SL' },
             { key: 'created_at', label: 'Ngày Tạo' },
-            { key: 'is_called', label: 'Đã LH', isCheckbox: true }
+            { key: 'status', label: 'Trạng Thái' }
           ]
         };
     }
@@ -376,13 +384,16 @@ const OrdersTab: React.FC = () => {
                           <td key={column.key} className="px-6 py-4 text-sm text-gray-900">
                             {column.key === 'created_at' 
                               ? formatDate(cellValue as string)
-                              : column.isCheckbox ? (
-                                <input
-                                  type="checkbox"
-                                  checked={order.is_called || false}
-                                  onChange={(e) => updateIsCalled(order.order_id, order.thread_id, e.target.checked)}
-                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                />
+                              : column.key === 'status' ? (
+                                <select
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                                  value={indexToStatus(statusToIndex(order.status))}
+                                  onChange={(e) => updateStatus(order.order_id, order.thread_id, e.target.value)}
+                                >
+                                  {STATUS_OPTIONS.map((opt) => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
                               ) : (
                                 <div className="flex items-center gap-2">
                                   <span className={isLong && !isExpanded ? 'truncate max-w-[150px]' : ''}>

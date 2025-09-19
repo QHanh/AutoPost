@@ -47,6 +47,14 @@ const OrdersCustomTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  const STATUS_OPTIONS = ['Chưa gọi', 'Không nghe', 'Đã gọi chưa chốt', 'Đã chốt'] as const;
+
+  const statusToIndex = (status?: string) => {
+    const idx = STATUS_OPTIONS.indexOf((status || '').trim() as any);
+    return idx >= 0 ? idx : 0;
+  };
+
+  const indexToStatus = (index: number) => STATUS_OPTIONS[Math.min(Math.max(index, 0), STATUS_OPTIONS.length - 1)];
 
   useEffect(() => {
     loadOrders();
@@ -90,6 +98,36 @@ const OrdersCustomTab: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateStatus = async (orderId: number, threadId: string, status: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setError('Vui lòng đăng nhập để cập nhật trạng thái');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/orders-custom/status?order_id=${orderId}&thread_id=${encodeURIComponent(threadId)}&status=${encodeURIComponent(status)}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Không thể cập nhật trạng thái');
+      }
+
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: status } : o));
+    } catch (err) {
+      console.error('Error updating status:', err);
+      setError('Không thể cập nhật trạng thái. Vui lòng thử lại.');
     }
   };
 
@@ -207,9 +245,17 @@ const OrdersCustomTab: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.order_status)}`}>
-                        {getStatusText(order.order_status)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                          value={indexToStatus(statusToIndex(order.order_status))}
+                          onChange={(e) => updateStatus(order.id, order.session_id, e.target.value)}
+                        >
+                          {STATUS_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
                       <button
                         onClick={() => toggleExpanded(order.id)}
                         className="text-blue-600 hover:text-blue-800 p-1"
