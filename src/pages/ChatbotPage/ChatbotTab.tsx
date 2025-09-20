@@ -197,8 +197,9 @@ const ChatbotTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100svh-2rem)] md:h-full">
-      <div className="flex justify-between items-center mb-4 shrink-0 md:sticky md:top-0 md:z-10 md:bg-white md:py-2">
+    <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-8rem)]">
+      {/* Header */}
+      <div className="flex justify-between items-center px-4 py-3 shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-2xl font-bold">Chatbot</h2>
         <div className="flex items-center space-x-2">
           <button
@@ -209,7 +210,7 @@ const ChatbotTab: React.FC = () => {
           >
             {isResetting ? 'Đang reset...' : 'Reset bot'}
           </button>
-          <button 
+          <button
             onClick={clearChat}
             className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
           >
@@ -219,89 +220,91 @@ const ChatbotTab: React.FC = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 p-4 space-y-4 pb-24 md:pb-4">
-        {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-8">
-            <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
-          </div>
-        ) : (
-          messages.map((msg, index) => (
-            <div
-              key={msg.id || index}
-              className={`flex items-start space-x-2 ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  msg.sender === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-900'
-                }`}
-              >
-                {(() => {
-                  // Progressively strip JSON wrapper if backend returns {"response":"..."}
-                  let displayText = msg.text ?? '';
-                  if (displayText.startsWith('{"response":"')) {
-                    // Remove leading wrapper
-                    displayText = displayText.replace(/^\{\"response\":\"/, '');
-                    // Remove trailing wrapper if present
-                    displayText = displayText.replace(/\"\}\s*$/, '');
-                    // Unescape common sequences for nicer rendering
-                    displayText = displayText
-                      .split('\\n').join('\n')
-                      .split('\\t').join('\t')
-                      .replace(/\\"/g, '"');
-                  }
-                  // Auto-convert direct image URLs to Markdown image syntax for inline preview
-                  const imageUrlRegex = /(https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|svg))/gi;
-                  displayText = displayText.replace(imageUrlRegex, (url) => `![image](${url})`);
-                  return (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ node, ...props }) => (
-                          <a {...props} target="_blank" rel="noopener noreferrer" />
-                        ),
-                        img: (props) => (
-                          // eslint-disable-next-line jsx-a11y/alt-text
-                          <img {...props} style={{ maxWidth: '100%', borderRadius: '0.5rem' }} loading="lazy" />
-                        ),
-                      }}
-                    >
-                      {displayText}
-                    </ReactMarkdown>
-                  );
-                })()}
-              </div>
-              {msg.sender === 'user' && msg.text.trim() && (
-                <MessageActionDropdown
-                  messageText={msg.text}
-                  isVisible={activeDropdown === index}
-                  onToggle={() => setActiveDropdown(activeDropdown === index ? null : index)}
-                  onClose={() => setActiveDropdown(null)}
-                />
-              )}
+      <div className="overflow-y-auto bg-gray-50 p-4 space-y-4">
+        <div className="flex flex-col justify-end min-h-full">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-500">
+              <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
             </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
+          ) : (
+            messages.map((msg, index) => (
+              <div
+                key={msg.id || index}
+                className={`flex items-start space-x-2 mt-4 ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}
+              >
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    msg.sender === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  {(() => {
+                    // Progressively strip JSON wrapper if backend returns {"response":"..."}
+                    let displayText = msg.text ?? '';
+                    if (displayText.startsWith('{"response":"')) {
+                      // Remove leading wrapper
+                      displayText = displayText.replace(/^\{"response\":\"/, '');
+                      // Remove trailing wrapper if present
+                      displayText = displayText.replace(/\"\}\s*$/, '');
+                      // Unescape common sequences for nicer rendering
+                      displayText = displayText
+                        .split('\\n').join('\n')
+                        .split('\\t').join('\t')
+                        .replace(/\\"/g, '"');
+                    }
+                    // Auto-convert direct image URLs to Markdown image syntax for inline preview
+                    const imageUrlRegex = /(https?:\/\/[^\s)]+\.(?:png|jpe?g|gif|webp|svg))/gi;
+                    displayText = displayText.replace(imageUrlRegex, (url) => `![image](${url})`);
+                    return (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a {...props} target="_blank" rel="noopener noreferrer" />
+                          ),
+                          img: (props) => (
+                            // eslint-disable-next-line jsx-a11y/alt-text
+                            <img {...props} style={{ maxWidth: '100%', borderRadius: '0.5rem' }} loading="lazy" />
+                          ),
+                        }}
+                      >
+                        {displayText}
+                      </ReactMarkdown>
+                    );
+                  })()}
+                </div>
+                {msg.sender === 'user' && msg.text.trim() && (
+                  <MessageActionDropdown
+                    messageText={msg.text}
+                    isVisible={activeDropdown === index}
+                    onToggle={() => setActiveDropdown(activeDropdown === index ? null : index)}
+                    onClose={() => setActiveDropdown(null)}
+                  />
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input - Sticky at bottom */}
-      <div className="p-4 bg-white border-t sticky bottom-0 z-10 pb-[env(safe-area-inset-bottom)]">
+      {/* Input */}
+      <div className="p-3 bg-white border-t shadow-sm mb-[env(safe-area-inset-bottom)]">
         <div className="flex gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Nhập tin nhắn của bạn..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={2}
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={1}
             disabled={isLoading}
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             <PaperPlaneIcon className="w-4 h-4" />
             {isLoading ? 'Đang gửi...' : 'Gửi'}

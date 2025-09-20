@@ -9,6 +9,7 @@ import { SiZalo } from "react-icons/si";
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
+import BotPowerTab from './ChatbotPage/BotPowerTab';
 import StoreSettingsTab from './ChatbotPage/StoreSettingsTab';
 import DocumentsTab from './ChatbotPage/DocumentsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
@@ -41,6 +42,7 @@ type SubTab =
   | 'documents'
   | 'api-integration' // Added
   | 'settings'
+  | 'bot-power'
   | 'store-settings' // Added for store settings
   | 'orders' // Added for orders tab
   | 'chat' // Added for single tab
@@ -88,15 +90,17 @@ const getMainTabsConfig = (
   caidat: {
     label: 'Cài đặt',
     icon: <Settings className="w-5 h-5 text-gray-600" />,
-    isSingleTab: true,
-    component: <ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} />
+    subTabs: [
+      { id: 'api-integration', label: 'Tích hợp API', component: <ErrorBoundary><ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'bot-power', label: 'Bật/Tắt Bot', component: <ErrorBoundary><BotPowerTab /></ErrorBoundary> },
+    ]
   },
 
   chat: {
     label: 'Chatbot agent',
     icon: <BotMessageSquare className="w-5 h-5 text-purple-500" />,
     subTabs: [
-      { id: 'chat', label: 'Test chat', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+      { id: 'chat', label: 'Chat với Bot', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'faq-mobile', label: 'Câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'orders', label: 'Đơn hàng', component: <ErrorBoundary><OrdersTab /></ErrorBoundary> },
@@ -220,9 +224,7 @@ const ChatbotPageWithTabs: React.FC = () => {
     if (activeTab === 'dichvu') {
         return mainTabsConfig.dichvu.component;
     }
-    if (activeTab === 'caidat') {
-        return mainTabsConfig.caidat.component;
-    }
+    // 'caidat' is a category now; handled in subTabs below
     
     // Xử lý các sub-tabs
     for (const category of Object.values(mainTabsConfig)) {
