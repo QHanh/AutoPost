@@ -109,9 +109,9 @@ const getMainTabsConfig = (
     icon: <BotIcon className="w-5 h-5 text-pink-500" />,
     subTabs: [
       { id: 'chatbot-linhkien', label: 'Test chat', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
-      { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
-      { id: 'settings-custom', label: 'Cài đặt', component: <ErrorBoundary><SettingsCustomTab /></ErrorBoundary> },
       { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
+      { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
+      { id: 'settings-custom', label: 'Cài đặt prompt', component: <ErrorBoundary><SettingsCustomTab /></ErrorBoundary> },
     ]
   },
 

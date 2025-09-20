@@ -174,13 +174,14 @@ const SettingsCustomTab: React.FC = () => {
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Nhập system prompt cho chatbot linh kiện..."
+                  placeholder="Nhập system prompt cho chatbot sản phẩm..."
                   className="w-full h-80 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-mono text-sm"
                   disabled={isSaving}
                   style={{ minHeight: '320px' }}
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  System prompt sẽ hướng dẫn chatbot cách trả lời và xử lý câu hỏi về linh kiện.
+                  <br/>System prompt sẽ hướng dẫn chatbot cách trả lời và xử lý câu hỏi về tư vấn sản phẩm.
+                  <br/>Lưu ý: Chỉ áp dụng với các câu hỏi tư vấn sản phẩm.
                 </p>
               </div>
 
