@@ -25,6 +25,7 @@ import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
 import OrdersTab from './ChatbotPage/OrdersTab'; // Import Orders tab
 import OrdersCustomTab from './ChatbotPage/OrdersCustomTab'; // Import Orders Custom tab
+import SettingsCustomTab from './ChatbotPage/SettingsCustomTab'; // Import Settings Custom tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat'; // Added 'chatbot-linhkien' and 'zalo'
@@ -50,6 +51,7 @@ type SubTab =
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien' // Added for single tab
   | 'orders-custom' // Added for orders custom tab
+  | 'settings-custom' // Added for settings custom tab
   | 'caidat'; // Added for single tab
 
 const getMainTabsConfig = (
@@ -108,6 +110,7 @@ const getMainTabsConfig = (
     subTabs: [
       { id: 'chatbot-linhkien', label: 'Test chat', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
+      { id: 'settings-custom', label: 'Cài đặt', component: <ErrorBoundary><SettingsCustomTab /></ErrorBoundary> },
       { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
     ]
   },
