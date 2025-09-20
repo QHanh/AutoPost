@@ -24,10 +24,17 @@ const SettingsTab: React.FC = () => {
   const [isLoadingAccessory, setIsLoadingAccessory] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+ 
+  // --- Bot power status states ---
+  const [mobileBotLoading, setMobileBotLoading] = useState<boolean>(false);
+  const [customBotLoading, setCustomBotLoading] = useState<boolean>(false);
+  const [mobileBotStatus, setMobileBotStatus] = useState<string>('unknown');
+  const [customBotStatus, setCustomBotStatus] = useState<string>('unknown');
 
   useEffect(() => {
     // Load data immediately without blocking UI
     loadUserConfig();
+    loadBotsStatus();
   }, []);
 
   const loadUserConfig = async () => {
@@ -105,6 +112,124 @@ const SettingsTab: React.FC = () => {
     } catch (error) {
       console.error('Error loading config:', error);
       setMessage({ type: 'error', text: 'Không thể tải cấu hình. Vui lòng thử lại.' });
+    }
+  };
+
+  const stopMobileBot = async () => {
+    const customerId = getCustomerId();
+    if (!customerId || !CHAT_BOT_MOBILE_URL) return;
+    setMobileBotLoading(true);
+    try {
+      const res = await fetch(`${CHAT_BOT_MOBILE_URL.replace(/\/$/, '')}/customer/stop/${customerId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) throw new Error('Stop mobile bot failed');
+      setMessage({ type: 'success', text: 'Đã tạm dừng Chatbot Mobile' });
+      await loadBotsStatus();
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Không thể tạm dừng Chatbot Mobile' });
+    } finally {
+      setTimeout(() => setMessage(null), 2000);
+      setMobileBotLoading(false);
+    }
+  };
+
+  const startMobileBot = async () => {
+    const customerId = getCustomerId();
+    if (!customerId || !CHAT_BOT_MOBILE_URL) return;
+    setMobileBotLoading(true);
+    try {
+      // Thử gọi endpoint start nếu tồn tại
+      const res = await fetch(`${CHAT_BOT_MOBILE_URL.replace(/\/$/, '')}/customer/start/${customerId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) throw new Error('Start mobile bot failed');
+      setMessage({ type: 'success', text: 'Đã kích hoạt Chatbot Mobile' });
+      await loadBotsStatus();
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Không thể kích hoạt Chatbot Mobile (vui lòng kiểm tra API /customer/start)' });
+    } finally {
+      setTimeout(() => setMessage(null), 2500);
+      setMobileBotLoading(false);
+    }
+  };
+
+  const controlCustomBot = async (command: 'start' | 'stop') => {
+    const customerId = getCustomerId();
+    if (!customerId || !CHAT_BOT_CUSTOM_URL) return;
+    setCustomBotLoading(true);
+    try {
+      const res = await fetch(`${CHAT_BOT_CUSTOM_URL.replace(/\/$/, '')}/power-off-bot/${customerId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
+      if (!res.ok) throw new Error('Control custom bot failed');
+      setMessage({ type: 'success', text: command === 'start' ? 'Đã kích hoạt Chatbot Custom' : 'Đã tạm dừng Chatbot Custom' });
+      await loadBotsStatus();
+    } catch (e) {
+      setMessage({ type: 'error', text: command === 'start' ? 'Không thể kích hoạt Chatbot Custom' : 'Không thể tạm dừng Chatbot Custom' });
+    } finally {
+      setTimeout(() => setMessage(null), 2000);
+      setCustomBotLoading(false);
+    }
+  };
+
+  const getCustomerId = () => {
+    try {
+      const raw = localStorage.getItem('user_data');
+      if (!raw) return '';
+      const parsed = JSON.parse(raw);
+      return parsed.id || '';
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const CHAT_BOT_MOBILE_URL = import.meta.env.VITE_CHAT_BOT_MOBILE_URL as string | undefined;
+  const CHAT_BOT_CUSTOM_URL = (import.meta.env.VITE_CHAT_BOT_CUSTOM_URL as string | undefined) || 'https://chatbotproduct.quandoiai.vn';
+
+  const normalizeStatus = (data: any): string => {
+    // Accept either string or object formats
+    if (typeof data === 'string') return data;
+    if (data && typeof data === 'object') {
+      return data.bot_status || data.status || (data.is_active ? 'active' : 'stopped') || 'unknown';
+    }
+    return 'unknown';
+  };
+
+  const loadBotsStatus = async () => {
+    const customerId = getCustomerId();
+    if (!customerId) return;
+
+    // Load Mobile bot status
+    if (CHAT_BOT_MOBILE_URL) {
+      setMobileBotLoading(true);
+      try {
+        const res = await fetch(`${CHAT_BOT_MOBILE_URL.replace(/\/$/, '')}/customer/status/${customerId}`);
+        const data = await res.json().catch(() => ({}));
+        setMobileBotStatus(normalizeStatus(data));
+      } catch (e) {
+        setMobileBotStatus('unknown');
+      } finally {
+        setMobileBotLoading(false);
+      }
+    }
+
+    // Load Custom bot status
+    if (CHAT_BOT_CUSTOM_URL) {
+      setCustomBotLoading(true);
+      try {
+        const res = await fetch(`${CHAT_BOT_CUSTOM_URL.replace(/\/$/, '')}/bot-status/${customerId}`);
+        const data = await res.json().catch(() => ({}));
+        setCustomBotStatus(normalizeStatus(data));
+      } catch (e) {
+        setCustomBotStatus('unknown');
+      } finally {
+        setCustomBotLoading(false);
+      }
     }
   };
 
@@ -405,6 +530,7 @@ const SettingsTab: React.FC = () => {
           )}
         </div>
 
+        
         <div className="flex justify-between items-center">
           <div className="flex space-x-3">
             <button

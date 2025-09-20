@@ -1,6 +1,15 @@
 import { getAuthToken } from './apiService';
+import { getMyApiKey } from './apiService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
+
+// Luôn gọi API để lấy API Key thay vì lấy từ localStorage
+const fetchApiKey = async (): Promise<string> => {
+  const info = await getMyApiKey();
+  if (!info?.api_key) throw new Error('Không tìm thấy API Key');
+  if (info.is_active === false) throw new Error('API Key đã bị vô hiệu hóa');
+  return info.api_key;
+};
 
 export interface QRResponse {
   type: string;
@@ -31,10 +40,12 @@ export const zaloLoginQRStream = async (
   }
 
   try {
+    const apiKey = await fetchApiKey();
     const response = await fetch(`${API_BASE_URL}/api/v1/zalo/login-qr`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
+        'X-API-Key': apiKey,
         'Accept': 'text/event-stream',
         'Cache-Control': 'no-cache'
       }
@@ -95,10 +106,12 @@ export const getZaloStatus = async (): Promise<any> => {
     throw new Error('Không tìm thấy token xác thực');
   }
 
+  const apiKey = await fetchApiKey();
   const response = await fetch(`${API_BASE_URL}/api/v1/zalo/status`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json'
     }
   });
@@ -118,8 +131,7 @@ export interface CreateStaffPayload {
   role?: 'admin' | 'staff' | 'viewer';
   permissions?: {
     can_control_bot?: boolean;
-    can_view_all_conversations?: boolean;
-    can_manage_staff?: boolean;
+    can_manage_orders?: boolean;
   };
   associated_session_keys?: string[];
 }
@@ -127,13 +139,14 @@ export interface CreateStaffPayload {
 export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?: number; offset?: number }) => {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
+  const apiKey = await fetchApiKey();
   const search = new URLSearchParams();
   if (params?.includeInactive !== undefined) search.set('includeInactive', String(params.includeInactive));
   if (params?.limit !== undefined) search.set('limit', String(params.limit));
   if (params?.offset !== undefined) search.set('offset', String(params.offset));
 
   const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo${search.toString() ? `?${search}` : ''}` , {
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token}`, 'X-API-Key': apiKey },
   });
   if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
   return resp.json();
@@ -142,10 +155,12 @@ export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?
 export const createStaffZalo = async (payload: CreateStaffPayload) => {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
+  const apiKey = await fetchApiKey();
   const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -157,9 +172,46 @@ export const createStaffZalo = async (payload: CreateStaffPayload) => {
 export const deleteStaffZalo = async (id: string) => {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
+  const apiKey = await fetchApiKey();
   const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo/${id}`, {
     method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token}`, 'X-API-Key': apiKey },
+  });
+  if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
+  return resp.json();
+};
+
+// Update staff (permissions, role, name, is_active, etc.)
+export const updateStaffZalo = async (
+  id: string,
+  payload: Partial<{
+    name: string;
+    role: 'admin' | 'staff' | 'viewer';
+    is_active: boolean;
+    can_control_bot: boolean;
+    can_manage_orders: boolean;
+    associated_session_keys: string[];
+  }>
+) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Không tìm thấy token xác thực');
+  const apiKey = await fetchApiKey();
+  // Transform flat permission flags into nested `permissions` object as backend expects
+  const { can_control_bot, can_manage_orders, ...rest } = (payload || {}) as any;
+  const body: any = { ...rest };
+  const permissions: any = {};
+  if (typeof can_control_bot === 'boolean') permissions.can_control_bot = can_control_bot;
+  if (typeof can_manage_orders === 'boolean') permissions.can_manage_orders = can_manage_orders;
+  if (Object.keys(permissions).length > 0) body.permissions = permissions;
+
+  const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error((await resp.text()) || `HTTP ${resp.status}`);
   return resp.json();
@@ -171,10 +223,12 @@ export const logoutZalo = async (): Promise<any> => {
     throw new Error('Không tìm thấy token xác thực');
   }
 
+  const apiKey = await fetchApiKey();
   const response = await fetch(`${API_BASE_URL}/api/v1/zalo/logout`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json'
     }
   });
@@ -217,10 +271,12 @@ export const getZaloConversations = async (): Promise<{ items: ZaloConversation[
     throw new Error('Không tìm thấy token xác thực');
   }
 
+  const apiKey = await fetchApiKey();
   const response = await fetch(`${API_BASE_URL}/api/v1/zalo/conversations`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json'
     }
   });
@@ -264,6 +320,7 @@ export const getZaloMessages = async (
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'X-API-Key': await fetchApiKey(),
       'Content-Type': 'application/json'
     }
   });

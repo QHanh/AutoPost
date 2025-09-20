@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo } from '../../services/zaloService';
+import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut } from 'lucide-react';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo } from '../../services/zaloService';
+import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
 
 interface ZaloTabProps {
@@ -31,10 +32,15 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const [openConvMenu, setOpenConvMenu] = useState<string | null>(null);
   const [isCreatingStaff, setIsCreatingStaff] = useState<boolean>(false);
-  const [subTab, setSubTab] = useState<'messages' | 'staff'>('messages');
+  const [subTab, setSubTab] = useState<'messages' | 'staff' | 'ignored'>('messages');
   const [isLoadingStaff, setIsLoadingStaff] = useState<boolean>(false);
-  const [staffItems, setStaffItems] = useState<Array<{ id: string; zalo_uid: string; name: string; role: string; is_active: boolean; can_control_bot?: boolean; can_view_all_conversations?: boolean; can_manage_staff?: boolean }>>([]);
+  const [staffItems, setStaffItems] = useState<Array<{ id: string; zalo_uid: string; name: string; role: string; is_active: boolean; can_control_bot?: boolean; can_manage_orders?: boolean }>>([]);
   const [deletingStaffId, setDeletingStaffId] = useState<string | null>(null);
+  const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
+  const [isLoadingIgnored, setIsLoadingIgnored] = useState<boolean>(false);
+  const [ignoredItems, setIgnoredItems] = useState<IgnoredConversation[]>([]);
+  const [isIgnoring, setIsIgnoring] = useState<boolean>(false);
+  const [deletingIgnoredId, setDeletingIgnoredId] = useState<string | null>(null);
 
   const addStaffFromConversation = async (conv: ZaloConversation) => {
     try {
@@ -57,6 +63,40 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       alert(`Lỗi khi thêm nhân viên: ${e?.message || e}`);
     } finally {
       setIsCreatingStaff(false);
+    }
+  };
+
+  const loadIgnored = async () => {
+    setIsLoadingIgnored(true);
+    try {
+      const resp = await listIgnoredZalo({ limit: 200, offset: 0 });
+      const items = (resp.data || resp.items || []) as IgnoredConversation[];
+      setIgnoredItems(items);
+    } catch (e) {
+      console.error('Error loading ignored conversations:', e);
+    } finally {
+      setIsLoadingIgnored(false);
+    }
+  };
+
+  const togglePermission = async (
+    id: string,
+    field: 'can_control_bot' | 'can_manage_orders',
+    checked: boolean
+  ) => {
+    const prev = staffItems;
+    // Optimistic update
+    const next = staffItems.map((s) => (s.id === id ? { ...s, [field]: checked } : s));
+    setStaffItems(next);
+    setSavingStaffId(id);
+    try {
+      await updateStaffZalo(id, { [field]: checked } as any);
+    } catch (e: any) {
+      // Revert
+      setStaffItems(prev);
+      alert(`Cập nhật quyền thất bại: ${e?.message || e}`);
+    } finally {
+      setSavingStaffId(null);
     }
   };
 
@@ -87,8 +127,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         role: it.role,
         is_active: it.is_active !== false,
         can_control_bot: it.can_control_bot,
-        can_view_all_conversations: it.can_view_all_conversations,
-        can_manage_staff: it.can_manage_staff,
+        can_manage_orders: it.can_manage_orders,
       })));
     } catch (e) {
       console.error('Error loading staff:', e);
@@ -362,6 +401,22 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     setMessage('');
   };
 
+  // Đăng xuất khỏi Zalo (qua backend)
+  const handleLogout = async () => {
+    try {
+      await logoutZalo();
+      // Reset UI state
+      setStatus('idle');
+      setQrCode('');
+      setMessage('Đã đăng xuất khỏi Zalo');
+      setConversations([]);
+      setSelectedConversation(null);
+      setMessages([]);
+    } catch (e: any) {
+      alert(`Đăng xuất thất bại: ${e?.message || e}`);
+    }
+  };
+
   // Load conversations when user is logged in
   const loadConversations = async () => {
     if (status !== 'SessionSaved') return;
@@ -448,6 +503,13 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     }
   }, [subTab, status]);
 
+  // Load ignored when switching to ignored sub-tab
+  useEffect(() => {
+    if (status === 'SessionSaved' && subTab === 'ignored') {
+      loadIgnored();
+    }
+  }, [subTab, status]);
+
   // Determine if current conversation is a group
   const isGroupConversation = !!(selectedConversation && (selectedConversation.type === 1 || selectedConversation.group_name));
 
@@ -455,6 +517,41 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     await loadConversations();
     if (selectedConversation) {
       await loadMessages(selectedConversation);
+    }
+  };
+
+  const addIgnoredFromConversation = async (conv: ZaloConversation) => {
+    try {
+      // Hỗ trợ cả 1-1 và nhóm
+      const thread_id = (conv as any).thread_id || (conv as any).peer_id || conv.conversation_id;
+      if (!thread_id) {
+        alert('Không xác định được thread_id để chặn.');
+        return;
+      }
+      setIsIgnoring(true);
+      await upsertIgnoredZalo({ thread_id, name: (conv as any).d_name || undefined });
+      setOpenConvMenu(null);
+      if (subTab === 'ignored') {
+        await loadIgnored();
+      }
+      alert('Đã thêm vào danh sách không trả lời.');
+    } catch (e: any) {
+      alert(`Lỗi: ${e?.message || e}`);
+    } finally {
+      setIsIgnoring(false);
+    }
+  };
+
+  const handleDeleteIgnored = async (id: string) => {
+    if (!confirm('Gỡ bỏ khỏi danh sách không trả lời?')) return;
+    setDeletingIgnoredId(id);
+    try {
+      await deleteIgnoredZalo(id);
+      await loadIgnored();
+    } catch (e: any) {
+      alert(`Lỗi khi xóa: ${e?.message || e}`);
+    } finally {
+      setDeletingIgnoredId(null);
     }
   };
 
@@ -485,7 +582,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                   </p>
                 </div>
               )}
-            </div>
+              </div>
 
             <div className="flex gap-3">
               <button
@@ -528,6 +625,17 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                   <p className="text-sm text-blue-700">{message}</p>
                 </div>
               )}
+
+              {status === 'SessionSaved' && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    <LogOut size={16} /> Đăng xuất Zalo
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -561,6 +669,10 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                 className={`px-3 py-1.5 rounded border text-sm ${subTab === 'staff' ? 'bg-white border-gray-300 font-semibold' : 'border-transparent hover:bg-gray-100'}`}
                 onClick={() => setSubTab('staff')}
               >Quản lý nhân viên</button>
+              <button
+                className={`px-3 py-1.5 rounded border text-sm ${subTab === 'ignored' ? 'bg-white border-gray-300 font-semibold' : 'border-transparent hover:bg-gray-100'}`}
+                onClick={() => setSubTab('ignored')}
+              >quản lý chatbot cho zalo</button>
             </div>
 
             {subTab === 'messages' && (
@@ -611,18 +723,19 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                                 : (conv.d_name || conv.conversation_id || 'Không có tên')}
                             </span>
                           </div>
-                          {/* Three-dot menu for actions */}
-                          {!(conv.type === 1 || conv.group_name) && (
-                            <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                className="p-1 rounded hover:bg-gray-100"
-                                title="Thao tác"
-                                onClick={() => setOpenConvMenu(openConvMenu === conv.conversation_id ? null : conv.conversation_id)}
-                              >
-                                <MoreVertical size={16} />
-                              </button>
-                              {openConvMenu === conv.conversation_id && (
-                                <div className="mt-1 w-48 bg-white border border-gray-200 rounded shadow-md absolute right-0 z-10">
+                          {/* Three-dot menu for actions (always visible) */}
+                          <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="p-1 rounded hover:bg-gray-100"
+                              title="Thao tác"
+                              onClick={() => setOpenConvMenu(openConvMenu === conv.conversation_id ? null : conv.conversation_id)}
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                            {openConvMenu === conv.conversation_id && (
+                              <div className="mt-1 w-56 bg-white border border-gray-200 rounded shadow-md absolute right-0 z-10">
+                                {/* Only for 1-1 chats: add as staff */}
+                                {!(conv.type === 1 || conv.group_name) && (
                                   <button
                                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
                                     onClick={() => addStaffFromConversation(conv)}
@@ -630,10 +743,17 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                                   >
                                     <Plus size={14} /> Thêm làm nhân viên
                                   </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                )}
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+                                  onClick={() => addIgnoredFromConversation(conv)}
+                                  disabled={isIgnoring}
+                                >
+                                  <XCircle size={14} /> {(conv.type === 1 || conv.group_name) ? 'Không trả lời nhóm này' : 'Không trả lời người này'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-600 truncate">
                             {(() => {
                               if (!conv.last_content) return 'Không có tin nhắn';
@@ -759,7 +879,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                               {formatTime(msg.ts, msg.created_at)}
                             </div>
                           </div>
-                          {msg.is_self && msg.content && (
+                          {!msg.is_self && msg.content && (
                             <MessageActionDropdown
                               messageText={typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}
                               isVisible={activeDropdown === index}
@@ -776,6 +896,45 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                 </div>
               </div>
             </div>
+            )}
+
+            {subTab === 'ignored' && (
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-800">Danh sách không trả lời</h4>
+                  <button
+                    onClick={loadIgnored}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                    disabled={isLoadingIgnored}
+                  >
+                    <RefreshCw size={16} className={isLoadingIgnored ? 'animate-spin' : ''} />
+                    Làm mới
+                  </button>
+                </div>
+                {isLoadingIgnored ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <Clock className="animate-spin mx-auto mb-2" size={20} />
+                    Đang tải...
+                  </div>
+                ) : ignoredItems.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">Chưa có người bị chặn</div>
+                ) : (
+                  <ul className="divide-y">
+                    {ignoredItems.map((it) => (
+                      <li key={it.id} className="py-2 flex items-center justify-between">
+                        <div className="font-medium text-gray-800 truncate">{it.name || it.thread_id}</div>
+                        <button
+                          className="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                          onClick={() => handleDeleteIgnored(it.id)}
+                          disabled={deletingIgnoredId === it.id}
+                        >
+                          Gỡ chặn
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
 
             {subTab === 'staff' && (
@@ -804,7 +963,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                       <thead>
                         <tr className="text-left border-b">
                           <th className="py-2 pr-4">Tên</th>
-                          <th className="py-2 pr-4">Zalo UID</th>
+                          {/* <th className="py-2 pr-4">Zalo UID</th> */}
                           <th className="py-2 pr-4">Vai trò</th>
                           <th className="py-2 pr-4">Kích hoạt</th>
                           <th className="py-2 pr-4">Quyền</th>
@@ -815,13 +974,35 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                         {staffItems.map((s) => (
                           <tr key={s.id} className="border-b hover:bg-gray-50">
                             <td className="py-2 pr-4 font-medium">{s.name}</td>
-                            <td className="py-2 pr-4">{s.zalo_uid}</td>
+                            {/* <td className="py-2 pr-4">{s.zalo_uid}</td> */}
                             <td className="py-2 pr-4 capitalize">{s.role}</td>
                             <td className="py-2 pr-4">{s.is_active ? 'Đang hoạt động' : 'Đã vô hiệu'}</td>
                             <td className="py-2 pr-4 text-xs text-gray-700">
-                              {(s.can_control_bot ? 'Điều khiển bot' : '')}
-                              {(s.can_view_all_conversations ? (s.can_control_bot ? ', ' : '') + 'Xem tất cả' : '')}
-                              {(s.can_manage_staff ? ((s.can_control_bot || s.can_view_all_conversations) ? ', ' : '') + 'Quản lý nhân viên' : '')}
+                              <div className="flex flex-col gap-1">
+                                <label className="inline-flex items-center gap-2 select-none">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300"
+                                    checked={!!s.can_control_bot}
+                                    onChange={(e) => togglePermission(s.id, 'can_control_bot', e.currentTarget.checked)}
+                                    disabled={savingStaffId === s.id}
+                                  />
+                                  <span>Điều khiển bot</span>
+                                </label>
+                                <label className="inline-flex items-center gap-2 select-none">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300"
+                                    checked={!!s.can_manage_orders}
+                                    onChange={(e) => togglePermission(s.id, 'can_manage_orders', e.currentTarget.checked)}
+                                    disabled={savingStaffId === s.id}
+                                  />
+                                  <span>Quản lý đơn hàng</span>
+                                </label>
+                                {savingStaffId === s.id && (
+                                  <div className="text-[10px] text-gray-500">Đang lưu...</div>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 pr-4">
                               <button
