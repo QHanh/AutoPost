@@ -93,7 +93,8 @@ const getMainTabsConfig = (
     subTabs: [
       { id: 'api-integration', label: 'Tích hợp API', component: <ErrorBoundary><ApiIntegrationPage currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'bot-power', label: 'Bật/Tắt Bot', component: <ErrorBoundary><BotPowerTab /></ErrorBoundary> },
-      { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> }
+      { id: 'store-settings', label: 'Thông tin cửa hàng', component: <ErrorBoundary><StoreSettingsTab /></ErrorBoundary> },
+      { id: 'faq-mobile', label: 'Câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> }
     ]
   },
 
@@ -102,7 +103,6 @@ const getMainTabsConfig = (
     icon: <BotMessageSquare className="w-5 h-5 text-purple-500" />,
     subTabs: [
       { id: 'chat', label: 'Test chat', component: <ErrorBoundary><ChatbotTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
-      { id: 'faq-mobile', label: 'Câu hỏi thường gặp', component: <ErrorBoundary><FaqMobileTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'documents', label: 'Tài liệu', component: <DocumentsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'orders', label: 'Đơn hàng', component: <ErrorBoundary><OrdersTab /></ErrorBoundary> },
       { id: 'settings', label: 'Cài đặt chatbot', component: <ErrorBoundary><SettingsTab /></ErrorBoundary> },
