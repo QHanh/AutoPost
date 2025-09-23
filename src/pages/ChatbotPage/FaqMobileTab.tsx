@@ -389,13 +389,13 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Phân loại
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                     Câu hỏi
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                     Câu trả lời
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
@@ -411,7 +411,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                       value={newFaq.classification}
                       onChange={(e) => setNewFaq({ ...newFaq, classification: e.target.value })}
                       placeholder="Nhập phân loại mới..."
-                      rows={2}
+                      rows={1}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                     />
                   </td>
@@ -452,7 +452,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                         <textarea
                           value={editingData.classification}
                           onChange={(e) => setEditingData({ ...editingData, classification: e.target.value })}
-                          rows={2}
+                          rows={1}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                         />
                       ) : (
