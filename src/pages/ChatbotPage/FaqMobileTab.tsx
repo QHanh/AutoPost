@@ -25,9 +25,9 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
   // Filter FAQs based on search term
   const filteredFaqs = faqs.filter(faq =>
-    faq.classification.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
+    (faq.classification || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (faq.question || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (faq.answer || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Fetch FAQs from API
