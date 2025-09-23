@@ -91,7 +91,15 @@ const StoreSettingsTab: React.FC = () => {
         body: formData
       });
 
-      if (!response.ok) {
+      const responseMobile = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents-mobile/store-info`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok || !responseMobile.ok) {
         throw new Error('Failed to save store info');
       }
 
