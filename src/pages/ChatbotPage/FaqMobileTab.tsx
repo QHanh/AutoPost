@@ -16,9 +16,9 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newFaq, setNewFaq] = useState<FaqCreate>({ question: '', answer: '' });
+  const [newFaq, setNewFaq] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<FaqCreate>({ question: '', answer: '' });
+  const [editingData, setEditingData] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
   const [importLoading, setImportLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +67,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
     try {
       await faqMobileService.addFaq(newFaq);
       await fetchFaqs();
-      setNewFaq({classification: '', question: '', answer: '' });
+      setNewFaq({ classification: '', question: '', answer: '' });
       
       Swal.fire({
         icon: 'success',
@@ -204,13 +204,13 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   // Handle edit mode
   const handleEdit = (faq: FaqItem) => {
     setEditingId(faq.faq_id);
-    setEditingData({classification: faq.classification, question: faq.question, answer: faq.answer });
+    setEditingData({ classification: faq.classification, question: faq.question, answer: faq.answer });
   };
 
   // Cancel edit
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditingData({classification: '', question: '', answer: '' });
+    setEditingData({ classification: '', question: '', answer: '' });
   };
 
   // Handle import FAQ from file
@@ -450,6 +450,18 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                     <td className="px-6 py-4">
                       {editingId === faq.faq_id ? (
                         <textarea
+                          value={editingData.classification}
+                          onChange={(e) => setEditingData({ ...editingData, classification: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.classification}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingId === faq.faq_id ? (
+                        <textarea
                           value={editingData.question}
                           onChange={(e) => setEditingData({ ...editingData, question: e.target.value })}
                           rows={2}
@@ -477,7 +489,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           <>
                             <button
                               onClick={() => handleUpdateFaq(faq.faq_id)}
-                              disabled={!editingData.question.trim() || !editingData.answer.trim() || loading}
+                              disabled={!editingData.classification.trim() || !editingData.question.trim() || !editingData.answer.trim() || loading}
                               className="inline-flex items-center px-2 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               title="Lưu"
                             >
