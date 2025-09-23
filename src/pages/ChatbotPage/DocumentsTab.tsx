@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Eye, X } from 'lucide-react';
+import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3 } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -8,6 +8,25 @@ interface Document {
 }
 
 const DocumentsTab: React.FC = () => {
+  // Function to get appropriate icon based on file extension
+  const getFileIcon = (filename: string) => {
+    const extension = filename.toLowerCase().split('.').pop();
+    
+    switch (extension) {
+      case 'pdf':
+        return <File className="w-4 h-4 text-red-600" />; // PDF icon in red
+      case 'doc':
+      case 'docx':
+        return <FileText className="w-4 h-4 text-blue-600" />; // Word icon in blue
+      case 'txt':
+        return <FileText className="w-4 h-4 text-gray-600" />; // Text icon in gray
+      case 'url':
+        return <Link className="w-4 h-4 text-green-600" />; // Link icon in green
+      default:
+        // No extension or unknown extension - manual text input
+        return <Edit3 className="w-4 h-4 text-purple-600" />; // Manual input icon in purple
+    }
+  };
   const [documents, setDocuments] = useState<Document[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
@@ -541,7 +560,10 @@ const DocumentsTab: React.FC = () => {
               {sources.map((source, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center">
+                      <div className="mr-2 flex-shrink-0">
+                        {getFileIcon(source)}
+                      </div>
                       <h4 className="font-medium text-gray-900 text-sm truncate" title={source}>
                         {source}
                       </h4>
