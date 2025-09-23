@@ -523,7 +523,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const addIgnoredFromConversation = async (conv: ZaloConversation) => {
     try {
       // Hỗ trợ cả 1-1 và nhóm
-      const thread_id = (conv as any).thread_id || (conv as any).peer_id || conv.conversation_id;
+      const thread_id = (conv as any).thread_id;
       if (!thread_id) {
         alert('Không xác định được thread_id để chặn.');
         return;
