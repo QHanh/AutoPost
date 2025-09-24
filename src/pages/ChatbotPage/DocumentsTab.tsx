@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3 } from 'lucide-react';
+import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3, Globe } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -37,6 +37,10 @@ const DocumentsTab: React.FC = () => {
   const [urlSourceName, setUrlSourceName] = useState('');
   const [textInput, setTextInput] = useState('');
   const [textSourceName, setTextSourceName] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [websiteSourceName, setWebsiteSourceName] = useState('');
+  const [isUploadingWebsite, setIsUploadingWebsite] = useState(false);
+  const [websiteProgress, setWebsiteProgress] = useState<string[]>([]);
   const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,6 +194,98 @@ const DocumentsTab: React.FC = () => {
       setMessage({ type: 'error', text: 'Không thể upload URL. Vui lòng thử lại.' });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const uploadWebsite = async () => {
+    if (!websiteUrl.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập URL website' });
+      return;
+    }
+
+    if (!websiteSourceName.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên nguồn' });
+      return;
+    }
+
+    try {
+      setIsUploadingWebsite(true);
+      setWebsiteProgress([]);
+      setMessage(null);
+      
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để crawl website' });
+        return;
+      }
+
+      // Create FormData for the streaming request
+      const formData = new FormData();
+      formData.append('website_url', websiteUrl);
+      formData.append('source', websiteSourceName);
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-website`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let buffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                if (data.status === 'progress' || data.status === 'info') {
+                  setWebsiteProgress(prev => [...prev, data.message]);
+                } else if (data.status === 'success') {
+                  setWebsiteProgress(prev => [...prev, data.message]);
+                  setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+                  setWebsiteUrl('');
+                  setWebsiteSourceName('');
+                  // Reload to get real data
+                  loadDocuments();
+                  loadSources();
+                } else if (data.status === 'error') {
+                  setMessage({ type: 'error', text: data.message });
+                  break;
+                }
+              } catch (e) {
+                console.error('Error parsing SSE data:', e);
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading website:', error);
+      setMessage({ type: 'error', text: 'Không thể crawl website. Vui lòng thử lại.' });
+    } finally {
+      setIsUploadingWebsite(false);
     }
   };
 
@@ -440,6 +536,60 @@ const DocumentsTab: React.FC = () => {
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Website Crawling - Centered */}
+          <div className="mt-8 flex justify-center">
+            <div className="w-full md:w-1/2 border border-gray-300 rounded-lg p-4 space-y-4">
+              <h4 className="font-medium text-gray-900 text-center">Lấy toàn bộ Website</h4>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={websiteSourceName}
+                  onChange={(e) => setWebsiteSourceName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Nhập tên nguồn..."
+                />
+                <input
+                  type="text"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Nhập URL website (ví dụ: https://example.com)..."
+                />
+                <button
+                  onClick={uploadWebsite}
+                  disabled={isUploadingWebsite || !websiteUrl.trim() || !websiteSourceName.trim()}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isUploadingWebsite ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang crawl website...
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4 mr-2" />
+                      Crawl Website
+                    </>
+                  )}
+                </button>
+                
+                {/* Progress Display */}
+                {websiteProgress.length > 0 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border max-h-40 overflow-y-auto">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Tiến trình:</h5>
+                    <div className="space-y-1">
+                      {websiteProgress.map((progress, index) => (
+                        <div key={index} className="text-xs text-gray-600 font-mono">
+                          {progress}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
