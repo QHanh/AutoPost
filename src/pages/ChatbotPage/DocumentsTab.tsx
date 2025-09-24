@@ -785,7 +785,7 @@ const DocumentsTab: React.FC = () => {
           {/* Website Crawling - Centered */}
           <div className="mt-8 flex justify-center">
             <div className="w-full md:w-1/2 border border-gray-300 rounded-lg p-4 space-y-4">
-              <h4 className="font-medium text-gray-900 text-center">Lấy toàn bộ Website</h4>
+              <h4 className="font-medium text-gray-900">Lấy toàn bộ Website (áp dụng website có sitemap)</h4>
               <div className="space-y-3">
                 <input
                   type="text"
