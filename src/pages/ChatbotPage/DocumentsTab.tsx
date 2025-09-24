@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Eye, X } from 'lucide-react';
+import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3, Globe, StopCircle } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -8,6 +8,25 @@ interface Document {
 }
 
 const DocumentsTab: React.FC = () => {
+  // Function to get appropriate icon based on file extension
+  const getFileIcon = (filename: string) => {
+    const extension = filename.toLowerCase().split('.').pop();
+    
+    switch (extension) {
+      case 'pdf':
+        return <File className="w-4 h-4 text-red-600" />; // PDF icon in red
+      case 'doc':
+      case 'docx':
+        return <FileText className="w-4 h-4 text-blue-600" />; // Word icon in blue
+      case 'txt':
+        return <FileText className="w-4 h-4 text-gray-600" />; // Text icon in gray
+      case 'url':
+        return <Link className="w-4 h-4 text-green-600" />; // Link icon in green
+      default:
+        // No extension or unknown extension - manual text input
+        return <Edit3 className="w-4 h-4 text-purple-600" />; // Manual input icon in purple
+    }
+  };
   const [documents, setDocuments] = useState<Document[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
@@ -18,6 +37,12 @@ const DocumentsTab: React.FC = () => {
   const [urlSourceName, setUrlSourceName] = useState('');
   const [textInput, setTextInput] = useState('');
   const [textSourceName, setTextSourceName] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [websiteSourceName, setWebsiteSourceName] = useState('');
+  const [isUploadingWebsite, setIsUploadingWebsite] = useState(false);
+  const [websiteProgress, setWebsiteProgress] = useState<string[]>([]);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<number | null>(null);
   const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +52,15 @@ const DocumentsTab: React.FC = () => {
     loadDocuments();
     loadSources();
   }, []);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   const loadDocuments = async () => {
     try {
@@ -171,6 +205,329 @@ const DocumentsTab: React.FC = () => {
       setMessage({ type: 'error', text: 'Không thể upload URL. Vui lòng thử lại.' });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const uploadWebsite = async () => {
+    if (!websiteUrl.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập URL website' });
+      return;
+    }
+
+    if (!websiteSourceName.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập tên nguồn' });
+      return;
+    }
+
+    try {
+      setIsUploadingWebsite(true);
+      setWebsiteProgress([]);
+      setMessage(null);
+      setCurrentTaskId(null);
+      
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để crawl website' });
+        return;
+      }
+
+      // Step 1: Start the crawl task
+      const formData = new FormData();
+      formData.append('website_url', websiteUrl);
+      formData.append('source', websiteSourceName);
+
+      const startResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-website`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!startResponse.ok) {
+        throw new Error(`HTTP error! status: ${startResponse.status}`);
+      }
+
+      const startResult = await startResponse.json();
+      const taskId = startResult.task_id;
+      
+      if (!taskId) {
+        throw new Error('Không nhận được task_id từ server');
+      }
+
+      setCurrentTaskId(taskId);
+      setWebsiteProgress(prev => [...prev, `✅ Đã bắt đầu crawl website với task ID: ${taskId}`]);
+
+      // Step 2: Stream progress using the task_id
+      await streamProgress(taskId, token);
+
+    } catch (error) {
+      console.error('Error uploading website:', error);
+      setMessage({ type: 'error', text: 'Không thể crawl website. Vui lòng thử lại.' });
+      setIsUploadingWebsite(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  const streamProgress = async (taskId: string, token: string, retryCount = 0) => {
+    const maxRetries = 3;
+    
+    try {
+      console.log(`🔄 Starting stream for task ${taskId} (attempt ${retryCount + 1})`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Stream timeout, aborting...');
+        controller.abort();
+      }, 300000); // 5 minutes timeout
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/sitemap-progress/${taskId}`, {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let buffer = '';
+        let lastMessageTime = Date.now();
+        
+        while (true) {
+          try {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              console.log('📡 Stream ended normally');
+              break;
+            }
+            
+            lastMessageTime = Date.now();
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            
+            // Keep the last incomplete line in buffer
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+              if (line.trim() === '') continue; // Skip empty lines
+              
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonStr = line.slice(6).trim();
+                  if (jsonStr === '') continue; // Skip empty data
+                  
+                  const data = JSON.parse(jsonStr);
+                  console.log('📨 Received:', data);
+                  
+                  if (data.status === 'progress' || data.status === 'info') {
+                    setWebsiteProgress(prev => [...prev, data.message]);
+                  } else if (data.status === 'success') {
+                    setWebsiteProgress(prev => [...prev, data.message]);
+                    setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+                    setWebsiteUrl('');
+                    setWebsiteSourceName('');
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    // Reload to get real data
+                    loadDocuments();
+                    loadSources();
+                    return;
+                  } else if (data.status === 'error') {
+                    setMessage({ type: 'error', text: data.message });
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    return;
+                  } else if (data.status === 'completed') {
+                    // Task completed, stop streaming
+                    console.log('✅ Task completed');
+                    setWebsiteProgress(prev => [...prev, '✅ Crawl hoàn tất']);
+                    setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+                    setWebsiteUrl('');
+                    setWebsiteSourceName('');
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    loadDocuments();
+                    loadSources();
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e, 'Line:', line);
+                }
+              } else if (line.startsWith('event: ') || line.startsWith('id: ') || line.startsWith('retry: ')) {
+                // Handle other SSE fields
+                console.log('📋 SSE field:', line);
+              }
+            }
+            
+            // Check for connection timeout (no messages for 60 seconds)
+            if (Date.now() - lastMessageTime > 60000) {
+              console.log('⚠️ No messages for 60s, connection might be dead');
+              throw new Error('Stream timeout - no messages received');
+            }
+            
+          } catch (readError) {
+            if (readError.name === 'AbortError') {
+              console.log('🛑 Stream aborted');
+              throw readError;
+            }
+            console.error('Read error:', readError);
+            throw readError;
+          }
+        }
+        
+        // If we reach here, stream ended without completion
+        console.log('⚠️ Stream ended without completion message');
+        if (retryCount < maxRetries) {
+          console.log(`🔄 Retrying stream (${retryCount + 1}/${maxRetries})`);
+          setWebsiteProgress(prev => [...prev, `🔄 Kết nối bị gián đoạn, đang thử lại... (${retryCount + 1}/${maxRetries})`]);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+          return streamProgress(taskId, token, retryCount + 1);
+        } else {
+          // If all retries failed, start polling as backup
+          console.log('🔄 Stream failed, switching to polling backup');
+          setWebsiteProgress(prev => [...prev, '🔄 Chuyển sang kiểm tra định kỳ...']);
+          startPollingBackup(taskId, token);
+        }
+      }
+    } catch (error) {
+      console.error('Error streaming progress:', error);
+      
+      if (error.name === 'AbortError') {
+        setMessage({ type: 'error', text: 'Stream bị timeout. Vui lòng kiểm tra lại tiến trình.' });
+      } else if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying after error (${retryCount + 1}/${maxRetries})`);
+        setWebsiteProgress(prev => [...prev, `❌ Lỗi kết nối, đang thử lại... (${retryCount + 1}/${maxRetries})`]);
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s before retry
+        return streamProgress(taskId, token, retryCount + 1);
+      } else {
+        setMessage({ type: 'error', text: 'Không thể theo dõi tiến trình sau nhiều lần thử. Vui lòng kiểm tra lại.' });
+      }
+    } finally {
+      if (retryCount >= maxRetries || !currentTaskId) {
+        setIsUploadingWebsite(false);
+        setCurrentTaskId(null);
+      }
+    }
+  };
+
+  const startPollingBackup = (taskId: string, token: string) => {
+    console.log('📊 Starting polling backup for task:', taskId);
+    setWebsiteProgress(prev => [...prev, '📊 Bắt đầu kiểm tra định kỳ trạng thái...']);
+    
+    const interval = setInterval(async () => {
+      try {
+        console.log('🔍 Polling task status...');
+        
+        // Call the same progress endpoint but without streaming
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/sitemap-progress/${taskId}`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json' // Request JSON instead of SSE
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📊 Polling response:', data);
+          
+          if (data.status === 'completed' || data.status === 'success') {
+            clearInterval(interval);
+            setPollingInterval(null);
+            setWebsiteProgress(prev => [...prev, '✅ Crawl hoàn tất (qua polling)']);
+            setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+            setWebsiteUrl('');
+            setWebsiteSourceName('');
+            setCurrentTaskId(null);
+            setIsUploadingWebsite(false);
+            loadDocuments();
+            loadSources();
+          } else if (data.status === 'error' || data.status === 'failed') {
+            clearInterval(interval);
+            setPollingInterval(null);
+            setMessage({ type: 'error', text: data.message || 'Crawl thất bại' });
+            setCurrentTaskId(null);
+            setIsUploadingWebsite(false);
+          } else if (data.message) {
+            // Still in progress, show latest message
+            setWebsiteProgress(prev => {
+              const newProgress = [...prev];
+              if (newProgress[newProgress.length - 1] !== data.message) {
+                newProgress.push(`📊 ${data.message}`);
+              }
+              return newProgress;
+            });
+          }
+        } else {
+          console.error('Polling failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    setPollingInterval(interval);
+    
+    // Stop polling after 10 minutes
+    setTimeout(() => {
+      clearInterval(interval);
+      setPollingInterval(null);
+      if (currentTaskId === taskId) {
+        setMessage({ type: 'error', text: 'Timeout: Không thể hoàn thành crawl trong thời gian cho phép' });
+        setCurrentTaskId(null);
+        setIsUploadingWebsite(false);
+      }
+    }, 600000); // 10 minutes
+  };
+
+  const cancelCrawl = async () => {
+    if (!currentTaskId) return;
+
+    try {
+      // Stop polling if it's running
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để hủy crawl' });
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/cancel-crawl/${currentTaskId}`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Đã hủy tiến trình crawl website' });
+        setWebsiteProgress(prev => [...prev, '❌ Tiến trình đã được hủy bởi người dùng']);
+      } else {
+        throw new Error('Không thể hủy tiến trình');
+      }
+    } catch (error) {
+      console.error('Error canceling crawl:', error);
+      setMessage({ type: 'error', text: 'Không thể hủy tiến trình. Vui lòng thử lại.' });
+    } finally {
+      setIsUploadingWebsite(false);
+      setCurrentTaskId(null);
     }
   };
 
@@ -424,6 +781,74 @@ const DocumentsTab: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Website Crawling - Centered */}
+          <div className="mt-8 flex justify-center">
+            <div className="w-full md:w-1/2 border border-gray-300 rounded-lg p-4 space-y-4">
+              <h4 className="font-medium text-gray-900">Lấy toàn bộ Website (áp dụng website có sitemap)</h4>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={websiteSourceName}
+                  onChange={(e) => setWebsiteSourceName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Nhập tên nguồn..."
+                />
+                <input
+                  type="text"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Nhập URL website (ví dụ: https://example.com)..."
+                />
+                {/* Button Group */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={uploadWebsite}
+                    disabled={isUploadingWebsite || !websiteUrl.trim() || !websiteSourceName.trim()}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isUploadingWebsite ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang crawl website...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4 mr-2" />
+                        Crawl Website
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Cancel Button - only show when crawling */}
+                  {isUploadingWebsite && currentTaskId && (
+                    <button
+                      onClick={cancelCrawl}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center"
+                    >
+                      <StopCircle className="w-4 h-4 mr-2" />
+                      Dừng
+                    </button>
+                  )}
+                </div>
+                
+                {/* Progress Display */}
+                {websiteProgress.length > 0 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border max-h-40 overflow-y-auto">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Tiến trình:</h5>
+                    <div className="space-y-1">
+                      {websiteProgress.map((progress, index) => (
+                        <div key={index} className="text-xs text-gray-600 font-mono">
+                          {progress}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
 
@@ -541,7 +966,10 @@ const DocumentsTab: React.FC = () => {
               {sources.map((source, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex items-center">
+                      <div className="mr-2 flex-shrink-0">
+                        {getFileIcon(source)}
+                      </div>
                       <h4 className="font-medium text-gray-900 text-sm truncate" title={source}>
                         {source}
                       </h4>

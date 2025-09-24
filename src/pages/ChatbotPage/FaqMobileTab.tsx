@@ -16,17 +16,18 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newFaq, setNewFaq] = useState<FaqCreate>({ question: '', answer: '' });
+  const [newFaq, setNewFaq] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<FaqCreate>({ question: '', answer: '' });
+  const [editingData, setEditingData] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
   const [importLoading, setImportLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter FAQs based on search term
   const filteredFaqs = faqs.filter(faq =>
-    faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
+    (faq.classification || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (faq.question || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (faq.answer || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Fetch FAQs from API
@@ -53,7 +54,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
   // Handle add new FAQ
   const handleAddFaq = async () => {
-    if (!newFaq.question.trim() || !newFaq.answer.trim()) {
+    if (!newFaq.classification.trim() || !newFaq.question.trim() || !newFaq.answer.trim()) {
       Swal.fire({
         icon: 'warning',
         title: 'Thông báo',
@@ -66,7 +67,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
     try {
       await faqMobileService.addFaq(newFaq);
       await fetchFaqs();
-      setNewFaq({ question: '', answer: '' });
+      setNewFaq({ classification: '', question: '', answer: '' });
       
       Swal.fire({
         icon: 'success',
@@ -89,7 +90,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
   // Handle update FAQ
   const handleUpdateFaq = async (faqId: string) => {
-    if (!editingData.question.trim() || !editingData.answer.trim()) {
+    if (!editingData.classification.trim() || !editingData.question.trim() || !editingData.answer.trim()) {
       Swal.fire({
         icon: 'warning',
         title: 'Thông báo',
@@ -103,7 +104,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
       await faqMobileService.updateFaq(faqId, editingData);
       await fetchFaqs();
       setEditingId(null);
-      setEditingData({ question: '', answer: '' });
+      setEditingData({ classification: '', question: '', answer: '' });
       
       Swal.fire({
         icon: 'success',
@@ -203,13 +204,13 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   // Handle edit mode
   const handleEdit = (faq: FaqItem) => {
     setEditingId(faq.faq_id);
-    setEditingData({ question: faq.question, answer: faq.answer });
+    setEditingData({ classification: faq.classification, question: faq.question, answer: faq.answer });
   };
 
   // Cancel edit
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditingData({ question: '', answer: '' });
+    setEditingData({ classification: '', question: '', answer: '' });
   };
 
   // Handle import FAQ from file
@@ -388,10 +389,13 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                    Phân loại
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                     Câu hỏi
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                     Câu trả lời
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
@@ -402,6 +406,15 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {/* Add new FAQ row - always first */}
                 <tr className="bg-blue-50">
+                  <td className="px-6 py-4">
+                    <textarea
+                      value={newFaq.classification}
+                      onChange={(e) => setNewFaq({ ...newFaq, classification: e.target.value })}
+                      placeholder="Nhập phân loại mới..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                    />
+                  </td>
                   <td className="px-6 py-4">
                     <textarea
                       value={newFaq.question}
@@ -423,7 +436,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={handleAddFaq}
-                      disabled={!newFaq.question.trim() || !newFaq.answer.trim() || loading}
+                      disabled={!newFaq.classification.trim() || !newFaq.question.trim() || !newFaq.answer.trim() || loading}
                       className="inline-flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Check className="h-4 w-4" />
@@ -434,6 +447,18 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                 {/* Existing FAQs */}
                 {filteredFaqs.map((faq) => (
                   <tr key={faq.faq_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      {editingId === faq.faq_id ? (
+                        <textarea
+                          value={editingData.classification}
+                          onChange={(e) => setEditingData({ ...editingData, classification: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                        />
+                      ) : (
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.classification}</div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       {editingId === faq.faq_id ? (
                         <textarea
@@ -464,7 +489,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           <>
                             <button
                               onClick={() => handleUpdateFaq(faq.faq_id)}
-                              disabled={!editingData.question.trim() || !editingData.answer.trim() || loading}
+                              disabled={!editingData.classification.trim() || !editingData.question.trim() || !editingData.answer.trim() || loading}
                               className="inline-flex items-center px-2 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               title="Lưu"
                             >

@@ -4,12 +4,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:
 
 export interface FaqItem {
   faq_id: string;
+  classification: string;
   question: string;
   answer: string;
   customer_id: string;
 }
 
 export interface FaqCreate {
+  classification: string;
   question: string;
   answer: string;
 }
