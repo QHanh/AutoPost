@@ -402,12 +402,12 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
 
   const handlePageChangeInternal = (newPage: number) => {
     console.log('DevicesTab: handlePageChangeInternal called with', newPage);
-    // Update URL through parent component
+    // Optimistically update local pagination and fetch immediately
+    setPagination(prev => ({ ...prev, page: newPage }));
+    fetchUserDevices({ page: newPage, limit: pagination.limit });
+    // Update URL through parent component (if provided)
     if (onPageChange) {
       onPageChange(newPage);
-    } else {
-      // Fallback to internal state if no URL sync
-      setPagination(prev => ({ ...prev, page: newPage }));
     }
   };
 
