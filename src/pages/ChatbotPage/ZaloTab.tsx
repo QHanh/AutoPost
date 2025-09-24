@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut } from 'lucide-react';
 import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo } from '../../services/zaloService';
 import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
+import { getMyBotConfig, upsertMyBotConfig, BotConfig } from '../../services/botConfigService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
 
 interface ZaloTabProps {
@@ -41,6 +42,12 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [ignoredItems, setIgnoredItems] = useState<IgnoredConversation[]>([]);
   const [isIgnoring, setIsIgnoring] = useState<boolean>(false);
   const [deletingIgnoredId, setDeletingIgnoredId] = useState<string | null>(null);
+  
+  // Bot config states
+  const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
+  const [isLoadingBotConfig, setIsLoadingBotConfig] = useState<boolean>(false);
+  const [isSavingBotConfig, setIsSavingBotConfig] = useState<boolean>(false);
+  const [stopMinutes, setStopMinutes] = useState<number>(0);
 
   const addStaffFromConversation = async (conv: ZaloConversation) => {
     try {
@@ -76,6 +83,41 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       console.error('Error loading ignored conversations:', e);
     } finally {
       setIsLoadingIgnored(false);
+    }
+  };
+
+  const loadBotConfig = async () => {
+    setIsLoadingBotConfig(true);
+    try {
+      const resp = await getMyBotConfig();
+      const config = resp.data;
+      if (config) {
+        setBotConfig(config);
+        setStopMinutes(config.stop_minutes || 10);
+      }
+    } catch (e: any) {
+      // Nếu không tìm thấy config, tạo mặc định
+      if (e.message?.includes('404') || e.message?.includes('Không tìm thấy')) {
+        setStopMinutes(10);
+        setBotConfig(null);
+      } else {
+        console.error('Error loading bot config:', e);
+      }
+    } finally {
+      setIsLoadingBotConfig(false);
+    }
+  };
+
+  const saveBotConfig = async () => {
+    setIsSavingBotConfig(true);
+    try {
+      const resp = await upsertMyBotConfig({ stop_minutes: stopMinutes });
+      setBotConfig(resp.data || null);
+      alert('Đã lưu cấu hình bot thành công!');
+    } catch (e: any) {
+      alert(`Lỗi khi lưu cấu hình bot: ${e?.message || e}`);
+    } finally {
+      setIsSavingBotConfig(false);
     }
   };
 
@@ -507,6 +549,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   useEffect(() => {
     if (status === 'SessionSaved' && subTab === 'ignored') {
       loadIgnored();
+      loadBotConfig();
     }
   }, [subTab, status]);
 
@@ -901,16 +944,65 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
             {subTab === 'ignored' && (
               <div className="bg-white rounded-lg shadow-sm p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-800">Danh sách không trả lời</h4>
-                  <button
-                    onClick={loadIgnored}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
-                    disabled={isLoadingIgnored}
-                  >
-                    <RefreshCw size={16} className={isLoadingIgnored ? 'animate-spin' : ''} />
-                    Làm mới
-                  </button>
+                  <h4 className="font-semibold text-gray-800">quản lý chatbot cho zalo</h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={loadBotConfig}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                      disabled={isLoadingBotConfig}
+                    >
+                      <RefreshCw size={16} className={isLoadingBotConfig ? 'animate-spin' : ''} />
+                      Tải cấu hình
+                    </button>
+                    <button
+                      onClick={loadIgnored}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                      disabled={isLoadingIgnored}
+                    >
+                      <RefreshCw size={16} className={isLoadingIgnored ? 'animate-spin' : ''} />
+                      Làm mới danh sách
+                    </button>
+                  </div>
                 </div>
+
+                {/* Bot config section */}
+                <div className="mb-4 rounded border border-gray-200 p-3 bg-gray-50">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium text-gray-800">Cấu hình tạm dừng phản hồi</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Đặt số phút bot sẽ không trả lời tin nhắn mới (áp dụng cho tài khoản của bạn).
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Số phút:</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={Number.isFinite(stopMinutes) ? stopMinutes : 0}
+                        onChange={(e) => setStopMinutes(Math.max(0, Number(e.currentTarget.value)))}
+                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm"
+                      />
+                      <button
+                        onClick={saveBotConfig}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-60"
+                        disabled={isSavingBotConfig}
+                      >
+                        {isSavingBotConfig ? 'Đang lưu...' : 'Lưu cấu hình'}
+                      </button>
+                    </div>
+                    {botConfig && (
+                      <div className="text-xs text-gray-500 mt-2 sm:mt-0">
+                        Cập nhật gần nhất: {botConfig.updated_at ? new Date(botConfig.updated_at).toLocaleString('vi-VN') : (botConfig.created_at ? new Date(botConfig.created_at).toLocaleString('vi-VN') : 'Chưa có')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="font-semibold text-gray-800">Danh sách không trả lời</h5>
+                </div>
+
                 {isLoadingIgnored ? (
                   <div className="p-4 text-center text-gray-500">
                     <Clock className="animate-spin mx-auto mb-2" size={20} />
