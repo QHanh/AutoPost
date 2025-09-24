@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3, Globe } from 'lucide-react';
+import { Upload, FileText, Trash2, Eye, X, File, Link, Edit3, Globe, StopCircle } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -41,6 +41,7 @@ const DocumentsTab: React.FC = () => {
   const [websiteSourceName, setWebsiteSourceName] = useState('');
   const [isUploadingWebsite, setIsUploadingWebsite] = useState(false);
   const [websiteProgress, setWebsiteProgress] = useState<string[]>([]);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -212,6 +213,7 @@ const DocumentsTab: React.FC = () => {
       setIsUploadingWebsite(true);
       setWebsiteProgress([]);
       setMessage(null);
+      setCurrentTaskId(null);
       
       const token = localStorage.getItem('auth_token');
       if (!token) {
@@ -219,19 +221,53 @@ const DocumentsTab: React.FC = () => {
         return;
       }
 
-      // Create FormData for the streaming request
+      // Step 1: Start the crawl task
       const formData = new FormData();
       formData.append('website_url', websiteUrl);
       formData.append('source', websiteSourceName);
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-website`, {
+      const startResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/upload-website`, {
         method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!startResponse.ok) {
+        throw new Error(`HTTP error! status: ${startResponse.status}`);
+      }
+
+      const startResult = await startResponse.json();
+      const taskId = startResult.task_id;
+      
+      if (!taskId) {
+        throw new Error('Không nhận được task_id từ server');
+      }
+
+      setCurrentTaskId(taskId);
+      setWebsiteProgress(prev => [...prev, `✅ Đã bắt đầu crawl website với task ID: ${taskId}`]);
+
+      // Step 2: Stream progress using the task_id
+      await streamProgress(taskId, token);
+
+    } catch (error) {
+      console.error('Error uploading website:', error);
+      setMessage({ type: 'error', text: 'Không thể crawl website. Vui lòng thử lại.' });
+      setIsUploadingWebsite(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  const streamProgress = async (taskId: string, token: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/sitemap-progress/${taskId}`, {
+        method: 'GET',
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache'
-        },
-        body: formData
+        }
       });
       
       if (!response.ok) {
@@ -267,12 +303,17 @@ const DocumentsTab: React.FC = () => {
                   setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
                   setWebsiteUrl('');
                   setWebsiteSourceName('');
+                  setCurrentTaskId(null);
+                  setIsUploadingWebsite(false);
                   // Reload to get real data
                   loadDocuments();
                   loadSources();
+                  return;
                 } else if (data.status === 'error') {
                   setMessage({ type: 'error', text: data.message });
-                  break;
+                  setCurrentTaskId(null);
+                  setIsUploadingWebsite(false);
+                  return;
                 }
               } catch (e) {
                 console.error('Error parsing SSE data:', e);
@@ -282,10 +323,43 @@ const DocumentsTab: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error uploading website:', error);
-      setMessage({ type: 'error', text: 'Không thể crawl website. Vui lòng thử lại.' });
+      console.error('Error streaming progress:', error);
+      setMessage({ type: 'error', text: 'Không thể theo dõi tiến trình. Vui lòng thử lại.' });
     } finally {
       setIsUploadingWebsite(false);
+      setCurrentTaskId(null);
+    }
+  };
+
+  const cancelCrawl = async () => {
+    if (!currentTaskId) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để hủy crawl' });
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/cancel-crawl/${currentTaskId}`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Đã hủy tiến trình crawl website' });
+        setWebsiteProgress(prev => [...prev, '❌ Tiến trình đã được hủy bởi người dùng']);
+      } else {
+        throw new Error('Không thể hủy tiến trình');
+      }
+    } catch (error) {
+      console.error('Error canceling crawl:', error);
+      setMessage({ type: 'error', text: 'Không thể hủy tiến trình. Vui lòng thử lại.' });
+    } finally {
+      setIsUploadingWebsite(false);
+      setCurrentTaskId(null);
     }
   };
 
@@ -559,23 +633,37 @@ const DocumentsTab: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Nhập URL website (ví dụ: https://example.com)..."
                 />
-                <button
-                  onClick={uploadWebsite}
-                  disabled={isUploadingWebsite || !websiteUrl.trim() || !websiteSourceName.trim()}
-                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {isUploadingWebsite ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Đang crawl website...
-                    </>
-                  ) : (
-                    <>
-                      <Globe className="w-4 h-4 mr-2" />
-                      Crawl Website
-                    </>
+                {/* Button Group */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={uploadWebsite}
+                    disabled={isUploadingWebsite || !websiteUrl.trim() || !websiteSourceName.trim()}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {isUploadingWebsite ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang crawl website...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4 mr-2" />
+                        Crawl Website
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Cancel Button - only show when crawling */}
+                  {isUploadingWebsite && currentTaskId && (
+                    <button
+                      onClick={cancelCrawl}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center"
+                    >
+                      <StopCircle className="w-4 h-4 mr-2" />
+                      Dừng
+                    </button>
                   )}
-                </button>
+                </div>
                 
                 {/* Progress Display */}
                 {websiteProgress.length > 0 && (

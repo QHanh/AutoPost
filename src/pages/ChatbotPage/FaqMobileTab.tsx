@@ -411,7 +411,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                       value={newFaq.classification}
                       onChange={(e) => setNewFaq({ ...newFaq, classification: e.target.value })}
                       placeholder="Nhập phân loại mới..."
-                      rows={1}
+                      rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                     />
                   </td>
@@ -452,7 +452,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                         <textarea
                           value={editingData.classification}
                           onChange={(e) => setEditingData({ ...editingData, classification: e.target.value })}
-                          rows={1}
+                          rows={2}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                         />
                       ) : (
