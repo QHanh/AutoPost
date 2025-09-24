@@ -42,6 +42,7 @@ const DocumentsTab: React.FC = () => {
   const [isUploadingWebsite, setIsUploadingWebsite] = useState(false);
   const [websiteProgress, setWebsiteProgress] = useState<string[]>([]);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<number | null>(null);
   const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +52,15 @@ const DocumentsTab: React.FC = () => {
     loadDocuments();
     loadSources();
   }, []);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   const loadDocuments = async () => {
     try {
@@ -259,16 +269,30 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
-  const streamProgress = async (taskId: string, token: string) => {
+  const streamProgress = async (taskId: string, token: string, retryCount = 0) => {
+    const maxRetries = 3;
+    
     try {
+      console.log(`🔄 Starting stream for task ${taskId} (attempt ${retryCount + 1})`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Stream timeout, aborting...');
+        controller.abort();
+      }, 300000); // 5 minutes timeout
+      
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/sitemap-progress/${taskId}`, {
         method: 'GET',
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache'
-        }
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -279,62 +303,206 @@ const DocumentsTab: React.FC = () => {
 
       if (reader) {
         let buffer = '';
+        let lastMessageTime = Date.now();
         
         while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) break;
-          
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          
-          // Keep the last incomplete line in buffer
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                
-                if (data.status === 'progress' || data.status === 'info') {
-                  setWebsiteProgress(prev => [...prev, data.message]);
-                } else if (data.status === 'success') {
-                  setWebsiteProgress(prev => [...prev, data.message]);
-                  setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
-                  setWebsiteUrl('');
-                  setWebsiteSourceName('');
-                  setCurrentTaskId(null);
-                  setIsUploadingWebsite(false);
-                  // Reload to get real data
-                  loadDocuments();
-                  loadSources();
-                  return;
-                } else if (data.status === 'error') {
-                  setMessage({ type: 'error', text: data.message });
-                  setCurrentTaskId(null);
-                  setIsUploadingWebsite(false);
-                  return;
+          try {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              console.log('📡 Stream ended normally');
+              break;
+            }
+            
+            lastMessageTime = Date.now();
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            
+            // Keep the last incomplete line in buffer
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+              if (line.trim() === '') continue; // Skip empty lines
+              
+              if (line.startsWith('data: ')) {
+                try {
+                  const jsonStr = line.slice(6).trim();
+                  if (jsonStr === '') continue; // Skip empty data
+                  
+                  const data = JSON.parse(jsonStr);
+                  console.log('📨 Received:', data);
+                  
+                  if (data.status === 'progress' || data.status === 'info') {
+                    setWebsiteProgress(prev => [...prev, data.message]);
+                  } else if (data.status === 'success') {
+                    setWebsiteProgress(prev => [...prev, data.message]);
+                    setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+                    setWebsiteUrl('');
+                    setWebsiteSourceName('');
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    // Reload to get real data
+                    loadDocuments();
+                    loadSources();
+                    return;
+                  } else if (data.status === 'error') {
+                    setMessage({ type: 'error', text: data.message });
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    return;
+                  } else if (data.status === 'completed') {
+                    // Task completed, stop streaming
+                    console.log('✅ Task completed');
+                    setWebsiteProgress(prev => [...prev, '✅ Crawl hoàn tất']);
+                    setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+                    setWebsiteUrl('');
+                    setWebsiteSourceName('');
+                    setCurrentTaskId(null);
+                    setIsUploadingWebsite(false);
+                    loadDocuments();
+                    loadSources();
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e, 'Line:', line);
                 }
-              } catch (e) {
-                console.error('Error parsing SSE data:', e);
+              } else if (line.startsWith('event: ') || line.startsWith('id: ') || line.startsWith('retry: ')) {
+                // Handle other SSE fields
+                console.log('📋 SSE field:', line);
               }
             }
+            
+            // Check for connection timeout (no messages for 60 seconds)
+            if (Date.now() - lastMessageTime > 60000) {
+              console.log('⚠️ No messages for 60s, connection might be dead');
+              throw new Error('Stream timeout - no messages received');
+            }
+            
+          } catch (readError) {
+            if (readError.name === 'AbortError') {
+              console.log('🛑 Stream aborted');
+              throw readError;
+            }
+            console.error('Read error:', readError);
+            throw readError;
           }
+        }
+        
+        // If we reach here, stream ended without completion
+        console.log('⚠️ Stream ended without completion message');
+        if (retryCount < maxRetries) {
+          console.log(`🔄 Retrying stream (${retryCount + 1}/${maxRetries})`);
+          setWebsiteProgress(prev => [...prev, `🔄 Kết nối bị gián đoạn, đang thử lại... (${retryCount + 1}/${maxRetries})`]);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+          return streamProgress(taskId, token, retryCount + 1);
+        } else {
+          // If all retries failed, start polling as backup
+          console.log('🔄 Stream failed, switching to polling backup');
+          setWebsiteProgress(prev => [...prev, '🔄 Chuyển sang kiểm tra định kỳ...']);
+          startPollingBackup(taskId, token);
         }
       }
     } catch (error) {
       console.error('Error streaming progress:', error);
-      setMessage({ type: 'error', text: 'Không thể theo dõi tiến trình. Vui lòng thử lại.' });
+      
+      if (error.name === 'AbortError') {
+        setMessage({ type: 'error', text: 'Stream bị timeout. Vui lòng kiểm tra lại tiến trình.' });
+      } else if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying after error (${retryCount + 1}/${maxRetries})`);
+        setWebsiteProgress(prev => [...prev, `❌ Lỗi kết nối, đang thử lại... (${retryCount + 1}/${maxRetries})`]);
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s before retry
+        return streamProgress(taskId, token, retryCount + 1);
+      } else {
+        setMessage({ type: 'error', text: 'Không thể theo dõi tiến trình sau nhiều lần thử. Vui lòng kiểm tra lại.' });
+      }
     } finally {
-      setIsUploadingWebsite(false);
-      setCurrentTaskId(null);
+      if (retryCount >= maxRetries || !currentTaskId) {
+        setIsUploadingWebsite(false);
+        setCurrentTaskId(null);
+      }
     }
+  };
+
+  const startPollingBackup = (taskId: string, token: string) => {
+    console.log('📊 Starting polling backup for task:', taskId);
+    setWebsiteProgress(prev => [...prev, '📊 Bắt đầu kiểm tra định kỳ trạng thái...']);
+    
+    const interval = setInterval(async () => {
+      try {
+        console.log('🔍 Polling task status...');
+        
+        // Call the same progress endpoint but without streaming
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/sitemap-progress/${taskId}`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json' // Request JSON instead of SSE
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📊 Polling response:', data);
+          
+          if (data.status === 'completed' || data.status === 'success') {
+            clearInterval(interval);
+            setPollingInterval(null);
+            setWebsiteProgress(prev => [...prev, '✅ Crawl hoàn tất (qua polling)']);
+            setMessage({ type: 'success', text: 'Website đã được crawl thành công!' });
+            setWebsiteUrl('');
+            setWebsiteSourceName('');
+            setCurrentTaskId(null);
+            setIsUploadingWebsite(false);
+            loadDocuments();
+            loadSources();
+          } else if (data.status === 'error' || data.status === 'failed') {
+            clearInterval(interval);
+            setPollingInterval(null);
+            setMessage({ type: 'error', text: data.message || 'Crawl thất bại' });
+            setCurrentTaskId(null);
+            setIsUploadingWebsite(false);
+          } else if (data.message) {
+            // Still in progress, show latest message
+            setWebsiteProgress(prev => {
+              const newProgress = [...prev];
+              if (newProgress[newProgress.length - 1] !== data.message) {
+                newProgress.push(`📊 ${data.message}`);
+              }
+              return newProgress;
+            });
+          }
+        } else {
+          console.error('Polling failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    setPollingInterval(interval);
+    
+    // Stop polling after 10 minutes
+    setTimeout(() => {
+      clearInterval(interval);
+      setPollingInterval(null);
+      if (currentTaskId === taskId) {
+        setMessage({ type: 'error', text: 'Timeout: Không thể hoàn thành crawl trong thời gian cho phép' });
+        setCurrentTaskId(null);
+        setIsUploadingWebsite(false);
+      }
+    }, 600000); // 10 minutes
   };
 
   const cancelCrawl = async () => {
     if (!currentTaskId) return;
 
     try {
+      // Stop polling if it's running
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+
       const token = localStorage.getItem('auth_token');
       if (!token) {
         setMessage({ type: 'error', text: 'Vui lòng đăng nhập để hủy crawl' });
