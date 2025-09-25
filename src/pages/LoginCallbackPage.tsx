@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -6,14 +6,19 @@ export const LoginCallbackPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { saveToken } = useAuth();
+  const handledRef = useRef(false);
 
   useEffect(() => {
+    if (handledRef.current) return; // Prevent double-invocation in StrictMode
+    handledRef.current = true;
+
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
 
     const handleLogin = async (authToken: string) => {
       await saveToken(authToken);
-      window.location.href = '/accounts';
+      // Use client-side navigation to avoid full page reload that cancels in-flight requests
+      navigate('/accounts', { replace: true });
     };
 
     if (token) {

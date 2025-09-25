@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -8,12 +9,13 @@ export const LoginPage: React.FC = () => {
     username: '',
     password: ''
   });
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const { login } = useAuth();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,6 @@ export const LoginPage: React.FC = () => {
       setMessage({ type: 'error', text: 'Vui lòng điền đầy đủ thông tin.' });
       return;
     }
-
     setIsLoading(true);
     setMessage(null);
 
@@ -30,16 +31,14 @@ export const LoginPage: React.FC = () => {
     
     if (result.success) {
       setMessage({ type: 'success', text: result.message });
-      
-      // Tự động refresh trang và chuyển hướng
+      // Điều hướng nội bộ để cập nhật UI mà không reload trang
       setTimeout(() => {
-        // Force refresh để cập nhật header
-        window.location.href = '/accounts';
+        navigate('/accounts', { replace: true });
       }, 300);
     } else {
       setMessage({ type: 'error', text: result.message });
     }
-    
+
     setIsLoading(false);
   };
 
