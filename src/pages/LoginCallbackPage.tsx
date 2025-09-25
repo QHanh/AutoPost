@@ -5,8 +5,16 @@ import { useAuth } from '../hooks/useAuth';
 export const LoginCallbackPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { saveToken } = useAuth();
+  const { saveToken, isAuthenticated } = useAuth();
   const handledRef = useRef(false);
+  const tokenProcessedRef = useRef(false);
+
+  // Navigate when authentication is confirmed
+  useEffect(() => {
+    if (isAuthenticated && tokenProcessedRef.current) {
+      navigate('/accounts', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (handledRef.current) return; // Prevent double-invocation in StrictMode
@@ -16,11 +24,9 @@ export const LoginCallbackPage: React.FC = () => {
     const token = params.get('token');
 
     const handleLogin = async (authToken: string) => {
+      tokenProcessedRef.current = true;
       await saveToken(authToken);
-      // Wait a bit for auth state to propagate before navigating
-      setTimeout(() => {
-        navigate('/accounts', { replace: true });
-      }, 100);
+      // Navigation will happen in the other useEffect when isAuthenticated becomes true
     };
 
     if (token) {

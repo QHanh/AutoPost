@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
@@ -13,9 +13,17 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate when authentication is confirmed after successful login
+  useEffect(() => {
+    if (isAuthenticated && loginSuccess) {
+      navigate('/accounts', { replace: true });
+    }
+  }, [isAuthenticated, loginSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +39,7 @@ export const LoginPage: React.FC = () => {
     
     if (result.success) {
       setMessage({ type: 'success', text: result.message });
-      // Đợi auth state cập nhật trước khi navigate để Header hiển thị đúng
-      setTimeout(() => {
-        navigate('/accounts', { replace: true });
-      }, 500);
+      setLoginSuccess(true); // Trigger navigation in useEffect when isAuthenticated becomes true
     } else {
       setMessage({ type: 'error', text: result.message });
     }
