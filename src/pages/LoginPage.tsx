@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -13,17 +13,9 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const { login, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  // Navigate when authentication is confirmed after successful login
-  useEffect(() => {
-    if (isAuthenticated && loginSuccess) {
-      navigate('/accounts', { replace: true });
-    }
-  }, [isAuthenticated, loginSuccess, navigate]);
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +31,12 @@ export const LoginPage: React.FC = () => {
     
     if (result.success) {
       setMessage({ type: 'success', text: result.message });
-      setLoginSuccess(true); // Trigger navigation in useEffect when isAuthenticated becomes true
+      setIsRedirecting(true);
+      // Reload toàn bộ trang để đảm bảo Header và tất cả components cập nhật
+      setTimeout(() => {
+        if (!isRedirecting) return; // Đảm bảo chỉ redirect 1 lần
+        window.location.href = '/accounts';
+      }, 500);
     } else {
       setMessage({ type: 'error', text: result.message });
     }
@@ -165,13 +162,18 @@ export const LoginPage: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isRedirecting}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold text-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     Đang đăng nhập...
+                  </>
+                ) : isRedirecting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    Đang chuyển hướng...
                   </>
                 ) : (
                   <>
