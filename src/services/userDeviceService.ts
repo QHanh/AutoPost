@@ -1,4 +1,4 @@
-import { UserDevice, ImportResult } from '../types/deviceTypes';
+import { UserDevice, ImportResponse } from '../types/deviceTypes';
 import { apiGet, apiPost, apiPut, apiDelete, apiGetBlob, apiPostFormData } from './apiService';
 
 /**
@@ -178,12 +178,12 @@ export const userDeviceService = {
    * Nhập dữ liệu từ file Excel
    * @param file File Excel cần nhập
    */
-  importFromExcel: async (file: File): Promise<ImportResult> => {
+  importFromExcel: async (file: File): Promise<ImportResponse> => {
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await apiPostFormData<ImportResult>('/user-devices/import', formData);
+      const response = await apiPostFormData<ImportResponse>('/user-devices/import', formData);
       return response;
     } catch (error) {
       console.error('Error importing from Excel:', error);
@@ -194,7 +194,7 @@ export const userDeviceService = {
   /**
    * Tạo và tải xuống file từ blob
    * @param blob Dữ liệu blob
-   * @param filename Tên file
+{{ ... }}
    */
   downloadFile: (blob: Blob, filename: string): void => {
     // Tạo URL cho blob

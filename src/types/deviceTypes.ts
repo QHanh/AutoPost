@@ -75,10 +75,13 @@ export interface ImportResult {
   errors?: string[];
 }
 
-export interface DeviceColor {
-  id: string;
-  device_info_id: string;
-  color_id: string;
+export interface ImportResponse {
+  data: ImportResult;
+  message: string;
+  status_code: number;
+  total: number | null;
+  totalPages: number | null;
+  pagination: any;
   user_id?: string;
   created_at: string;
   updated_at: string;

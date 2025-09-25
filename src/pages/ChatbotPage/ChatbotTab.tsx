@@ -65,7 +65,8 @@ const ChatbotTab: React.FC = () => {
     try {
       await faqMobileService.addFaq({
         question: faqQuestion,
-        answer: faqAnswer
+        answer: faqAnswer,
+        classification: 'chatbot'
       });
       
       Swal.fire({
@@ -219,11 +220,12 @@ const ChatbotTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="overflow-y-auto bg-gray-50 p-4 space-y-4">
-        <div className="flex flex-col justify-end min-h-full">
+      {/* Main content with scrollable messages area */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-500">
+            <div className="text-center text-gray-500 mt-8">
               <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
             </div>
           ) : (
@@ -244,9 +246,9 @@ const ChatbotTab: React.FC = () => {
                     let displayText = msg.text ?? '';
                     if (displayText.startsWith('{"response":"')) {
                       // Remove leading wrapper
-                      displayText = displayText.replace(/^\{"response\":\"/, '');
+                      displayText = displayText.replace(/^\{"response":"/, '');
                       // Remove trailing wrapper if present
-                      displayText = displayText.replace(/\"\}\s*$/, '');
+                      displayText = displayText.replace(/"\}\s*$/, '');
                       // Unescape common sequences for nicer rendering
                       displayText = displayText
                         .split('\\n').join('\n')
@@ -289,8 +291,8 @@ const ChatbotTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="p-3 bg-white border-t shadow-sm mb-[env(safe-area-inset-bottom)]">
+      {/* Input - Luôn ghim ở cuối trang */}
+      <div className="shrink-0 p-3 bg-white border-t shadow-sm mb-[env(safe-area-inset-bottom)]">
         <div className="flex gap-2">
           <textarea
             value={input}

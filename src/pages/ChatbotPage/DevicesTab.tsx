@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { userDeviceService } from '../../services/userDeviceService';
-import { UserDevice } from '../../types/deviceTypes';
+import { UserDevice, ImportResponse } from '../../types/deviceTypes';
 import { Plus, Edit, Trash2, RotateCcw, ChevronsUpDown, FileUp, FileDown, Search } from 'lucide-react';
 import Swal from 'sweetalert2';
 import DeviceFormModal from '../../components/DeviceFormModal';
@@ -18,15 +18,15 @@ interface DevicesTabProps {
   onLimitChange?: (limit: number) => void;
 }
 
-const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, currentLimit: urlLimit = 15, onPageChange, onLimitChange }) => {
+const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage = 1, currentLimit = 15, onPageChange, onLimitChange }) => {
   const [userDevices, setUserDevices] = useState<UserDevice[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<UserDevice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserDevice | 'deviceModel' | 'colorName' | 'storageCapacity' | 'wholesale_price'; direction: 'ascending' | 'descending' } | null>(null);
   const [pagination, setPagination] = useState({
-    page: urlPage,
-    limit: urlLimit,
+    page: currentPage,
+    limit: currentLimit,
     total: 0,
     totalPages: 1,
   });
@@ -67,10 +67,10 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
   useEffect(() => {
     setPagination(prev => {
       // Do not overwrite local state if it already matches the incoming URL values
-      if (prev.page === urlPage && prev.limit === urlLimit) {
+      if (prev.page === currentPage && prev.limit === currentLimit) {
         return prev;
       }
-      const newPagination = { ...prev, page: urlPage, limit: urlLimit };
+      const newPagination = { ...prev, page: currentPage, limit: currentLimit };
       // Fetch only when the values actually changed
       setTimeout(() => {
         fetchUserDevices(newPagination);
@@ -78,7 +78,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
       }, 0);
       return newPagination;
     });
-  }, [urlPage, urlLimit]);
+  }, [currentPage, currentLimit]);
 
   useEffect(() => {
     fetchUserDevices();
@@ -314,7 +314,10 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
     if (file) {
       setIsImportingExcel(true);
       try {
-        const result = await userDeviceService.importFromExcel(file);
+        const response: ImportResponse = await userDeviceService.importFromExcel(file);
+        
+        // Trích xuất dữ liệu từ response.data
+        const result = response.data;
         
         // Luôn hiển thị thông báo kết quả import
         const icon = result.error > 0 ? 'warning' : 'success';
@@ -698,7 +701,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
       <div className="flex justify-between items-center mt-4">
         <div>
           <select
-            value={urlLimit}
+            value={currentLimit}
             onChange={(e) => handleLimitChangeInternal(Number(e.target.value))}
             className="px-3 py-1 rounded-lg bg-gray-200"
           >
@@ -714,7 +717,7 @@ const DevicesTab: React.FC<DevicesTabProps> = ({ currentPage: urlPage = 1, curre
             Tổng số: <span className="font-semibold">{pagination.total}</span>
           </div>
           <Pagination
-            currentPage={urlPage}
+            currentPage={currentPage}
             totalPages={pagination.totalPages}
             onPageChange={handlePageChangeInternal}
           />
