@@ -17,8 +17,10 @@ export const LoginCallbackPage: React.FC = () => {
 
     const handleLogin = async (authToken: string) => {
       await saveToken(authToken);
-      // Use client-side navigation to avoid full page reload that cancels in-flight requests
-      navigate('/accounts', { replace: true });
+      // Wait a bit for auth state to propagate before navigating
+      setTimeout(() => {
+        navigate('/accounts', { replace: true });
+      }, 100);
     };
 
     if (token) {

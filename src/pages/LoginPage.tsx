@@ -31,10 +31,10 @@ export const LoginPage: React.FC = () => {
     
     if (result.success) {
       setMessage({ type: 'success', text: result.message });
-      // Điều hướng nội bộ để cập nhật UI mà không reload trang
+      // Đợi auth state cập nhật trước khi navigate để Header hiển thị đúng
       setTimeout(() => {
         navigate('/accounts', { replace: true });
-      }, 300);
+      }, 500);
     } else {
       setMessage({ type: 'error', text: result.message });
     }
