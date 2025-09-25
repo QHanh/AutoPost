@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform, PlatformAccount } from '../types/platform';
 import { useAuth } from './useAuth';
 
@@ -55,6 +55,11 @@ export const usePlatforms = () => {
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [accountMappings, setAccountMappings] = useState<AccountMapping[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+
+  // Prevent multiple simultaneous API calls and infinite loops
+  const isLoadingRef = useRef(false);
+  const hasInitialLoadedRef = useRef(false);
+  const lastTokenRef = useRef<string | null>(null);
 
   const { user, isAuthenticated } = useAuth();
 
@@ -126,16 +131,29 @@ export const usePlatforms = () => {
   };
 
   // Load ALL accounts from backend, with optional granular reload
-  const loadSavedAccounts = async (platformToReload?: string) => {
+  const loadSavedAccounts = useCallback(async (platformToReload?: string) => {
     if (!isAuthenticated || !user?.token) {
-      console.log('User not authenticated, skipping account load');
+      console.log('🔒 User not authenticated, skipping account load');
       return;
     }
 
-    // Only set global loading state on a full, initial load
+    // Prevent multiple simultaneous calls for initial load
     if (!platformToReload) {
+      if (isLoadingRef.current) {
+        console.log('🔄 Already loading accounts, skipping duplicate request...');
+        return;
+      }
+
+      // Check if we've already loaded for this token (prevents re-loading on same session)
+      if (hasInitialLoadedRef.current && lastTokenRef.current === user.token) {
+        console.log('📋 Accounts already loaded for this session, skipping...');
+        return;
+      }
+
+      isLoadingRef.current = true;
       setIsLoadingAccounts(true);
       setSavedAccounts([]);
+      console.log('🚀 Starting initial account load...');
     }
     
     const apiBaseUrl = getApiBaseUrl();
@@ -167,7 +185,7 @@ export const usePlatforms = () => {
                       setSavedAccounts(prevAccounts => [...prevAccounts, ...newAccounts]);
                     }
 
-                    console.log(`✅ Loaded and displayed ${platform} accounts:`, newAccounts);
+                    console.log(`✅ Loaded ${platform} accounts (${newAccounts.length} items):`, newAccounts);
                 } else {
                     console.warn(`⚠️ Failed to load ${platform} accounts:`, response.status);
                 }
@@ -179,32 +197,50 @@ export const usePlatforms = () => {
         // Đợi tất cả các yêu cầu song song hoàn tất
         await Promise.all(fetchPromises);
 
+        // Mark as successfully loaded for initial load
+        if (!platformToReload) {
+          hasInitialLoadedRef.current = true;
+          lastTokenRef.current = user.token;
+          console.log('🎯 Initial account load completed successfully');
+        }
+
     } catch (error) {
       console.error('❌ Error loading saved accounts:', error);
     } finally {
       // Only set global loading state on a full, initial load
       if (!platformToReload) {
         setIsLoadingAccounts(false);
+        isLoadingRef.current = false;
       }
     }
-  };
+  }, [isAuthenticated, user?.token]);
 
   // Sync accounts whenever savedAccounts change
   useEffect(() => {
     syncServerAccounts();
   }, [savedAccounts]);
 
-  // Auto-load accounts when user is authenticated
+  // Auto-load accounts when user is authenticated (optimized to prevent infinite loops)
   useEffect(() => {
     if (isAuthenticated && user?.token) {
-      loadSavedAccounts();
-    } else {
+      // Only load if we haven't loaded yet or if token has changed
+      if (!hasInitialLoadedRef.current || lastTokenRef.current !== user.token) {
+        console.log('🔐 Authentication detected, loading accounts...');
+        loadSavedAccounts();
+      } else {
+        console.log('💾 Accounts already loaded for current session');
+      }
+    } else if (!isAuthenticated) {
       // Clear accounts when not authenticated
+      console.log('🚪 User logged out, clearing account data');
       setAccounts([]);
       setSavedAccounts([]);
       setAccountMappings([]);
+      hasInitialLoadedRef.current = false;
+      lastTokenRef.current = null;
+      isLoadingRef.current = false;
     }
-  }, [isAuthenticated, user?.token]);
+  }, [isAuthenticated, user?.token, loadSavedAccounts]);
 
   const getAccountsByPlatform = (platformId: string) => {
     return accounts.filter(account => account.platformId === platformId);
@@ -225,12 +261,24 @@ export const usePlatforms = () => {
     console.log(`✅ Optimistically removed account ${socialAccountId} from state.`);
   };
 
+  // Force reload accounts (useful for debugging or manual refresh)
+  const forceReloadAccounts = useCallback(() => {
+    console.log('🔄 Forcing account reload...');
+    hasInitialLoadedRef.current = false;
+    lastTokenRef.current = null;
+    isLoadingRef.current = false;
+    loadSavedAccounts();
+  }, [loadSavedAccounts]);
+
   // Clear all data (useful for debugging)
   const clearAllData = () => {
     setAccounts([]);
     setSavedAccounts([]);
     setAccountMappings([]);
-    console.log('🗑️ Cleared all account data');
+    hasInitialLoadedRef.current = false;
+    lastTokenRef.current = null;
+    isLoadingRef.current = false;
+    console.log('🗑️ Cleared all account data and reset flags');
   };
 
   return {
@@ -245,6 +293,7 @@ export const usePlatforms = () => {
     getSocialAccountId,
     loadSavedAccounts,
     removeAccountFromState,
+    forceReloadAccounts,
     clearAllData
   };
 };
