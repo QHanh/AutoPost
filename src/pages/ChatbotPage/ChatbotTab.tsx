@@ -198,7 +198,7 @@ const ChatbotTab: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] h-[calc(100svh-8rem)]">
+    <div className="flex flex-col h-[100dvh] bg-white relative pb-16">
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3 shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-2xl font-bold">Chatbot</h2>
@@ -292,7 +292,7 @@ const ChatbotTab: React.FC = () => {
       </div>
 
       {/* Input - Luôn ghim ở cuối trang */}
-      <div className="shrink-0 p-3 bg-white border-t shadow-sm mb-[env(safe-area-inset-bottom)]">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t shadow-sm z-10">
         <div className="flex gap-2">
           <textarea
             value={input}

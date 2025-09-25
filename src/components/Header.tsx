@@ -3,6 +3,7 @@ import {
   Home, DollarSign, Send, LogOut, 
   Lightbulb, Video, Menu, X, Bot, Building2, MessageSquare 
 } from 'lucide-react';
+import { SiZalo } from 'react-icons/si';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import Swal from 'sweetalert2';
@@ -19,8 +20,34 @@ export const Header: React.FC<HeaderProps> = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
 
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === path : location.pathname.startsWith(path);
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === path;
+    }
+    
+    // Xử lý đặc biệt cho các đường dẫn chatbot để tránh trùng lặp
+    if (path === '/chatbot-tabs/chat') {
+      // Kiểm tra chính xác đường dẫn chatbot agent
+      return location.pathname.startsWith('/chatbot-tabs/chat') && !location.pathname.includes('linhkien');
+    }
+    
+    if (path === '/chatbot-tabs/chatbot-linhkien') {
+      // Kiểm tra chính xác đường dẫn chatbot linh kiện
+      return location.pathname.startsWith('/chatbot-tabs/chatbot-linhkien');
+    }
+    
+    if (path === '/chatbot-tabs/zalo-login') {
+      // Kiểm tra chính xác đường dẫn zalo login
+      return location.pathname.startsWith('/chatbot-tabs/zalo-login');
+    }
+    
+    if (path === '/chatbot-tabs/zalo-messages') {
+      // Kiểm tra chính xác đường dẫn zalo messages
+      return location.pathname.startsWith('/chatbot-tabs/zalo-messages');
+    }
+    
+    return location.pathname.startsWith(path);
+  };
 
   const handleLogout = async () => {
     const { isConfirmed } = await Swal.fire({
@@ -238,6 +265,23 @@ export const Header: React.FC<HeaderProps> = () => {
                   }`}
                 >
                   <MessageSquare size={16} /> Chatbot Agent
+                </Link>
+                {/* Mobile-specific quick links for Zalo tabs */}
+                <Link
+                  to="/chatbot-tabs/zalo-login/1/15"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/chatbot-tabs/zalo-login') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <SiZalo size={16} /> Zalo - Đăng nhập
+                </Link>
+                <Link
+                  to="/chatbot-tabs/zalo-messages/1/15"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/chatbot-tabs/zalo-messages') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <SiZalo size={16} /> Zalo - Tin nhắn
                 </Link>
                 <div className="border-t border-gray-200 my-2"></div>
                 <button

@@ -199,7 +199,7 @@ const ChatbotLinhKienTab: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-[88dvh] bg-white">
+        <div className="flex flex-col h-[100dvh] bg-white relative pb-16">
             {/* Header - Ghim lại khi cuộn */}
             <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 shadow-lg">
                 <div className="flex items-center justify-between">
@@ -336,7 +336,7 @@ const ChatbotLinhKienTab: React.FC = () => {
             </div>
 
             {/* Input - Luôn ghim ở cuối trang */}
-            <div className="shrink-0 p-2 border-t bg-white shadow-md">
+            <div className="fixed bottom-0 left-0 right-0 p-2 border-t bg-white shadow-lg z-10">
                 <div className="flex gap-1">
                     <input
                         type="file"
