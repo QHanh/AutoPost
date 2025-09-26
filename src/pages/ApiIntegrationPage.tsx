@@ -113,17 +113,17 @@ const ApiIntegrationPage: React.FC = () => {
 
     // --- CÁC ĐOẠN MÃ ĐỂ SAO CHÉP ---
     // Sử dụng useMemo để không phải tạo lại các chuỗi này mỗi khi component re-render
-    const API_BASE_URL = "http://127.0.0.1:8010"; // Dễ dàng thay đổi URL tại đây
+    const API_BASE_URL = "https://autodangbai.doiquanai.vn";
 
     const curlSnippet = useMemo(() => `# Ví dụ cURL để kiểm tra API
 # Thay YOUR_CUSTOMER_ID bằng ID khách hàng của bạn
-curl -X POST ${API_BASE_URL}/chat/session_123 \\
+curl -X POST ${API_BASE_URL}/api/v1/chatbot/chat \\
      -H "Content-Type: application/json" \\
-     -H "Authorization: Bearer ${apiKey}" \\
+     -H "X-API-Key: ${apiKey}" \\
      -d '{
          "query": "Xin chào, bạn có thể giúp gì cho tôi?",
-         "customer_id": "YOUR_CUSTOMER_ID"
-     }'`, [apiKey]);
+         "llm_provider": "google_genai"
+     }'`);
 
     const installationInstructions = useMemo(() => `1. Chèn đoạn mã HTML & JavaScript vào trang web của bạn.
 2. Thay thế 'YOUR_CUSTOMER_ID' bằng ID khách hàng thực tế của bạn.
@@ -131,7 +131,7 @@ curl -X POST ${API_BASE_URL}/chat/session_123 \\
 4. Vì lý do bảo mật, bạn không cần đưa API key vào mã nguồn frontend.
 5. Đảm bảo API server của bạn đang chạy tại ${API_BASE_URL} hoặc cập nhật hằng số API_BASE_URL trong script.`, []);
     
-    const scriptSnippet = useMemo(() => `<div id="chatbot-container" data-customer-id="YOUR_CUSTOMER_ID"></div>
+    const scriptSnippet = useMemo(() => `<div id="chatbot-container"></div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -225,10 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
         input.value = '';
 
         try {
-            const response = await fetch(\`\${API_BASE_URL}/chat/\${sessionId}\`, {
+            const response = await fetch(\`\'${API_BASE_URL}'/api/v1/chatbot/chat\`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: message, customer_id: customerId })
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': '${apiKey}' },
+                body: JSON.stringify({ query: message, llm_provider: 'google_genai' })
             });
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
@@ -242,17 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function init() {
         const container = document.getElementById('chatbot-container');
-        customerId = container.getAttribute('data-customer-id');
-        if (!customerId || customerId === 'YOUR_CUSTOMER_ID') {
-            console.warn('Chatbot: customerId is not set. Please set data-customer-id attribute.');
-            // You can choose to hide the chatbot if ID is not set
-            // container.style.display = 'none';
-            // return;
-        }
-
         loadSession();
 
-        fetch(\`\${API_BASE_URL}/settings/\${customerId || 'default'}\`)
+        fetch(\`\'${API_BASE_URL}'/chatbot-js-agent/settings\`)
             .then(res => res.json())
             .then(settings => createChatbotUI(settings))
             .catch(error => {
