@@ -527,6 +527,8 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     if (status === 'SessionSaved') {
       // Auto-load conversations when logged in; if user is on Messages tab, refresh
       loadConversations();
+      // Also load ignored list to reflect block/unblock state in menus
+      loadIgnored();
       // If user is on Messages tab, list will be shown automatically
     }
   }, [status]);
@@ -549,6 +551,12 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   useEffect(() => {
     if (status === 'SessionSaved' && subTab === 'ignored') {
       loadIgnored();
+    }
+  }, [subTab, status]);
+
+  // Load bot config when switching to staff sub-tab
+  useEffect(() => {
+    if (status === 'SessionSaved' && subTab === 'staff') {
       loadBotConfig();
     }
   }, [subTab, status]);
@@ -561,6 +569,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     if (selectedConversation) {
       await loadMessages(selectedConversation);
     }
+    await loadIgnored();
   };
 
   const addIgnoredFromConversation = async (conv: ZaloConversation) => {
@@ -574,14 +583,36 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       setIsIgnoring(true);
       await upsertIgnoredZalo({ thread_id, name: (conv as any).d_name || undefined });
       setOpenConvMenu(null);
-      if (subTab === 'ignored') {
-        await loadIgnored();
-      }
+      await loadIgnored();
       alert('Đã thêm vào danh sách không trả lời.');
     } catch (e: any) {
       alert(`Lỗi: ${e?.message || e}`);
     } finally {
       setIsIgnoring(false);
+    }
+  };
+
+  const unignoreFromConversation = async (conv: ZaloConversation) => {
+    try {
+      const thread_id = (conv as any).thread_id;
+      if (!thread_id) {
+        alert('Không xác định được thread_id để gỡ chặn.');
+        return;
+      }
+      const it = ignoredItems.find((x) => x.thread_id === thread_id);
+      if (!it) {
+        alert('Cuộc trò chuyện này chưa bị chặn.');
+        return;
+      }
+      setDeletingIgnoredId(it.id);
+      await deleteIgnoredZalo(it.id);
+      await loadIgnored();
+      setOpenConvMenu(null);
+      alert('Đã bỏ chặn.');
+    } catch (e: any) {
+      alert(`Lỗi khi bỏ chặn: ${e?.message || e}`);
+    } finally {
+      setDeletingIgnoredId(null);
     }
   };
 
@@ -787,13 +818,30 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                                     <Plus size={14} /> Thêm làm nhân viên
                                   </button>
                                 )}
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
-                                  onClick={() => addIgnoredFromConversation(conv)}
-                                  disabled={isIgnoring}
-                                >
-                                  <XCircle size={14} /> {(conv.type === 1 || conv.group_name) ? 'Không trả lời nhóm này' : 'Không trả lời người này'}
-                                </button>
+                                {(() => {
+                                  const t = (conv as any).thread_id;
+                                  const isIgnored = !!t && ignoredItems.some((it) => it.thread_id === t);
+                                  if (isIgnored) {
+                                    return (
+                                      <button
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+                                        onClick={() => unignoreFromConversation(conv)}
+                                        disabled={deletingIgnoredId !== null}
+                                      >
+                                        <XCircle size={14} /> Bỏ chặn
+                                      </button>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-60"
+                                      onClick={() => addIgnoredFromConversation(conv)}
+                                      disabled={isIgnoring}
+                                    >
+                                      <XCircle size={14} /> {(conv.type === 1 || conv.group_name) ? 'Không trả lời nhóm này' : 'Không trả lời người này'}
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
@@ -965,39 +1013,6 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                   </div>
                 </div>
 
-                {/* Bot config section */}
-                <div className="mb-4 rounded border border-gray-200 p-3 bg-gray-50">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="font-medium text-gray-800">Cấu hình tạm dừng phản hồi</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        Đặt số phút bot sẽ không trả lời tin nhắn mới (áp dụng cho tài khoản của bạn).
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-700">Số phút:</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={Number.isFinite(stopMinutes) ? stopMinutes : 0}
-                        onChange={(e) => setStopMinutes(Math.max(0, Number(e.currentTarget.value)))}
-                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      <button
-                        onClick={saveBotConfig}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-60"
-                        disabled={isSavingBotConfig}
-                      >
-                        {isSavingBotConfig ? 'Đang lưu...' : 'Lưu cấu hình'}
-                      </button>
-                    </div>
-                    {botConfig && (
-                      <div className="text-xs text-gray-500 mt-2 sm:mt-0">
-                        Cập nhật gần nhất: {botConfig.updated_at ? new Date(botConfig.updated_at).toLocaleString('vi-VN') : (botConfig.created_at ? new Date(botConfig.created_at).toLocaleString('vi-VN') : 'Chưa có')}
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 <div className="flex items-center justify-between mb-2">
                   <h5 className="font-semibold text-gray-800">Danh sách không trả lời</h5>
@@ -1111,6 +1126,40 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                     </table>
                   </div>
                 )}
+
+                {/* Bot config section */}
+                <div className="mt-6 rounded border border-gray-200 p-3 bg-gray-50">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium text-gray-800">Cấu hình tạm dừng phản hồi</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Đặt số phút bot sẽ không trả lời tin nhắn mới (áp dụng cho tài khoản của bạn).
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Số phút:</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={Number.isFinite(stopMinutes) ? stopMinutes : 0}
+                        onChange={(e) => setStopMinutes(Math.max(0, Number(e.currentTarget.value)))}
+                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm"
+                      />
+                      <button
+                        onClick={saveBotConfig}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-60"
+                        disabled={isSavingBotConfig}
+                      >
+                        {isSavingBotConfig ? 'Đang lưu...' : 'Lưu cấu hình'}
+                      </button>
+                    </div>
+                    {botConfig && (
+                      <div className="text-xs text-gray-500 mt-2 sm:mt-0">
+                        Cập nhật gần nhất: {botConfig.updated_at ? new Date(botConfig.updated_at).toLocaleString('vi-VN') : (botConfig.created_at ? new Date(botConfig.created_at).toLocaleString('vi-VN') : 'Chưa có')}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
