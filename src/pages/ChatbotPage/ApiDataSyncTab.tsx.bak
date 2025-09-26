@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Edit, Save, X, Search, ChevronsUpDown, RefreshCw, Link, Check } from 'lucide-react';
+import { Trash2, Edit, Save, X, Search, ChevronsUpDown, RefreshCw } from 'lucide-react';
 import { productComponentService } from '../../services/productComponentService';
-import { userSyncUrlService } from '../../services/userSyncUrlService';
 import { ProductComponent, ProductComponentCreate, ProductComponentUpdate, Category, Property } from '../../types/productComponentTypes';
 import PropertySelector from '../../components/PropertySelector';
 import Pagination from '../../components/Pagination';
@@ -9,7 +8,7 @@ import { FilterConfig } from '../../components/Filter';
 import Swal from 'sweetalert2';
 import PopupModal from '../../components/PopupModal';
 import LabeledField from '../../components/LabeledField';
-import UrlSyncConfig from '../../components/UrlSyncConfig';
+
 interface SyncNowResult {
   message: string;
   sync_details: {
@@ -102,12 +101,6 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  // URL sync states
-  const [syncUrl, setSyncUrl] = useState('');
-  const [urlLoading, setUrlLoading] = useState(false);
-  const [urlSaving, setUrlSaving] = useState(false);
-  const [urlError, setUrlError] = useState('');
-  
   // Filter states
   const [filters, setFilters] = useState<{ [key: string]: any }>({});
   const [filterOptions, setFilterOptions] = useState({
@@ -131,7 +124,6 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
       fetchCategories();
       fetchProperties();
       fetchFilterOptions();
-      fetchSyncUrl();
     }
   }, [isAuthenticated]);
 
@@ -243,86 +235,6 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
       setFilterOptions(newFilterOptions);
     } catch (error) {
       console.error('Error fetching filter options:', error);
-    }
-  };
-
-  // Fetch sync URL
-  const fetchSyncUrl = async () => {
-    try {
-      setUrlLoading(true);
-      setUrlError('');
-      const response = await userSyncUrlService.get();
-      if (response && response.url) {
-        setSyncUrl(response.url);
-      }
-    } catch (error) {
-      console.error('Error fetching sync URL:', error);
-      setUrlError('Không thể tải URL đồng bộ');
-    } finally {
-      setUrlLoading(false);
-    }
-  };
-
-  // Save sync URL
-  const handleSaveSyncUrl = async () => {
-    if (!syncUrl.trim()) {
-      setUrlError('Vui lòng nhập URL');
-      return;
-    }
-
-    // Basic URL validation
-    try {
-      new URL(syncUrl);
-    } catch {
-      setUrlError('URL không hợp lệ');
-      return;
-    }
-
-    try {
-      setUrlSaving(true);
-      setUrlError('');
-      await userSyncUrlService.upsert(syncUrl.trim(), true);
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Thành công!',
-        text: 'URL đồng bộ đã được lưu',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    } catch (error) {
-      console.error('Error saving sync URL:', error);
-      setUrlError('Có lỗi xảy ra khi lưu URL');
-      Swal.fire({
-        icon: 'error',
-        title: 'Lỗi!',
-        text: 'Không thể lưu URL đồng bộ'
-      });
-    } finally {
-      setUrlSaving(false);
-    }
-  };
-
-  // Deactivate sync URL
-  const handleDeactivateSyncUrl = async () => {
-    try {
-      await userSyncUrlService.deactivate();
-      setSyncUrl('');
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Thành công!',
-        text: 'URL đồng bộ đã được vô hiệu hóa',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    } catch (error) {
-      console.error('Error deactivating sync URL:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Lỗi!',
-        text: 'Không thể vô hiệu hóa URL đồng bộ'
-      });
     }
   };
 
@@ -1050,7 +962,6 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
 
       <div className="mb-4">
         <div className="relative">
-        <UrlSyncConfig isAuthenticated={isAuthenticated} />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"

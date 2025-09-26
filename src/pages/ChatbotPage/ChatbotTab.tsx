@@ -17,6 +17,7 @@ interface Message {
 const ChatbotTab: React.FC = () => {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [messages, setMessages] = useState<Message[]>(() => {
     const savedMessages = localStorage.getItem('chatbotMessages');
     return savedMessages ? JSON.parse(savedMessages) : [];
@@ -170,6 +171,10 @@ const ChatbotTab: React.FC = () => {
         () => {
           // onComplete callback - called when streaming is finished
           console.log('Chatbot streaming completed');
+          // Focus vào input sau khi bot trả lời xong
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 100);
         },
         (error) => {
           console.error('Chatbot error:', error);
@@ -198,9 +203,9 @@ const ChatbotTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white relative pb-16">
+    <div className="flex flex-col h-[100dvh] bg-white relative">
       {/* Header */}
-      <div className="flex justify-between items-center px-4 py-3 shrink-0 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-20 flex justify-between items-center px-4 py-3 shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-2xl font-bold">Chatbot</h2>
         <div className="flex items-center space-x-2">
           <button
@@ -223,7 +228,7 @@ const ChatbotTab: React.FC = () => {
       {/* Main content with scrollable messages area */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4 pb-20">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 mt-8">
               <p>Chào bạn! Tôi là chatbot AI. Hãy đặt câu hỏi cho tôi.</p>
@@ -291,10 +296,11 @@ const ChatbotTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Input - Luôn ghim ở cuối trang */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t shadow-sm z-10">
+      {/* Input - Ghim ở cuối trang */}
+      <div className="sticky bottom-0 left-0 right-0 p-3 bg-white border-t shadow-sm z-10">
         <div className="flex gap-2">
           <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}

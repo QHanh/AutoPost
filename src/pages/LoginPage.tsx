@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
@@ -14,6 +14,7 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const redirectedRef = useRef(false);
 
   const { login } = useAuth();
 
@@ -32,16 +33,18 @@ export const LoginPage: React.FC = () => {
     if (result.success) {
       setMessage({ type: 'success', text: result.message });
       setIsRedirecting(true);
+      // Đảm bảo chỉ redirect 1 lần
+      if (redirectedRef.current) return;
+      redirectedRef.current = true;
       // Reload toàn bộ trang để đảm bảo Header và tất cả components cập nhật
       setTimeout(() => {
-        if (!isRedirecting) return; // Đảm bảo chỉ redirect 1 lần
         window.location.href = '/accounts';
       }, 500);
+      return; // Không set isLoading = false khi redirect
     } else {
       setMessage({ type: 'error', text: result.message });
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

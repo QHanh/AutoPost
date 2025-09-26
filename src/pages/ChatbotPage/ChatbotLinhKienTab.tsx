@@ -37,6 +37,7 @@ const ChatbotLinhKienTab: React.FC = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Load messages từ localStorage khi component mount
     useEffect(() => {
@@ -147,6 +148,11 @@ const ChatbotLinhKienTab: React.FC = () => {
                     }
                     return updatedMessages;
                 });
+                
+                // Focus vào input sau khi bot trả lời xong
+                setTimeout(() => {
+                    inputRef.current?.focus();
+                }, 100);
             }
             
         } catch (error) {
@@ -168,6 +174,10 @@ const ChatbotLinhKienTab: React.FC = () => {
             setSelectedImage(null);
             setImagePreview(null);
             setIsLoading(false);
+            // Focus vào input sau khi gửi tin nhắn
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
         }
     };
 
@@ -199,9 +209,9 @@ const ChatbotLinhKienTab: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-[100dvh] bg-white relative pb-16">
+        <div className="flex flex-col h-[100dvh] bg-white relative">
             {/* Header - Ghim lại khi cuộn */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 shadow-lg">
+            <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 shadow-lg">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Bot className="w-5 h-5" />
@@ -222,8 +232,8 @@ const ChatbotLinhKienTab: React.FC = () => {
 
             {/* Main content with scrollable messages area */}
             <div className="flex-1 flex flex-col min-h-0">
-                {/* Messages area - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4 pb-20">
                     {messages.length === 0 && (
                         <div className="text-center text-gray-500 mt-8">
                             <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -314,29 +324,29 @@ const ChatbotLinhKienTab: React.FC = () => {
                     
                     <div ref={messagesEndRef} />
                 </div>
-
-                {/* Image Preview */}
-                {imagePreview && (
-                    <div className="p-4 border-t bg-white">
-                        <div className="relative inline-block">
-                            <img 
-                                src={imagePreview} 
-                                alt="Preview" 
-                                className="max-w-32 max-h-32 rounded-lg border shadow-sm"
-                            />
-                            <button
-                                onClick={removeImage}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
 
-            {/* Input - Luôn ghim ở cuối trang */}
-            <div className="fixed bottom-0 left-0 right-0 p-2 border-t bg-white shadow-lg z-10">
+            {/* Image Preview */}
+            {imagePreview && (
+                <div className="shrink-0 p-4 border-t bg-white">
+                    <div className="relative inline-block">
+                        <img 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            className="max-w-32 max-h-32 rounded-lg border shadow-sm"
+                        />
+                        <button
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Input - Ghim ở cuối trang */}
+            <div className="sticky bottom-0 left-0 right-0 p-2 border-t bg-white shadow-lg z-10">
                 <div className="flex gap-1">
                     <input
                         type="file"
@@ -353,6 +363,7 @@ const ChatbotLinhKienTab: React.FC = () => {
                         <ImageIcon className="w-4 h-4" />
                     </button>
                     <input
+                        ref={inputRef}
                         type="text"
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
