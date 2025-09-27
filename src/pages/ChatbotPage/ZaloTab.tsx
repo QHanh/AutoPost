@@ -67,7 +67,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       alert(`Đã thêm ${name} làm nhân viên thành công`);
       setOpenConvMenu(null);
     } catch (e: any) {
-      alert(`Lỗi khi thêm nhân viên: ${e?.message || e}`);
+      alert(`người này đã là nhân viên hoặc xảy ra lỗi hệ thống`);
     } finally {
       setIsCreatingStaff(false);
     }
@@ -487,6 +487,13 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         'asc'
       );
       setMessages(data.items || []);
+      // Auto-scroll to bottom after messages load
+      setTimeout(() => {
+        const messagesContainer = document.querySelector('.messages-container');
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }, 100);
     } catch (error) {
       console.error('Error loading messages:', error);
     } finally {
@@ -560,6 +567,18 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       loadBotConfig();
     }
   }, [subTab, status]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openConvMenu && !(event.target as Element)?.closest('.conversation-menu')) {
+        setOpenConvMenu(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openConvMenu]);
 
   // Determine if current conversation is a group
   const isGroupConversation = !!(selectedConversation && (selectedConversation.type === 1 || selectedConversation.group_name));
@@ -796,6 +815,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                                 ? (conv.group_name || conv.conversation_id || 'Không có tên')
                                 : (conv.d_name || conv.conversation_id || 'Không có tên')}
                             </span>
+                            {ignoredItems.some(it => it.thread_id === (conv as any).thread_id) && <span title="Đã chặn"><XCircle size={14} className="text-red-500" /></span>}
                           </div>
                           {/* Three-dot menu for actions (always visible) */}
                           <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
@@ -807,7 +827,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                               <MoreVertical size={16} />
                             </button>
                             {openConvMenu === conv.conversation_id && (
-                              <div className="mt-1 w-56 bg-white border border-gray-200 rounded shadow-md absolute right-0 z-10">
+                              <div className="conversation-menu mt-1 w-56 bg-white border border-gray-200 rounded shadow-md absolute right-0 z-10">
                                 {/* Only for 1-1 chats: add as staff */}
                                 {!(conv.type === 1 || conv.group_name) && (
                                   <button
@@ -877,7 +897,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                         : 'Chọn cuộc trò chuyện'}
                     </h4>
                   </div>
-                  <div className="h-[70vh] overflow-y-auto p-4 bg-gray-50">
+                  <div className="messages-container h-[70vh] overflow-y-auto p-4 bg-gray-50">
                   {!selectedConversation ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
                       Chọn một cuộc trò chuyện để xem tin nhắn
