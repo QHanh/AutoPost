@@ -225,14 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
         input.value = '';
 
         try {
-            const response = await fetch(\`\'${API_BASE_URL}'/api/v1/chatbot/chat\`, {
+            const response = await fetch('${API_BASE_URL}/api/v1/chatbot/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': '${apiKey}' },
-                body: JSON.stringify({ query: message, llm_provider: 'google_genai' })
+                body: JSON.stringify({
+                    query: message,
+                    llm_provider: 'google_genai'
+                })
             });
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
-            const botResponse = data.response?.reply || 'Xin lỗi, tôi không thể xử lý yêu cầu.';
+            const botResponse = data.data?.response || 'Xin lỗi, tôi không thể xử lý yêu cầu.';
             addMessage('bot', botResponse);
         } catch (error) {
             console.error('Error:', error);
@@ -244,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('chatbot-container');
         loadSession();
 
-        fetch(\`\'${API_BASE_URL}'/chatbot-js-agent/settings\`)
+        fetch('${API_BASE_URL}/chatbot-js-agent/settings')
             .then(res => res.json())
             .then(settings => createChatbotUI(settings))
             .catch(error => {
