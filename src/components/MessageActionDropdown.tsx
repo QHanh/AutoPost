@@ -99,6 +99,7 @@ const MessageActionDropdown: React.FC<MessageActionDropdownProps> = ({
     setIsSavingFaq(true);
     try {
       await faqMobileService.addFaq({
+        classification: 'chatbot',
         question: faqQuestion,
         answer: faqAnswer
       });
