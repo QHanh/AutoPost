@@ -9,7 +9,6 @@ import { SiZalo } from "react-icons/si";
 import DevicesTab from './ChatbotPage/DevicesTab';
 import ColorsTab from './ChatbotPage/ColorsTab';
 import SettingsTab from './ChatbotPage/SettingsTab';
-import BotPowerTab from './ChatbotPage/BotPowerTab';
 import StoreSettingsTab from './ChatbotPage/StoreSettingsTab';
 import DocumentsTab from './ChatbotPage/DocumentsTab';
 import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
@@ -18,18 +17,20 @@ import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
 import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 import { ServiceManagementPage } from './ServiceManagementPage';
-import ApiIntegrationPage from './ApiIntegrationPage'; // Import trang API
 import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
+import ApiIntegrationPage from './ApiIntegrationPage';
+import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab';
+import BotPowerTab from './ChatbotPage/BotPowerTab';
 import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
-import ApiDataSyncTab from './ChatbotPage/ApiDataSyncTab'; // Import API Data Sync tab
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
 import OrdersTab from './ChatbotPage/OrdersTab'; // Import Orders tab
 import OrdersCustomTab from './ChatbotPage/OrdersCustomTab'; // Import Orders Custom tab
 import SettingsCustomTab from './ChatbotPage/SettingsCustomTab'; // Import Settings Custom tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
+import FacebookConversationsTab from './ChatbotPage/FacebookConversationsTab';
 
-type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat'; // Added 'chatbot-linhkien' and 'zalo'
+type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat' | 'fb-ig'; // Added fb-ig
 type SubTab =
   | 'my-devices'
   | 'device-info'
@@ -46,6 +47,7 @@ type SubTab =
   | 'store-settings' // Added for store settings
   | 'orders' // Added for orders tab
   | 'chat' // Added for single tab
+  | 'fb-ig' // Single main menu for FB/IG conversations
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
   | 'zalo-login' // Zalo Login sub-tab
   | 'zalo-messages' // Zalo Messages sub-tab
@@ -117,6 +119,13 @@ const getMainTabsConfig = (
       { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
       { id: 'settings-custom', label: 'Cài đặt prompt', component: <ErrorBoundary><SettingsCustomTab /></ErrorBoundary> },
     ]
+  },
+
+  'fb-ig': {
+    label: 'Messenger',
+    icon: <MessageSquare className="w-5 h-5 text-sky-500" />,
+    isSingleTab: true,
+    component: <ErrorBoundary><FacebookConversationsTab /></ErrorBoundary>
   },
 
   zalo: {
@@ -220,11 +229,11 @@ const ChatbotPageWithTabs: React.FC = () => {
   const renderTabContent = () => {
     const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
     
-    // Xử lý các tab đơn lẻ trước
-    if (activeTab === 'dichvu') {
-        return mainTabsConfig.dichvu.component;
+    // Xử lý tất cả danh mục single-tab một cách tổng quát (vd: 'dichvu', 'fb-ig')
+    const singleCategory: any = (mainTabsConfig as any)[activeTab as keyof typeof mainTabsConfig];
+    if (singleCategory && singleCategory.isSingleTab) {
+      return singleCategory.component;
     }
-    // 'caidat' is a category now; handled in subTabs below
     
     // Xử lý các sub-tabs
     for (const category of Object.values(mainTabsConfig)) {
