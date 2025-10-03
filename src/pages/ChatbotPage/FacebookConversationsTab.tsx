@@ -10,6 +10,7 @@ import {
 } from '../../services/facebookService';
 import Swal from 'sweetalert2';
 import { faqMobileService } from '../../services/faqMobileService';
+import { apiGet, apiPut } from '../../services/apiService';
 
 const time = (iso?: string) => {
   if (!iso) return '';
@@ -43,6 +44,47 @@ const FacebookConversationsTab: React.FC = () => {
   // Scroll & ordering helpers for messages
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Bot config: pause TTL (minutes) per Page
+  const [pauseTTL, setPauseTTL] = useState<string>('');
+  const [cfgLoading, setCfgLoading] = useState(false);
+  const [cfgSaving, setCfgSaving] = useState(false);
+  const [cfgError, setCfgError] = useState<string | null>(null);
+
+  const loadBotConfig = async () => {
+    if (!selectedPageId) return;
+    setCfgLoading(true);
+    setCfgError(null);
+    try {
+      const res = await apiGet<{ page_id: string; mobile_enabled: boolean; custom_enabled: boolean; pause_ttl_minutes?: number }>(
+        `/messenger/bot-config/${selectedPageId}`
+      );
+      const ttl = typeof res?.pause_ttl_minutes === 'number' ? String(res.pause_ttl_minutes) : '10';
+      setPauseTTL(ttl);
+    } catch (e: any) {
+      setCfgError(e?.message || 'Không tải được cấu hình bot');
+    } finally {
+      setCfgLoading(false);
+    }
+  };
+
+  const savePauseTTL = async () => {
+    if (!selectedPageId) return;
+    const n = Number(pauseTTL);
+    if (!Number.isFinite(n) || n < 0) {
+      await Swal.fire('Giá trị không hợp lệ', 'TTL phải là số nguyên không âm (phút).', 'warning');
+      return;
+    }
+    setCfgSaving(true);
+    try {
+      await apiPut(`/messenger/bot-config/${selectedPageId}`, { pause_ttl_minutes: Math.floor(n) });
+      await Swal.fire('Đã lưu', 'Đã cập nhật TTL tạm dừng.', 'success');
+    } catch (e: any) {
+      await Swal.fire('Lỗi', e?.message || 'Không thể lưu TTL', 'error');
+    } finally {
+      setCfgSaving(false);
+    }
+  };
 
   const sortedMessages = useMemo(() => {
     if (!messages) return [];
@@ -158,6 +200,7 @@ const FacebookConversationsTab: React.FC = () => {
   useEffect(() => {
     if (selectedPageId) {
       loadConversations();
+      loadBotConfig();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPageId]);
@@ -207,6 +250,30 @@ const FacebookConversationsTab: React.FC = () => {
             disabled={loadingConvs || !selectedPageId}
           >Làm mới</button>
         </div>
+
+        {selectedPageId && (
+          <div className="mt-4 flex items-end gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">TTL tự dừng (phút)</label>
+              <input
+                type="number"
+                min={0}
+                className="border rounded px-3 py-2 w-40"
+                value={pauseTTL}
+                onChange={(e) => setPauseTTL(e.target.value)}
+                disabled={cfgLoading}
+                placeholder="10"
+              />
+              <div className="text-xs text-gray-500 mt-1">0 = tắt auto-pause</div>
+              {cfgError && <div className="text-xs text-red-600 mt-1">{cfgError}</div>}
+            </div>
+            <button
+              className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
+              onClick={savePauseTTL}
+              disabled={cfgLoading || cfgSaving}
+            >{cfgSaving ? 'Đang lưu...' : 'Lưu TTL'}</button>
+          </div>
+        )}
       </div>
 
       {pageError && <div className="text-red-600">{pageError}</div>}
