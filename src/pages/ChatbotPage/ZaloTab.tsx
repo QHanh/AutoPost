@@ -35,7 +35,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [isCreatingStaff, setIsCreatingStaff] = useState<boolean>(false);
   const [subTab, setSubTab] = useState<'messages' | 'staff' | 'ignored'>('messages');
   const [isLoadingStaff, setIsLoadingStaff] = useState<boolean>(false);
-  const [staffItems, setStaffItems] = useState<Array<{ id: string; zalo_uid: string; name: string; role: string; is_active: boolean; can_control_bot?: boolean; can_manage_orders?: boolean }>>([]);
+  const [staffItems, setStaffItems] = useState<Array<{ id: string; zalo_uid: string; name: string; role: string; is_active: boolean; can_control_bot?: boolean; can_manage_orders?: boolean; can_receive_notifications?: boolean }>>([]);
   const [deletingStaffId, setDeletingStaffId] = useState<string | null>(null);
   const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
   const [isLoadingIgnored, setIsLoadingIgnored] = useState<boolean>(false);
@@ -123,7 +123,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
 
   const togglePermission = async (
     id: string,
-    field: 'can_control_bot' | 'can_manage_orders',
+    field: 'can_control_bot' | 'can_manage_orders' | 'can_receive_notifications',
     checked: boolean
   ) => {
     const prev = staffItems;
@@ -170,6 +170,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         is_active: it.is_active !== false,
         can_control_bot: it.can_control_bot,
         can_manage_orders: it.can_manage_orders,
+        can_receive_notifications: (it.can_receive_notifications ?? it.permissions?.can_receive_notifications),
       })));
     } catch (e) {
       console.error('Error loading staff:', e);
@@ -1124,7 +1125,17 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                                     onChange={(e) => togglePermission(s.id, 'can_manage_orders', e.currentTarget.checked)}
                                     disabled={savingStaffId === s.id}
                                   />
-                                  <span>Quản lý đơn hàng</span>
+                                  <span>tạo nhóm</span>
+                                </label>
+                                <label className="inline-flex items-center gap-2 select-none">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300"
+                                    checked={!!s.can_receive_notifications}
+                                    onChange={(e) => togglePermission(s.id, 'can_receive_notifications', e.currentTarget.checked)}
+                                    disabled={savingStaffId === s.id}
+                                  />
+                                  <span>Nhận thông báo</span>
                                 </label>
                                 {savingStaffId === s.id && (
                                   <div className="text-[10px] text-gray-500">Đang lưu...</div>

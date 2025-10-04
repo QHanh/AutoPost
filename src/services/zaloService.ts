@@ -132,6 +132,7 @@ export interface CreateStaffPayload {
   permissions?: {
     can_control_bot?: boolean;
     can_manage_orders?: boolean;
+    can_receive_notifications?: boolean;
   };
   associated_session_keys?: string[];
 }
@@ -190,6 +191,7 @@ export const updateStaffZalo = async (
     is_active: boolean;
     can_control_bot: boolean;
     can_manage_orders: boolean;
+    can_receive_notifications: boolean;
     associated_session_keys: string[];
   }>
 ) => {
@@ -197,11 +199,12 @@ export const updateStaffZalo = async (
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = await fetchApiKey();
   // Transform flat permission flags into nested `permissions` object as backend expects
-  const { can_control_bot, can_manage_orders, ...rest } = (payload || {}) as any;
+  const { can_control_bot, can_manage_orders, can_receive_notifications, ...rest } = (payload || {}) as any;
   const body: any = { ...rest };
   const permissions: any = {};
   if (typeof can_control_bot === 'boolean') permissions.can_control_bot = can_control_bot;
   if (typeof can_manage_orders === 'boolean') permissions.can_manage_orders = can_manage_orders;
+  if (typeof can_receive_notifications === 'boolean') permissions.can_receive_notifications = can_receive_notifications;
   if (Object.keys(permissions).length > 0) body.permissions = permissions;
 
   const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo/${id}`, {
