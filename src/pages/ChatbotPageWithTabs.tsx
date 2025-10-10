@@ -1,8 +1,7 @@
-// @ts-nocheck
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate, useParams, useNavigate } from 'react-router-dom';
-import { Smartphone, Palette, Layers, Database, MessageSquare, Package, Settings, FileText, Wrench, ChevronDown, ChevronRight, Component, Code, Bot, BotMessageSquare, BotIcon } from 'lucide-react';
+import { Smartphone, MessageSquare, Package, Settings, Wrench, ChevronDown, ChevronRight, BotMessageSquare, Bot } from 'lucide-react';
 import { SiZalo } from "react-icons/si";
 
 // Import all tab components
@@ -15,7 +14,6 @@ import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
-import LinhKienManagementTabs from './ChatbotPage/LinhKienManagementTabs';
 import { ServiceManagementPage } from './ServiceManagementPage';
 import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
 import ApiIntegrationPage from './ApiIntegrationPage';
@@ -24,13 +22,14 @@ import BotPowerTab from './ChatbotPage/BotPowerTab';
 import ProductComponentsTab from './ChatbotPage/ProductComponentsTab'; // Import ProductComponentsTab
 import FaqMobileTab from './ChatbotPage/FaqMobileTab'; // Import FAQ Mobile tab
 import ZaloTab from './ChatbotPage/ZaloTab'; // Import Zalo tab
+import ZaloOATab from './ChatbotPage/ZaloOATab'; // Import Zalo OA tab
 import OrdersTab from './ChatbotPage/OrdersTab'; // Import Orders tab
 import OrdersCustomTab from './ChatbotPage/OrdersCustomTab'; // Import Orders Custom tab
 import SettingsCustomTab from './ChatbotPage/SettingsCustomTab'; // Import Settings Custom tab
 import ErrorBoundary from './ChatbotPage/ErrorBoundary'; // Import ErrorBoundary
 import FacebookConversationsTab from './ChatbotPage/FacebookConversationsTab';
 
-type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'caidat' | 'fb-ig'; // Added fb-ig
+type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'zalo-oa' | 'caidat' | 'fb-ig'; // Added fb-ig and zalo-oa
 type SubTab =
   | 'my-devices'
   | 'device-info'
@@ -51,6 +50,8 @@ type SubTab =
   | 'faq-mobile' // Added for FAQ Mobile sub-tab
   | 'zalo-login' // Zalo Login sub-tab
   | 'zalo-messages' // Zalo Messages sub-tab
+  | 'zalo-oa-connect' // Zalo OA connect sub-tab
+  | 'zalo-oa-inbox' // Zalo OA inbox sub-tab
   | 'dichvu' // Added for single tab
   | 'linhkien' // Added for single tab
   | 'chatbot-linhkien' // Added for single tab
@@ -63,7 +64,13 @@ const getMainTabsConfig = (
   limit: number,
   onPageChange: (page: number) => void,
   onLimitChange: (limit: number) => void,
-) => ({
+): Record<MainCategory, {
+  label: string;
+  icon: JSX.Element;
+  isSingleTab?: true;
+  component?: JSX.Element;
+  subTabs?: Array<{ id: SubTab; label: string; component: JSX.Element }>;
+}> => ({
   dienthoai: {
     label: 'Điện thoại',
     icon: <Smartphone className="w-5 h-5 text-blue-500" />,
@@ -113,7 +120,7 @@ const getMainTabsConfig = (
 
   'chatbot-linhkien': {
     label: 'Chatbot linh kiện',
-    icon: <BotIcon className="w-5 h-5 text-pink-500" />,
+    icon: <Bot className="w-5 h-5 text-pink-500" />,
     subTabs: [
       { id: 'chatbot-linhkien', label: 'Test chat', component: <ErrorBoundary><ChatbotLinhKienTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'orders-custom', label: 'Đơn hàng', component: <ErrorBoundary><OrdersCustomTab /></ErrorBoundary> },
@@ -134,6 +141,14 @@ const getMainTabsConfig = (
     subTabs: [
       { id: 'zalo-login', label: 'Đăng nhập', component: <ErrorBoundary><ZaloTab initialActiveTab="login" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
       { id: 'zalo-messages', label: 'Tin nhắn', component: <ErrorBoundary><ZaloTab initialActiveTab="messages" currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /></ErrorBoundary> },
+    ]
+  },
+  'zalo-oa': {
+    label: 'Zalo OA',
+    icon: <SiZalo className="w-5 h-5 text-blue-600" />,
+    subTabs: [
+      { id: 'zalo-oa-connect', label: 'Kết nối OA', component: <ErrorBoundary><ZaloOATab initialActiveTab="connect" /></ErrorBoundary> },
+      { id: 'zalo-oa-inbox', label: 'Inbox OA', component: <ErrorBoundary><ZaloOATab initialActiveTab="inbox" /></ErrorBoundary> },
     ]
   }
 });
@@ -216,7 +231,7 @@ const ChatbotPageWithTabs: React.FC = () => {
       navigate(`/chatbot-tabs/components/${savedPage}/${savedLimit}`, { replace: true });
       return;
     }
-  }, [tab, page, limit, navigate, isAuthenticated, isLoading, handlePageChange, handleLimitChange]);
+  }, [tab, page, limit, urlPage, urlLimit, navigate, isAuthenticated, isLoading, handlePageChange, handleLimitChange]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -228,21 +243,20 @@ const ChatbotPageWithTabs: React.FC = () => {
 
   const renderTabContent = () => {
     const mainTabsConfig = getMainTabsConfig(urlPage, urlLimit, handlePageChange, handleLimitChange);
-    
-    // Xử lý tất cả danh mục single-tab một cách tổng quát (vd: 'dichvu', 'fb-ig')
-    const singleCategory: any = (mainTabsConfig as any)[activeTab as keyof typeof mainTabsConfig];
-    if (singleCategory && singleCategory.isSingleTab) {
-      return singleCategory.component;
+
+    // Nếu activeTab trùng key của danh mục single-tab
+    let singleCategory: { isSingleTab?: true; component?: JSX.Element } | undefined;
+    if ((activeTab as string) in (mainTabsConfig as Record<string, unknown>)) {
+      singleCategory = (mainTabsConfig as Record<string, { isSingleTab?: true; component?: JSX.Element }>)[activeTab as string];
     }
-    
+    if (singleCategory?.isSingleTab && singleCategory.component) return singleCategory.component;
+
     // Xử lý các sub-tabs
     for (const category of Object.values(mainTabsConfig)) {
-        if (category.subTabs) {
-            const tab = category.subTabs.find(sub => sub.id === activeTab);
-            if (tab) {
-                return tab.component;
-            }
-        }
+      if (category.subTabs) {
+        const tabCfg = category.subTabs.find((sub: { id: SubTab; label: string; component: JSX.Element }) => sub.id === activeTab);
+        if (tabCfg) return tabCfg.component;
+      }
     }
     return null;
   };
@@ -299,7 +313,7 @@ const ChatbotPageWithTabs: React.FC = () => {
                     </div>
                     {!value.isSingleTab && openCategory === key && (
                         <ul className="pl-6 mt-1 border-l-2 border-gray-200">
-                            {value.subTabs.map(subTab => (
+                            {value.subTabs?.map((subTab: { id: SubTab; label: string; component: JSX.Element }) => (
                                 <li
                                     key={subTab.id}
                                     className={`p-2 my-1 pl-4 cursor-pointer rounded-r-lg text-sm transition-colors ${activeTab === subTab.id ? 'bg-blue-500 text-white font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
