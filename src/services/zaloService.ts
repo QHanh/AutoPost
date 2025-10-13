@@ -124,6 +124,51 @@ export const getZaloStatus = async (): Promise<any> => {
   return await response.json();
 };
 
+export const sendZaloTextMessage = async (
+  threadId: string,
+  message: string,
+): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Không tìm thấy token xác thực');
+  }
+  if (!threadId || !String(threadId).trim()) {
+    throw new Error('Thiếu thread_id');
+  }
+  if (!message || !String(message).trim()) {
+    throw new Error('Thiếu nội dung tin nhắn');
+  }
+
+  const apiKey = await fetchApiKey();
+  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/send-message`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ thread_id: String(threadId), message: String(message) }),
+  });
+
+  if (!response.ok) {
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401) {
+      // Reuse apiService token expiry behavior by mimicking
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    let errorText = `Error: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorText = errorData.detail || errorText;
+    } catch {}
+    throw new Error(errorText);
+  }
+
+  return await response.json();
+};
+
 // -------- Staff Zalo helpers --------
 export interface CreateStaffPayload {
   zalo_uid: string;
