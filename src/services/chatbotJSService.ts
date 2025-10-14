@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getAuthToken } from './apiService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 export interface ChatbotSettings {
   chatbot_icon_url?: string;
@@ -11,8 +12,12 @@ export interface ChatbotSettings {
 
 export const getChatbotSettings = async (): Promise<ChatbotSettings> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/chatbot-js-agent/settings`, {
-      withCredentials: true,
+    const token = getAuthToken();
+    const response = await axios.get(`${API_BASE_URL}/api/v1/chatbot-js-agent/settings`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
     });
     return response.data;
   } catch (error) {
@@ -23,10 +28,16 @@ export const getChatbotSettings = async (): Promise<ChatbotSettings> => {
 
 export const updateChatbotSettings = async (settings: ChatbotSettings): Promise<ChatbotSettings> => {
   try {
+    const token = getAuthToken();
     const response = await axios.put(
-      `${API_BASE_URL}/chatbot-js-agent/settings`,
+      `${API_BASE_URL}/api/v1/chatbot-js-agent/settings`,
       settings,
-      { withCredentials: true }
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
     );
     return response.data;
   } catch (error) {

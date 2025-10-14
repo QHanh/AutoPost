@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Edit, Search, MessageCircle, Check, X, Upload, Download } from 'lucide-react';
+import { Trash2, Edit, Search, MessageCircle, Check, X, Upload, Download, Image as ImageIcon } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Swal from 'sweetalert2';
 import { faqMobileService, FaqItem, FaqCreate } from '../../services/faqMobileService';
@@ -19,6 +19,8 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   const [newFaq, setNewFaq] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<FaqCreate>({ classification: '', question: '', answer: '' });
+  const [newFaqImages, setNewFaqImages] = useState<File[]>([]);
+  const [editingImages, setEditingImages] = useState<File[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +56,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
   // Handle add new FAQ
   const handleAddFaq = async () => {
-    if (!newFaq.classification.trim() || !newFaq.question.trim() || !newFaq.answer.trim()) {
+    if (!(newFaq.classification || '').trim() || !(newFaq.question || '').trim() || !(newFaq.answer || '').trim()) {
       Swal.fire({
         icon: 'warning',
         title: 'Thông báo',
@@ -65,9 +67,11 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
     setLoading(true);
     try {
-      await faqMobileService.addFaq(newFaq);
+      const faqData = { ...newFaq, images: newFaqImages.length > 0 ? newFaqImages : undefined };
+      await faqMobileService.addFaq(faqData);
       await fetchFaqs();
       setNewFaq({ classification: '', question: '', answer: '' });
+      setNewFaqImages([]);
       
       Swal.fire({
         icon: 'success',
@@ -90,7 +94,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
   // Handle update FAQ
   const handleUpdateFaq = async (faqId: string) => {
-    if (!editingData.classification.trim() || !editingData.question.trim() || !editingData.answer.trim()) {
+    if (!(editingData.classification || '').trim() || !(editingData.question || '').trim() || !(editingData.answer || '').trim()) {
       Swal.fire({
         icon: 'warning',
         title: 'Thông báo',
@@ -101,10 +105,12 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
 
     setLoading(true);
     try {
-      await faqMobileService.updateFaq(faqId, editingData);
+      const faqData = { ...editingData, images: editingImages.length > 0 ? editingImages : undefined };
+      await faqMobileService.updateFaq(faqId, faqData);
       await fetchFaqs();
       setEditingId(null);
       setEditingData({ classification: '', question: '', answer: '' });
+      setEditingImages([]);
       
       Swal.fire({
         icon: 'success',
@@ -204,13 +210,19 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   // Handle edit mode
   const handleEdit = (faq: FaqItem) => {
     setEditingId(faq.faq_id);
-    setEditingData({ classification: faq.classification, question: faq.question, answer: faq.answer });
+    setEditingData({ 
+      classification: faq.classification || '', 
+      question: faq.question || '', 
+      answer: faq.answer || '' 
+    });
+    setEditingImages([]);
   };
 
   // Cancel edit
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingData({ classification: '', question: '', answer: '' });
+    setEditingImages([]);
   };
 
   // Handle import FAQ from file
@@ -298,6 +310,101 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
   // Trigger file input
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  // Handle new FAQ images upload
+  const handleNewFaqImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setNewFaqImages(files);
+  };
+
+  // Handle editing FAQ images upload
+  const handleEditingImagesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setEditingImages(files);
+  };
+
+  // Remove image from new FAQ
+  const removeNewFaqImage = (index: number) => {
+    setNewFaqImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Remove image from editing FAQ
+  const removeEditingImage = (index: number) => {
+    setEditingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Parse comma-separated image URLs
+  const parseImageUrls = (imageString?: string): string[] => {
+    if (!imageString) return [];
+    return imageString.split(',').map(url => url.trim()).filter(url => url.length > 0);
+  };
+
+  // Render images component
+  const renderImages = (imageString?: string, isEditing: boolean = false, files: File[] = [], onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void, onRemove?: (index: number) => void) => {
+    const imageUrls = parseImageUrls(imageString);
+    
+    if (isEditing) {
+      return (
+        <div className="flex flex-col items-center space-y-2">
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={onChange}
+            className="text-xs"
+          />
+          {/* Show current images */}
+          {imageUrls.map((url, index) => (
+            <div key={index} className="relative">
+              <img
+                src={url}
+                alt={`Current FAQ ${index + 1}`}
+                className="w-16 h-16 object-cover rounded border"
+              />
+            </div>
+          ))}
+          {/* Show new uploaded files */}
+          {files.map((file, index) => (
+            <div key={`new-${index}`} className="relative">
+              <img
+                src={URL.createObjectURL(file)}
+                alt={`New preview ${index + 1}`}
+                className="w-16 h-16 object-cover rounded border"
+              />
+              <button
+                onClick={() => onRemove?.(index)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (imageUrls.length > 0) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {imageUrls.map((url, index) => (
+            <img
+              key={index}
+              src={url}
+              alt={`FAQ ${index + 1}`}
+              className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80"
+              onClick={() => window.open(url, '_blank')}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-16 h-16 bg-gray-100 rounded border flex items-center justify-center">
+        <ImageIcon className="w-6 h-6 text-gray-400" />
+      </div>
+    );
   };
 
   return (
@@ -389,14 +496,17 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                     Phân loại
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Câu hỏi
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                     Câu trả lời
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Hình ảnh
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     Hành động
@@ -433,10 +543,36 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                     />
                   </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex flex-col items-center space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleNewFaqImagesChange}
+                        className="text-xs"
+                      />
+                      {newFaqImages.map((file, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-16 h-16 object-cover rounded border"
+                          />
+                          <button
+                            onClick={() => removeNewFaqImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={handleAddFaq}
-                      disabled={!newFaq.classification.trim() || !newFaq.question.trim() || !newFaq.answer.trim() || loading}
+                      disabled={!(newFaq.classification || '').trim() || !(newFaq.question || '').trim() || !(newFaq.answer || '').trim() || loading}
                       className="inline-flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Check className="h-4 w-4" />
@@ -456,7 +592,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                         />
                       ) : (
-                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.classification}</div>
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.classification || ''}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -468,7 +604,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                         />
                       ) : (
-                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.question}</div>
+                        <div className="text-sm text-gray-900 whitespace-pre-wrap">{faq.question || ''}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -480,7 +616,14 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                         />
                       ) : (
-                        <div className="text-sm text-gray-700 whitespace-pre-wrap">{faq.answer}</div>
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">{faq.answer || ''}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {editingId === faq.faq_id ? (
+                        renderImages(faq.image, true, editingImages, handleEditingImagesChange, removeEditingImage)
+                      ) : (
+                        renderImages(faq.image)
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -489,7 +632,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                           <>
                             <button
                               onClick={() => handleUpdateFaq(faq.faq_id)}
-                              disabled={!editingData.classification.trim() || !editingData.question.trim() || !editingData.answer.trim() || loading}
+                              disabled={!(editingData.classification || '').trim() || !(editingData.question || '').trim() || !(editingData.answer || '').trim() || loading}
                               className="inline-flex items-center px-2 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                               title="Lưu"
                             >
@@ -529,7 +672,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                 {/* Empty state when no FAQs */}
                 {filteredFaqs.length === 0 && !searchTerm && (
                   <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center">
+                    <td colSpan={5} className="px-6 py-12 text-center">
                       <div className="text-gray-500">
                         <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                         <p className="text-lg font-medium mb-2">Chưa có FAQ nào</p>
@@ -542,7 +685,7 @@ const FaqMobileTab: React.FC<FaqMobileTabProps> = () => {
                 {/* No search results */}
                 {filteredFaqs.length === 0 && searchTerm && (
                   <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center">
+                    <td colSpan={5} className="px-6 py-12 text-center">
                       <div className="text-gray-500">
                         <Search className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                         <p className="text-lg font-medium mb-2">Không tìm thấy FAQ nào</p>

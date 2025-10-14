@@ -98,11 +98,15 @@ const MessageActionDropdown: React.FC<MessageActionDropdownProps> = ({
 
     setIsSavingFaq(true);
     try {
-      await faqMobileService.addFaq({
+      // Create FAQ data without image for chat interface
+      const faqData = {
         classification: 'chatbot',
         question: faqQuestion,
         answer: faqAnswer
-      });
+        // No images field - this is for chat interface only
+      };
+      
+      await faqMobileService.addFaq(faqData);
       
       Swal.fire({
         icon: 'success',

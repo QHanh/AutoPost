@@ -8,12 +8,14 @@ export interface FaqItem {
   question: string;
   answer: string;
   customer_id: string;
+  image?: string; // Comma-separated image URLs
 }
 
 export interface FaqCreate {
   classification: string;
   question: string;
   answer: string;
+  images?: File[]; // Array of files for multiple images
 }
 
 interface ApiResponse<T> {
@@ -52,13 +54,29 @@ export const faqMobileService = {
    */
   async addFaq(faqData: FaqCreate): Promise<any> {
     const token = getAuthToken();
+    const formData = new FormData();
+    
+    // Add faq_data as JSON string
+    const faqJson = {
+      classification: faqData.classification,
+      question: faqData.question,
+      answer: faqData.answer
+    };
+    formData.append('faq_data', JSON.stringify(faqJson));
+    
+    // Add files if provided
+    if (faqData.images && faqData.images.length > 0) {
+      faqData.images.forEach((file, index) => {
+        formData.append('files', file);
+      });
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/mobile-faq`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(faqData),
+      body: formData,
     });
 
     if (!response.ok) {
@@ -74,13 +92,29 @@ export const faqMobileService = {
    */
   async updateFaq(faqId: string, faqData: FaqCreate): Promise<any> {
     const token = getAuthToken();
+    const formData = new FormData();
+    
+    // Add faq_data as JSON string
+    const faqJson = {
+      classification: faqData.classification,
+      question: faqData.question,
+      answer: faqData.answer
+    };
+    formData.append('faq_data', JSON.stringify(faqJson));
+    
+    // Add files if provided
+    if (faqData.images && faqData.images.length > 0) {
+      faqData.images.forEach((file, index) => {
+        formData.append('files', file);
+      });
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/mobile-faq/${faqId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(faqData),
+      body: formData,
     });
 
     if (!response.ok) {
