@@ -55,6 +55,8 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const selectedConvRef = useRef<ZaloConversation | null>(null);
+  // Track recently sent texts per thread to avoid duplicate self messages via WS
+  const recentlySentRef = useRef<Record<string, { text: string; time: number }[]>>({});
   
   // Bot config states
   const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
@@ -532,6 +534,15 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     if (!text) return;
     try {
       setIsSendingMessage(true);
+      // Record recently sent text for dedupe window (e.g., 4s) BEFORE awaiting send
+      {
+        const tid = String(threadId);
+        const now = Date.now();
+        const windowMs = 4000;
+        const arr = (recentlySentRef.current[tid] || []).filter((it) => now - it.time <= windowMs);
+        arr.push({ text, time: now });
+        recentlySentRef.current[tid] = arr;
+      }
       await sendZaloTextMessage(String(threadId), text);
       // Optimistic append to current messages
       const optimistic: ZaloMessage = {
@@ -659,6 +670,22 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         // Append message if viewing the same conversation
         const current = selectedConvRef.current as any;
         if (current && current.thread_id && d.thread_id && String(current.thread_id) === String(d.thread_id)) {
+          // Dedupe: if this is a self message and matches a recently sent text, skip appending
+          const tid = String(d.thread_id);
+          const now = Date.now();
+          const windowMs = 4000;
+          const arr = (recentlySentRef.current[tid] || []).filter((it) => now - it.time <= windowMs);
+          recentlySentRef.current[tid] = arr;
+          const isSelfOut = !!d.is_self || String(d.direction || '').toLowerCase() === 'out';
+          if (isSelfOut) {
+            const idx = arr.findIndex((it) => String(it.text || '').trim() === String(d.content || '').trim());
+            if (idx >= 0) {
+              // Consume this recent entry to avoid future duplicates and skip append
+              arr.splice(idx, 1);
+              recentlySentRef.current[tid] = arr;
+              return;
+            }
+          }
           const newMsg: any = {
             id: d.msg_id || `${Date.now()}-${Math.random()}`,
             is_self: !!d.is_self,
