@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo } from '../../services/zaloService';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage } from '../../services/zaloService';
 import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
 import { getMyBotConfig, upsertMyBotConfig, BotConfig } from '../../services/botConfigService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
+import { getAuthToken } from '../../services/apiService';
 
 interface ZaloTabProps {
   currentPage?: number;
@@ -12,6 +13,10 @@ interface ZaloTabProps {
   onLimitChange?: (limit: number) => void;
   initialActiveTab?: 'login' | 'messages';
 }
+
+
+// WebSocket base URL (same as API base) and protocol resolver
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
 
 const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
@@ -42,6 +47,16 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [ignoredItems, setIgnoredItems] = useState<IgnoredConversation[]>([]);
   const [isIgnoring, setIsIgnoring] = useState<boolean>(false);
   const [deletingIgnoredId, setDeletingIgnoredId] = useState<string | null>(null);
+  // Send message states
+  const [newMessageText, setNewMessageText] = useState<string>('');
+  const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
+  
+  // WebSocket refs
+  const wsRef = useRef<WebSocket | null>(null);
+  const pingIntervalRef = useRef<number | null>(null);
+  const selectedConvRef = useRef<ZaloConversation | null>(null);
+  // Track recently sent texts per thread to avoid duplicate self messages via WS
+  const recentlySentRef = useRef<Record<string, { text: string; time: number }[]>>({});
   
   // Bot config states
   const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
@@ -72,6 +87,11 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       setIsCreatingStaff(false);
     }
   };
+
+  // Keep a ref of currently selected conversation for WS event handler
+  useEffect(() => {
+    selectedConvRef.current = selectedConversation;
+  }, [selectedConversation]);
 
   const loadIgnored = async () => {
     setIsLoadingIgnored(true);
@@ -502,6 +522,60 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     }
   };
 
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedConversation) return;
+    const threadId = (selectedConversation as any).thread_id;
+    const text = (newMessageText || '').trim();
+    if (!threadId) {
+      alert('Không xác định được thread_id cho cuộc trò chuyện này, không thể gửi tin.');
+      return;
+    }
+    if (!text) return;
+    try {
+      setIsSendingMessage(true);
+      // Record recently sent text for dedupe window (e.g., 4s) BEFORE awaiting send
+      {
+        const tid = String(threadId);
+        const now = Date.now();
+        const windowMs = 4000;
+        const arr = (recentlySentRef.current[tid] || []).filter((it) => now - it.time <= windowMs);
+        arr.push({ text, time: now });
+        recentlySentRef.current[tid] = arr;
+      }
+      await sendZaloTextMessage(String(threadId), text);
+      // Optimistic append to current messages
+      const optimistic: ZaloMessage = {
+        id: `${Date.now()}-local`,
+        content: text,
+        is_self: true,
+        ts: Date.now(),
+      } as any;
+      setMessages((prev) => {
+        const next = [...prev, optimistic];
+        // Auto scroll to bottom
+        setTimeout(() => {
+          const el = document.querySelector('.messages-container') as HTMLElement | null;
+          if (el) el.scrollTop = el.scrollHeight;
+        }, 50);
+        return next;
+      });
+      // Update conversation preview
+      setConversations((prev) => prev.map((c) => {
+        const t = (c as any).thread_id;
+        if (t && String(t) === String(threadId)) {
+          return { ...c, last_content: text, last_ts: Date.now() } as any;
+        }
+        return c;
+      }));
+      setNewMessageText('');
+    } catch (err: any) {
+      alert(err?.message || 'Gửi tin nhắn thất bại');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
   // Kiểm tra trạng thái phiên Zalo khi mở tab
   useEffect(() => {
     let mounted = true;
@@ -539,6 +613,121 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       loadIgnored();
       // If user is on Messages tab, list will be shown automatically
     }
+  }, [status]);
+
+  // Open WebSocket when logged in and keep it alive
+  useEffect(() => {
+    if (status !== 'SessionSaved') {
+      // Close any previous WS when logged out or not ready
+      try { wsRef.current?.close(); } catch {}
+      wsRef.current = null;
+      if (pingIntervalRef.current) {
+        try { window.clearInterval(pingIntervalRef.current); } catch {}
+        pingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    // Build WS URL from API_BASE_URL
+    const host = API_BASE_URL.replace(/^https?:\/\//, '');
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsUrl = `${wsProtocol}://${host}/api/v1/ws?token=${encodeURIComponent(token)}`;
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      // periodic ping to keep alive through proxies
+      if (pingIntervalRef.current) {
+        try { window.clearInterval(pingIntervalRef.current); } catch {}
+      }
+      pingIntervalRef.current = window.setInterval(() => {
+        try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+      }, 25000);
+    };
+
+    ws.onmessage = (event) => {
+      const raw = String(event.data ?? '');
+      let payload: any = null;
+      try { payload = JSON.parse(raw); } catch { payload = null; }
+      if (!payload || typeof payload !== 'object') return;
+
+      if (payload.type === 'zalo_message' && payload.data) {
+        const d = payload.data as any;
+
+        // Update conversation preview
+        setConversations((prev) => prev.map((c) => {
+          const t = (c as any).thread_id;
+          if (t && d.thread_id && String(t) === String(d.thread_id)) {
+            return { ...c, last_content: d.content, last_ts: d.ts } as any;
+          }
+          return c;
+        }));
+
+        // Append message if viewing the same conversation
+        const current = selectedConvRef.current as any;
+        if (current && current.thread_id && d.thread_id && String(current.thread_id) === String(d.thread_id)) {
+          // Dedupe: if this is a self message and matches a recently sent text, skip appending
+          const tid = String(d.thread_id);
+          const now = Date.now();
+          const windowMs = 4000;
+          const arr = (recentlySentRef.current[tid] || []).filter((it) => now - it.time <= windowMs);
+          recentlySentRef.current[tid] = arr;
+          const isSelfOut = !!d.is_self || String(d.direction || '').toLowerCase() === 'out';
+          if (isSelfOut) {
+            const idx = arr.findIndex((it) => String(it.text || '').trim() === String(d.content || '').trim());
+            if (idx >= 0) {
+              // Consume this recent entry to avoid future duplicates and skip append
+              arr.splice(idx, 1);
+              recentlySentRef.current[tid] = arr;
+              return;
+            }
+          }
+          const newMsg: any = {
+            id: d.msg_id || `${Date.now()}-${Math.random()}`,
+            is_self: !!d.is_self,
+            d_name: d.d_name,
+            content: d.content,
+            ts: d.ts,
+          };
+          setMessages((prev) => {
+            const next = [...prev, newMsg as ZaloMessage];
+            // Auto scroll to bottom
+            setTimeout(() => {
+              const el = document.querySelector('.messages-container') as HTMLElement | null;
+              if (el) el.scrollTop = el.scrollHeight;
+            }, 50);
+            return next;
+          });
+        }
+      }
+    };
+
+    ws.onerror = () => {
+      // no-op; rely on onclose for cleanup
+    };
+
+    ws.onclose = () => {
+      if (pingIntervalRef.current) {
+        try { window.clearInterval(pingIntervalRef.current); } catch {}
+        pingIntervalRef.current = null;
+      }
+      wsRef.current = null;
+      // Optionally implement reconnection after short delay while still logged in
+      // Keep it simple for now; next WS will open when user reloads or navigates.
+    };
+
+    return () => {
+      try { ws.close(); } catch {}
+      if (pingIntervalRef.current) {
+        try { window.clearInterval(pingIntervalRef.current); } catch {}
+        pingIntervalRef.current = null;
+      }
+      wsRef.current = null;
+    };
   }, [status]);
 
   // When switching to Messages tab and already logged in, load conversations
@@ -1000,17 +1189,34 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                             />
                           )}
                         </div>
-                      ))
-}
+                      ))}
                     </div>
                   )}
                   </div>
+                  {selectedConversation && (
+                    <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nhập tin nhắn..."
+                        value={newMessageText}
+                        onChange={(e) => setNewMessageText(e.currentTarget.value)}
+                        className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+                        disabled={isSendingMessage}
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
+                        disabled={isSendingMessage || !newMessageText.trim()}
+                        title={isSendingMessage ? 'Đang gửi...' : 'Gửi'}
+                      >{isSendingMessage ? 'Đang gửi...' : 'Gửi'}</button>
+                    </form>
+                  )}
                 </div>
               </div>
             </div>
-            )}
-
-            {subTab === 'ignored' && (
+          )}
+          
+  {subTab === 'ignored' && (
               <div className="bg-white rounded-lg shadow-sm p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-gray-800">quản lý chatbot cho zalo</h4>

@@ -14,6 +14,7 @@ import DeviceColorsTab from './ChatbotPage/DeviceColorsTab';
 import DeviceInfosTab from './ChatbotPage/DeviceInfosTab';
 import DeviceStorageTab from './ChatbotPage/DeviceStorageTab';
 import ChatbotTab from './ChatbotPage/ChatbotTab';
+import UrlDevicesTab from './ChatbotPage/UrlDevicesTab';
 import { ServiceManagementPage } from './ServiceManagementPage';
 import ChatbotLinhKienTab from './ChatbotPage/ChatbotLinhKienTab'; // Import tab mới
 import ApiIntegrationPage from './ApiIntegrationPage';
@@ -32,6 +33,7 @@ import FacebookConversationsTab from './ChatbotPage/FacebookConversationsTab';
 type MainCategory = 'dienthoai' | 'dichvu' | 'linhkien' | 'chat' | 'chatbot-linhkien' | 'zalo' | 'zalo-oa' | 'caidat' | 'fb-ig'; // Added fb-ig and zalo-oa
 type SubTab =
   | 'my-devices'
+  | 'url-devices'
   | 'device-info'
   | 'colors'
   | 'device-colors'
@@ -76,6 +78,7 @@ const getMainTabsConfig = (
     icon: <Smartphone className="w-5 h-5 text-blue-500" />,
     subTabs: [
       { id: 'my-devices', label: 'Thiết bị của tôi', component: <DevicesTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
+      { id: 'url-devices', label: 'Đồng bộ URL', component: <UrlDevicesTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'device-info', label: 'Thông tin thiết bị', component: <DeviceInfosTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'colors', label: 'Màu sắc', component: <ColorsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },
       { id: 'device-colors', label: 'Thiết bị - Màu sắc', component: <DeviceColorsTab currentPage={page} currentLimit={limit} onPageChange={onPageChange} onLimitChange={onLimitChange} /> },

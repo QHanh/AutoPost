@@ -46,6 +46,7 @@ export interface UserDevice {
   id: string;
   user_id: string;
   product_code: string;
+  device_name?: string;
   warranty: string;
   device_condition: string;
   device_type: string;
@@ -56,10 +57,10 @@ export interface UserDevice {
   notes?: string;
   created_at: string;
   updated_at: string;
-  device_info: DeviceInfo;
-  color: Color;
-  device_storage: DeviceStorage;
-  device_storage_id: string;
+  device_info?: DeviceInfo | null;
+  color?: Color | null;
+  device_storage?: DeviceStorage | null;
+  device_storage_id?: string | null;
   // Thông tin hiển thị
   deviceModel?: string;
   colorName?: string;
