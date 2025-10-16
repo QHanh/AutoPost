@@ -246,12 +246,12 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     }
   };
 
-  // Fetch sync URL
+  // Fetch sync URL (component-specific)
   const fetchSyncUrl = async () => {
     try {
       setUrlLoading(true);
       setUrlError('');
-      const response = await userSyncUrlService.get();
+      const response = await userSyncUrlService.get('component');
       if (response && response.url) {
         setSyncUrl(response.url);
       }
@@ -263,7 +263,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     }
   };
 
-  // Save sync URL
+  // Save sync URL (component-specific)
   const handleSaveSyncUrl = async () => {
     if (!syncUrl.trim()) {
       setUrlError('Vui lòng nhập URL');
@@ -281,7 +281,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     try {
       setUrlSaving(true);
       setUrlError('');
-      await userSyncUrlService.upsert(syncUrl.trim(), true);
+      await userSyncUrlService.upsert(syncUrl.trim(), true, 'component');
       
       Swal.fire({
         icon: 'success',
@@ -303,10 +303,10 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
     }
   };
 
-  // Deactivate sync URL
+  // Deactivate sync URL (component-specific)
   const handleDeactivateSyncUrl = async () => {
     try {
-      await userSyncUrlService.deactivate();
+      await userSyncUrlService.deactivate('component');
       setSyncUrl('');
       
       Swal.fire({
@@ -1050,7 +1050,7 @@ const ApiDataSyncTab: React.FC<ApiDataSyncTabProps> = ({
 
       <div className="mb-4">
         <div className="relative">
-        <UrlSyncConfig isAuthenticated={isAuthenticated} />
+        <UrlSyncConfig isAuthenticated={isAuthenticated} defaultType="component" />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"

@@ -9,8 +9,9 @@ export interface UserSyncUrl {
 }
 
 export const userSyncUrlService = {
-  get: async () => {
-    return await apiGet<UserSyncUrl | null>('/sync-url');
+  get: async (type_url?: string) => {
+    const qs = type_url ? `?type_url=${encodeURIComponent(type_url)}` : '';
+    return await apiGet<UserSyncUrl | null>(`/sync-url${qs}`);
   },
   upsert: async (url: string, is_active: boolean = true, type_url?: string, url_today?: string) => {
     return await apiPost<UserSyncUrl>('/sync-url', { url, is_active, type_url, url_today });
@@ -18,11 +19,15 @@ export const userSyncUrlService = {
   update: async (url?: string, is_active?: boolean, type_url?: string, url_today?: string) => {
     return await apiPut<UserSyncUrl>('/sync-url', { url, is_active, type_url, url_today });
   },
-  deactivate: async () => {
-    return await apiDelete<{ success: boolean }>('/sync-url');
+  deactivate: async (type_url?: string) => {
+    const qs = type_url ? `?type_url=${encodeURIComponent(type_url)}` : '';
+    return await apiDelete<{ success: boolean }>(`/sync-url${qs}`);
   },
-  syncDevices: async (updated_today: boolean = false) => {
-    const qs = updated_today ? '?updated_today=true' : '';
+  syncDevices: async (updated_today: boolean = false, type_url?: string) => {
+    const params = new URLSearchParams();
+    if (updated_today) params.append('updated_today', 'true');
+    if (type_url) params.append('type_url', type_url);
+    const qs = params.toString() ? `?${params.toString()}` : '';
     return await apiPost<unknown>(`/sync-url/sync-devices${qs}`, {});
   }
 };

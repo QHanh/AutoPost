@@ -5,11 +5,12 @@ import Swal from 'sweetalert2';
 
 interface UrlSyncConfigProps {
   isAuthenticated: boolean;
+  defaultType?: 'device' | 'component' | 'service';
 }
 
-const UrlSyncConfig: React.FC<UrlSyncConfigProps> = ({ isAuthenticated }) => {
+const UrlSyncConfig: React.FC<UrlSyncConfigProps> = ({ isAuthenticated, defaultType }) => {
   const [syncUrl, setSyncUrl] = useState('');
-  const [typeUrl, setTypeUrl] = useState<'device' | 'component' | 'service' | ''>('');
+  const [typeUrl, setTypeUrl] = useState<'device' | 'component' | 'service' | ''>(defaultType || '');
   const [urlToday, setUrlToday] = useState('');
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlSaving, setUrlSaving] = useState(false);
@@ -17,19 +18,21 @@ const UrlSyncConfig: React.FC<UrlSyncConfigProps> = ({ isAuthenticated }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchSyncUrl();
+      fetchSyncUrl(typeUrl || defaultType);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, typeUrl, defaultType]);
 
   // Fetch sync URL
-  const fetchSyncUrl = async () => {
+  const fetchSyncUrl = async (t?: string) => {
     try {
       setUrlLoading(true);
       setUrlError('');
-      const response = await userSyncUrlService.get();
+      const response = await userSyncUrlService.get(t);
       if (response && response.url) {
         setSyncUrl(response.url);
-        setTypeUrl((response.type_url as any) || '');
+        if (!typeUrl && (response.type_url as any)) {
+          setTypeUrl(response.type_url as any);
+        }
         setUrlToday(response.url_today || '');
       }
     } catch (error) {
@@ -93,7 +96,7 @@ const UrlSyncConfig: React.FC<UrlSyncConfigProps> = ({ isAuthenticated }) => {
   // Deactivate sync URL
   const handleDeactivateSyncUrl = async () => {
     try {
-      await userSyncUrlService.deactivate();
+      await userSyncUrlService.deactivate(typeUrl || undefined);
       setSyncUrl('');
       
       Swal.fire({

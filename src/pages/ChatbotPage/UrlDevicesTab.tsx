@@ -154,7 +154,7 @@ const UrlDevicesTab: React.FC<UrlDevicesTabProps> = ({ currentPage = 1, currentL
   const handleSyncNow = async () => {
     try {
       setIsSyncing(true);
-      const res = await userSyncUrlService.syncDevices(updatedToday);
+      const res = await userSyncUrlService.syncDevices(updatedToday, 'device');
       const data = res as any;
       const details = data?.data || data;
       const created = details?.created ?? 0;
@@ -195,7 +195,7 @@ const UrlDevicesTab: React.FC<UrlDevicesTabProps> = ({ currentPage = 1, currentL
           <LinkIcon className="w-5 h-5 text-blue-600" />
           <h2 className="text-2xl font-bold text-gray-800">Đồng bộ URL</h2>
         </div>
-        <UrlSyncConfig isAuthenticated={true} />
+        <UrlSyncConfig isAuthenticated={true} defaultType="device" />
         <div className="flex items-center gap-3 mt-2">
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" className="h-4 w-4" checked={updatedToday} onChange={(e) => setUpdatedToday(e.target.checked)} />
