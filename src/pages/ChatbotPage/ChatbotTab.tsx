@@ -30,6 +30,8 @@ const ChatbotTab: React.FC = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [faqQuestion, setFaqQuestion] = useState('');
   const [faqAnswer, setFaqAnswer] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -138,7 +140,7 @@ const ChatbotTab: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
-      text: input,
+      text: imageUrl && imageUrl.trim() ? `${input}\n${imageUrl.trim()}` : input,
       sender: 'user',
       id: Date.now().toString()
     };
@@ -186,12 +188,15 @@ const ChatbotTab: React.FC = () => {
             }
             return newMessages;
           });
-        }
+        },
+        { image_url: imageUrl?.trim() || undefined, image_base64: imageBase64 || undefined }
       );
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsLoading(false);
+      setImageUrl('');
+      setImageBase64(null);
     }
   };
 
@@ -298,7 +303,7 @@ const ChatbotTab: React.FC = () => {
 
       {/* Input - Ghim ở cuối trang */}
       <div className="sticky bottom-0 left-0 right-0 p-3 bg-white border-t shadow-sm z-10">
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <textarea
             ref={inputRef}
             value={input}
@@ -309,14 +314,48 @@ const ChatbotTab: React.FC = () => {
             rows={1}
             disabled={isLoading}
           />
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
-            className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            <PaperPlaneIcon className="w-4 h-4" />
-            {isLoading ? 'Đang gửi...' : 'Gửi'}
-          </button>
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              inputMode="url"
+              placeholder="Link ảnh (tùy chọn)"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
+            />
+            <label className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-200">
+              Chọn ảnh
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) { setImageBase64(null); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result as string;
+                    const commaIdx = result.indexOf(',');
+                    const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+                    setImageBase64(base64);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                disabled={isLoading}
+              />
+            </label>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || isLoading}
+              className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              <PaperPlaneIcon className="w-4 h-4" />
+              {isLoading ? 'Đang gửi...' : 'Gửi'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

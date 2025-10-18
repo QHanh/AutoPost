@@ -291,7 +291,8 @@ export const chatbotStream = async (
   query: string,
   onChunk: (chunk: string) => void,
   onComplete: () => void,
-  onError: (error: Error) => void
+  onError: (error: Error) => void,
+  extra?: { image_url?: string; image_base64?: string; thread_id?: string; llm_provider?: 'google_genai' | 'openai' }
 ) => {
   const token = getAuthToken();
   if (!token) {
@@ -300,14 +301,19 @@ export const chatbotStream = async (
   }
 
   try {
+    const body: any = {
+      query,
+      llm_provider: extra?.llm_provider ?? 'google_genai',
+      stream: true,
+    };
+    if (extra?.image_url) body.image_url = extra.image_url;
+    if (extra?.image_base64) body.image_base64 = extra.image_base64;
+    if (extra?.thread_id) body.thread_id = extra.thread_id;
+
     const response = await fetch(`${API_BASE_URL}/api/v1/chatbot/chat`, {
       method: 'POST',
       headers: getAuthHeader(),
-      body: JSON.stringify({
-        query,
-        llm_provider: 'google_genai',
-        stream: true,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok || !response.body) {
