@@ -18,6 +18,7 @@ const ChatbotTab: React.FC = () => {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<Message[]>(() => {
     const savedMessages = localStorage.getItem('chatbotMessages');
     return savedMessages ? JSON.parse(savedMessages) : [];
@@ -137,7 +138,7 @@ const ChatbotTab: React.FC = () => {
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!(input.trim()) && !(imageUrl && imageUrl.trim()) && !imageBase64) || isLoading) return;
 
     const userMessage: Message = {
       text: imageUrl && imageUrl.trim() ? `${input}\n${imageUrl.trim()}` : input,
@@ -197,6 +198,7 @@ const ChatbotTab: React.FC = () => {
       setIsLoading(false);
       setImageUrl('');
       setImageBase64(null);
+      try { if (fileInputRef.current) fileInputRef.current.value = ''; } catch {}
     }
   };
 
@@ -324,32 +326,37 @@ const ChatbotTab: React.FC = () => {
               className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
-            <label className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-200">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) { setImageBase64(null); return; }
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const result = reader.result as string;
+                  const commaIdx = result.indexOf(',');
+                  const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+                  setImageBase64(base64);
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="px-3 py-1.5 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-60"
+            >
               Chọn ảnh
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) { setImageBase64(null); return; }
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const result = reader.result as string;
-                    const commaIdx = result.indexOf(',');
-                    const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
-                    setImageBase64(base64);
-                  };
-                  reader.readAsDataURL(file);
-                }}
-                disabled={isLoading}
-              />
-            </label>
+            </button>
           </div>
           <div className="flex justify-end">
             <button
               onClick={sendMessage}
-              disabled={!input.trim() || isLoading}
+              disabled={!(input.trim() || (imageUrl && imageUrl.trim()) || imageBase64) || isLoading}
               className="px-4 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <PaperPlaneIcon className="w-4 h-4" />
