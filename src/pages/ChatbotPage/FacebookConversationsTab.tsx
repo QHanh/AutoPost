@@ -5,7 +5,7 @@ import {
   getFBConversations,
   getFBConversationMessages,
   sendFBTextMessage,
-  sendFBImageByUrl,
+  sendFBImageFromFile,
   type FacebookAccount,
   type FBConversationItem,
   type FBMessageItem,
@@ -44,12 +44,13 @@ const FacebookConversationsTab: React.FC = () => {
   const [msgError, setMsgError] = useState<string | null>(null);
 
   const [messageText, setMessageText] = useState('');
-  const [imageUrlInput, setImageUrlInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Scroll & ordering helpers for messages
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Bot config: pause TTL (minutes) per Page
   const [pauseTTL, setPauseTTL] = useState<string>('');
@@ -247,9 +248,9 @@ const FacebookConversationsTab: React.FC = () => {
     }
   };
 
-  const handleSendImageUrl = async () => {
-    const url = imageUrlInput.trim();
-    if (!selectedPageId || !selectedConversationId || !url) return;
+  const handleSendImageFile = async (fileParam?: File) => {
+    const f = fileParam ?? imageFile;
+    if (!selectedPageId || !selectedConversationId || !f) return;
     const conv = conversations.find(c => c.id === selectedConversationId);
     const psid = conv?.participants?.data?.find(p => p.id !== selectedPageId)?.id || '';
     if (!psid) {
@@ -258,8 +259,11 @@ const FacebookConversationsTab: React.FC = () => {
     }
     setSending(true);
     try {
-      await sendFBImageByUrl(selectedPageId, psid, url);
-      setImageUrlInput('');
+      await sendFBImageFromFile(selectedPageId, psid, f, true);
+      setImageFile(null);
+      if (fileInputRef.current) {
+        try { fileInputRef.current.value = ''; } catch {}
+      }
       await loadMessages(selectedConversationId);
     } catch (e: any) {
       await Swal.fire('Lỗi', e?.message || 'Không gửi được hình ảnh', 'error');
@@ -429,7 +433,7 @@ const FacebookConversationsTab: React.FC = () => {
               </div>
               {loadingMsgs && <div className="text-gray-600 mt-2">Đang tải tin nhắn...</div>}
               <div className="mt-3 border-t pt-3">
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <input
                     type="text"
                     className="flex-1 border rounded px-3 py-2"
@@ -439,26 +443,35 @@ const FacebookConversationsTab: React.FC = () => {
                     onKeyDown={(e) => { if ((e as any).key === 'Enter' && !(e as any).shiftKey) { e.preventDefault(); handleSendText(); } }}
                     disabled={sending || !selectedPsid}
                   />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      const f = (e.target.files && e.target.files[0]) ? e.target.files[0] : null;
+                      if (f) {
+                        setImageFile(f);
+                        handleSendImageFile(f);
+                      }
+                    }}
+                    disabled={sending || !selectedPsid}
+                  />
+                  <button
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded border disabled:opacity-60"
+                    onClick={() => { if (fileInputRef.current) fileInputRef.current.click(); }}
+                    disabled={sending || !selectedPsid}
+                    aria-label="Chọn ảnh"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M4.5 5.25A2.25 2.25 0 016.75 3h10.5A2.25 2.25 0 0119.5 5.25v13.5A2.25 2.25 0 0117.25 21H6.75A2.25 2.25 0 014.5 18.75V5.25zM7.5 8.25a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0zM6 18l3.75-5.25 2.25 3 3.75-5.25L18 18H6z" />
+                    </svg>
+                  </button>
                   <button
                     className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
                     onClick={handleSendText}
                     disabled={sending || !messageText.trim() || !selectedPsid}
                   >Gửi</button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    className="flex-1 border rounded px-3 py-2"
-                    placeholder="Dán URL hình ảnh..."
-                    value={imageUrlInput}
-                    onChange={(e) => setImageUrlInput(e.target.value)}
-                    disabled={sending || !selectedPsid}
-                  />
-                  <button
-                    className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-60"
-                    onClick={handleSendImageUrl}
-                    disabled={sending || !imageUrlInput.trim() || !selectedPsid}
-                  >Gửi hình</button>
                 </div>
               </div>
             </>

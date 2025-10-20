@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './apiService';
+import { apiGet, apiPost, apiPostFormData } from './apiService';
 
 export interface FacebookAccount {
   id: string; // UUID in backend
@@ -95,4 +95,18 @@ export const sendFBImageByUrl = async (
   imageUrl: string,
 ) => {
   return apiPost<any>(`/messenger/messages/send`, { page_id: pageId, psid, image_url: imageUrl });
+};
+
+export const sendFBImageFromFile = async (
+  pageId: string,
+  psid: string,
+  file: File,
+  isReusable = true,
+) => {
+  const fd = new FormData();
+  fd.append('page_id', pageId);
+  fd.append('psid', psid);
+  fd.append('is_reusable', String(isReusable));
+  fd.append('file', file);
+  return apiPostFormData<any>(`/messenger/messages/send-image`, fd);
 };
