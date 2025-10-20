@@ -4,6 +4,8 @@ import {
   getFacebookPages,
   getFBConversations,
   getFBConversationMessages,
+  sendFBTextMessage,
+  sendFBImageByUrl,
   type FacebookAccount,
   type FBConversationItem,
   type FBMessageItem,
@@ -40,6 +42,10 @@ const FacebookConversationsTab: React.FC = () => {
   const [messages, setMessages] = useState<FBMessageItem[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [msgError, setMsgError] = useState<string | null>(null);
+
+  const [messageText, setMessageText] = useState('');
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [sending, setSending] = useState(false);
 
   // Scroll & ordering helpers for messages
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -220,7 +226,55 @@ const FacebookConversationsTab: React.FC = () => {
     }
   };
 
+  const handleSendText = async () => {
+    const text = messageText.trim();
+    if (!selectedPageId || !selectedConversationId || !text) return;
+    const conv = conversations.find(c => c.id === selectedConversationId);
+    const psid = conv?.participants?.data?.find(p => p.id !== selectedPageId)?.id || '';
+    if (!psid) {
+      await Swal.fire('Lỗi', 'Không xác định được người nhận', 'error');
+      return;
+    }
+    setSending(true);
+    try {
+      await sendFBTextMessage(selectedPageId, psid, text);
+      setMessageText('');
+      await loadMessages(selectedConversationId);
+    } catch (e: any) {
+      await Swal.fire('Lỗi', e?.message || 'Không gửi được tin nhắn', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendImageUrl = async () => {
+    const url = imageUrlInput.trim();
+    if (!selectedPageId || !selectedConversationId || !url) return;
+    const conv = conversations.find(c => c.id === selectedConversationId);
+    const psid = conv?.participants?.data?.find(p => p.id !== selectedPageId)?.id || '';
+    if (!psid) {
+      await Swal.fire('Lỗi', 'Không xác định được người nhận', 'error');
+      return;
+    }
+    setSending(true);
+    try {
+      await sendFBImageByUrl(selectedPageId, psid, url);
+      setImageUrlInput('');
+      await loadMessages(selectedConversationId);
+    } catch (e: any) {
+      await Swal.fire('Lỗi', e?.message || 'Không gửi được hình ảnh', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const selectedPage = useMemo(() => pages.find(p => p.account_id === selectedPageId), [pages, selectedPageId]);
+  const selectedConversation = useMemo(() => conversations.find(c => c.id === selectedConversationId) || null, [conversations, selectedConversationId]);
+  const selectedPsid = useMemo(() => {
+    if (!selectedConversation || !selectedPageId) return '';
+    const p = selectedConversation?.participants?.data?.find(p => p.id !== selectedPageId);
+    return p?.id || '';
+  }, [selectedConversation, selectedPageId]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -374,6 +428,39 @@ const FacebookConversationsTab: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
               {loadingMsgs && <div className="text-gray-600 mt-2">Đang tải tin nhắn...</div>}
+              <div className="mt-3 border-t pt-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 border rounded px-3 py-2"
+                    placeholder="Nhập tin nhắn..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => { if ((e as any).key === 'Enter' && !(e as any).shiftKey) { e.preventDefault(); handleSendText(); } }}
+                    disabled={sending || !selectedPsid}
+                  />
+                  <button
+                    className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
+                    onClick={handleSendText}
+                    disabled={sending || !messageText.trim() || !selectedPsid}
+                  >Gửi</button>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    className="flex-1 border rounded px-3 py-2"
+                    placeholder="Dán URL hình ảnh..."
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    disabled={sending || !selectedPsid}
+                  />
+                  <button
+                    className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-60"
+                    onClick={handleSendImageUrl}
+                    disabled={sending || !imageUrlInput.trim() || !selectedPsid}
+                  >Gửi hình</button>
+                </div>
+              </div>
             </>
           ) : (
             <div className="text-gray-600">Chọn một hội thoại để xem tin nhắn</div>

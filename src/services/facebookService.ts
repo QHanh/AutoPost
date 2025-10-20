@@ -1,4 +1,4 @@
-import { apiGet } from './apiService';
+import { apiGet, apiPost } from './apiService';
 
 export interface FacebookAccount {
   id: string; // UUID in backend
@@ -79,4 +79,20 @@ export const getFBConversationMessages = async (
 ): Promise<FBConversationMessagesResponse> => {
   const params = new URLSearchParams({ page_id: pageId, limit: String(limit) });
   return apiGet<FBConversationMessagesResponse>(`/facebook/conversations/${conversationId}/messages?${params.toString()}`);
+};
+
+export const sendFBTextMessage = async (
+  pageId: string,
+  psid: string,
+  text: string,
+) => {
+  return apiPost<any>(`/messenger/messages/send`, { page_id: pageId, psid, text });
+};
+
+export const sendFBImageByUrl = async (
+  pageId: string,
+  psid: string,
+  imageUrl: string,
+) => {
+  return apiPost<any>(`/messenger/messages/send`, { page_id: pageId, psid, image_url: imageUrl });
 };
