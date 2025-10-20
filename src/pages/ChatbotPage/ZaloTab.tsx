@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage } from '../../services/zaloService';
+import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut, Image } from 'lucide-react';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage, sendZaloImageFile } from '../../services/zaloService';
 import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
 import { getMyBotConfig, upsertMyBotConfig, BotConfig } from '../../services/botConfigService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
@@ -50,13 +50,16 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   // Send message states
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [isSendingImage, setIsSendingImage] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // WebSocket refs
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const selectedConvRef = useRef<ZaloConversation | null>(null);
-  // Track recently sent texts per thread to avoid duplicate self messages via WS
-  const recentlySentRef = useRef<Record<string, { text: string; time: number }[]>>({});
+  // Track recently sent items per thread to avoid duplicate self messages via WS
+  const recentlySentRef = useRef<Record<string, { text?: string; kind?: 'text' | 'image'; time: number }[]>>({});
   
   // Bot config states
   const [botConfig, setBotConfig] = useState<BotConfig | null>(null);
@@ -85,6 +88,58 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       alert(`người này đã là nhân viên hoặc xảy ra lỗi hệ thống`);
     } finally {
       setIsCreatingStaff(false);
+    }
+  };
+
+  const handleSendImageFile = async (fileOverride?: File) => {
+    if (!selectedConversation) return;
+    const threadId = (selectedConversation as any).thread_id;
+    if (!threadId) {
+      alert('Không xác định được thread_id cho cuộc trò chuyện này, không thể gửi ảnh.');
+      return;
+    }
+    const fileToSend = fileOverride || newImageFile;
+    if (!fileToSend) return;
+    try {
+      setIsSendingImage(true);
+      // Record recently sent image for dedupe window BEFORE awaiting send
+      {
+        const tid = String(threadId);
+        const now = Date.now();
+        const windowMs = 4000;
+        const arr = (recentlySentRef.current[tid] || []).filter((it) => now - it.time <= windowMs);
+        arr.push({ kind: 'image', time: now });
+        recentlySentRef.current[tid] = arr;
+      }
+      await sendZaloImageFile(String(threadId), fileToSend, undefined);
+      const href = URL.createObjectURL(fileToSend);
+      const optimistic: any = {
+        id: `${Date.now()}-imgf-local`,
+        is_self: true,
+        ts: Date.now(),
+        content: { type: 'photo', href },
+      };
+      setMessages((prev) => {
+        const next = [...prev, optimistic as ZaloMessage];
+        setTimeout(() => {
+          const el = document.querySelector('.messages-container') as HTMLElement | null;
+          if (el) el.scrollTop = el.scrollHeight;
+        }, 50);
+        return next;
+      });
+      setConversations((prev) => prev.map((c) => {
+        const t = (c as any).thread_id;
+        if (t && String(t) === String(threadId)) {
+          return { ...c, last_content: '[đã gửi ảnh]', last_ts: Date.now() } as any;
+        }
+        return c;
+      }));
+      setNewImageFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: any) {
+      alert(err?.message || 'Gửi ảnh thất bại');
+    } finally {
+      setIsSendingImage(false);
     }
   };
 
@@ -678,6 +733,16 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
           recentlySentRef.current[tid] = arr;
           const isSelfOut = !!d.is_self || String(d.direction || '').toLowerCase() === 'out';
           if (isSelfOut) {
+            // If the incoming content is a photo, dedupe against recent image sends
+            const normalized = normalizeContent(d.content);
+            if (normalized && (normalized as any).kind === 'photo') {
+              const idxImg = arr.findIndex((it) => it.kind === 'image');
+              if (idxImg >= 0) {
+                arr.splice(idxImg, 1);
+                recentlySentRef.current[tid] = arr;
+                return;
+              }
+            }
             const idx = arr.findIndex((it) => String(it.text || '').trim() === String(d.content || '').trim());
             if (idx >= 0) {
               // Consume this recent entry to avoid future duplicates and skip append
@@ -1194,22 +1259,48 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                   )}
                   </div>
                   {selectedConversation && (
-                    <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Nhập tin nhắn..."
-                        value={newMessageText}
-                        onChange={(e) => setNewMessageText(e.currentTarget.value)}
-                        className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
-                        disabled={isSendingMessage}
-                      />
-                      <button
-                        type="submit"
-                        className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
-                        disabled={isSendingMessage || !newMessageText.trim()}
-                        title={isSendingMessage ? 'Đang gửi...' : 'Gửi'}
-                      >{isSendingMessage ? 'Đang gửi...' : 'Gửi'}</button>
-                    </form>
+                    <>
+                      <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 flex gap-2 items-center">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.currentTarget.files && e.currentTarget.files[0] ? e.currentTarget.files[0] : null;
+                            if (f) {
+                              setNewImageFile(f);
+                              handleSendImageFile(f);
+                            }
+                            // reset to allow re-select same file
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-2 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+                          disabled={isSendingImage}
+                          title={isSendingImage ? 'Đang gửi ảnh...' : 'Chọn ảnh từ máy'}
+                        >
+                          <Image size={18} className="text-gray-600" />
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Nhập tin nhắn..."
+                          value={newMessageText}
+                          onChange={(e) => setNewMessageText(e.currentTarget.value)}
+                          className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+                          disabled={isSendingMessage}
+                        />
+                        <button
+                          type="submit"
+                          className="px-4 py-2 rounded bg-blue-600 text-white text-sm disabled:opacity-60"
+                          disabled={isSendingMessage || !newMessageText.trim()}
+                          title={isSendingMessage ? 'Đang gửi...' : 'Gửi'}
+                        >{isSendingMessage ? 'Đang gửi...' : 'Gửi'}</button>
+                      </form>
+                    </>
                   )}
                 </div>
               </div>

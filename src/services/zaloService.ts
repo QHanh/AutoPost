@@ -124,6 +124,87 @@ export const getZaloStatus = async (): Promise<any> => {
   return await response.json();
 };
 
+export const sendZaloImageFile = async (
+  threadId: string,
+  file: File,
+  message?: string
+): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Không tìm thấy token xác thực');
+  if (!threadId || !String(threadId).trim()) throw new Error('Thiếu thread_id');
+  if (!file) throw new Error('Thiếu file ảnh');
+
+  const apiKey = await fetchApiKey();
+  const form = new FormData();
+  form.set('thread_id', String(threadId));
+  if (message && message.trim()) form.set('message', message.trim());
+  form.set('image', file, file.name);
+
+  const resp = await fetch(`${API_BASE_URL}/api/v1/zalo/send-image-file`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
+      // 'Content-Type' not set so browser sets correct multipart boundary
+    } as any,
+    body: form,
+  });
+  if (!resp.ok) {
+    if (resp.status === 401) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    let errorText = `Error: ${resp.status}`;
+    try { const errorData = await resp.json(); errorText = errorData.detail || errorText; } catch {}
+    throw new Error(errorText);
+  }
+  return resp.json();
+};
+
+export const sendZaloImageMessage = async (
+  threadId: string,
+  opts: { image_url?: string; file_path?: string; message?: string }
+): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Không tìm thấy token xác thực');
+  }
+  if (!threadId || !String(threadId).trim()) {
+    throw new Error('Thiếu thread_id');
+  }
+  if ((!opts?.image_url || !String(opts.image_url).trim()) && (!opts?.file_path || !String(opts.file_path).trim())) {
+    throw new Error('Thiếu image_url hoặc file_path');
+  }
+
+  const apiKey = await fetchApiKey();
+  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/send-image`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ thread_id: String(threadId), ...opts }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      throw new Error('Token đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+    let errorText = `Error: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorText = errorData.detail || errorText;
+    } catch {}
+    throw new Error(errorText);
+  }
+
+  return await response.json();
+};
+
 export const sendZaloTextMessage = async (
   threadId: string,
   message: string,
