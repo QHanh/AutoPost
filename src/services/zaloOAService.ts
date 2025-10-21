@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete, getAuthHeader } from './apiService';
+import { apiGet, apiPost, apiDelete, getAuthHeader, apiPostFormData } from './apiService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.1.161:8000';
 
@@ -26,7 +26,7 @@ export interface OaMessageItem {
   direction: 'in' | 'out';
   msg_type?: string;
   text?: string | null;
-  attachments?: unknown;
+  attachments?: { type: 'photo'; url?: string; thumb?: string; description?: string } | undefined;
   timestamp?: string | null;
   message_id_from_zalo?: string | null;
   delivery_status?: string | null;
@@ -146,6 +146,24 @@ export const sendOaTextMessage = async (account_id: string, to_user_id: string, 
   return apiPost<ResponseModel<unknown>>('/zalo-oa/messages/send', { account_id, to_user_id, text });
 };
 
+export const uploadOaImage = async (
+  account_id: string,
+  file: File,
+): Promise<ResponseModel<{ attachment_id: string }>> => {
+  const form = new FormData();
+  form.append('account_id', account_id);
+  form.append('file', file);
+  return apiPostFormData<ResponseModel<{ attachment_id: string }>>('/zalo-oa/messages/upload-image', form);
+};
+
+export const sendOaImageMessage = async (
+  account_id: string,
+  to_user_id: string,
+  attachment_id: string,
+) => {
+  return apiPost<ResponseModel<unknown>>('/zalo-oa/messages/send-image', { account_id, to_user_id, attachment_id });
+};
+
 export const getOaMe = async (account_id: string) => {
   const search = new URLSearchParams();
   search.set('account_id', account_id);
@@ -190,7 +208,7 @@ export const getOaConversationOpenApi = async (
     direction: m.src === 0 ? 'out' : 'in',
     msg_type: m.type,
     text: typeof m.message === 'string' ? m.message : '',
-    attachments: undefined,
+    attachments: m.type === 'photo' ? { type: 'photo', url: m.url, thumb: m.thumb, description: m.description } : undefined,
     timestamp: m.time ? new Date(Number(m.time)).toISOString() : null,
     message_id_from_zalo: m.message_id ?? null,
     delivery_status: undefined,

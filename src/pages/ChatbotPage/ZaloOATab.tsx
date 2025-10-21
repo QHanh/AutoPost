@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Bot, RefreshCw, Users, User, XCircle, Send, Search } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Bot, RefreshCw, Users, User, XCircle, Send, Search, Image as ImageIcon } from 'lucide-react';
 import {
   listOaAccounts,
   getOaLoginUrl,
@@ -11,6 +11,8 @@ import {
   listBlockedUsers,
   createBlockedUser,
   deleteBlockedUser,
+  uploadOaImage,
+  sendOaImageMessage,
 } from '../../services/zaloOAService';
 import type { OaAccountItem, OaConversationItem, OaMessageItem } from '../../services/zaloOAService';
 
@@ -39,6 +41,8 @@ const ZaloOATab: React.FC<ZaloOATabProps> = ({ initialActiveTab = 'connect' }) =
   const [messages, setMessages] = useState<OaMessageItem[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [composeText, setComposeText] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const errMsg = (err: unknown) => {
     if (err instanceof Error) return err.message;
@@ -205,6 +209,38 @@ const ZaloOATab: React.FC<ZaloOATabProps> = ({ initialActiveTab = 'connect' }) =
     }
   };
 
+  const handlePickImage = () => {
+    if (!selectedConv) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelected: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    if (!selectedAccountId || !selectedConv) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      alert('Chỉ hỗ trợ JPG/PNG');
+      return;
+    }
+    if (file.size > 1_000_000) {
+      alert('Kích thước ảnh tối đa 1MB');
+      return;
+    }
+    try {
+      setUploadingImage(true);
+      const up = await uploadOaImage(selectedAccountId, file);
+      const attachment_id = up?.data?.attachment_id;
+      if (!attachment_id) throw new Error('Không lấy được attachment_id');
+      await sendOaImageMessage(selectedAccountId, selectedConv.conversation_id, attachment_id);
+      await loadMessages(selectedConv);
+    } catch (err: unknown) {
+      alert(`Gửi ảnh thất bại: ${errMsg(err)}`);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm h-full">
       {/* Tabs */}
@@ -304,7 +340,21 @@ const ZaloOATab: React.FC<ZaloOATabProps> = ({ initialActiveTab = 'connect' }) =
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] px-3 py-2 rounded ${m.direction === 'out' ? 'bg-blue-600 text-white' : 'bg-white border'}`}>
-                      <div className="text-sm whitespace-pre-wrap">{m.text || ''}</div>
+                      {m.attachments && m.attachments.type === 'photo' && (
+                        <div className="mb-2">
+                          <img
+                            src={m.attachments.url || m.attachments.thumb || ''}
+                            alt={m.attachments.description || 'photo'}
+                            className="max-w-full rounded"
+                          />
+                          {m.attachments.description && (
+                            <div className="text-xs mt-1 opacity-80">{m.attachments.description}</div>
+                          )}
+                        </div>
+                      )}
+                      {!!(m.text && m.text.trim()) && (
+                        <div className="text-sm whitespace-pre-wrap">{m.text}</div>
+                      )}
                       <div className="text-[11px] opacity-70 mt-1">{m.timestamp ? new Date(m.timestamp).toLocaleString('vi-VN') : ''}</div>
                     </div>
                   </div>
@@ -313,6 +363,10 @@ const ZaloOATab: React.FC<ZaloOATabProps> = ({ initialActiveTab = 'connect' }) =
             </div>
             <div className="mt-2 flex items-center gap-2">
               <input value={composeText} onChange={e => setComposeText(e.target.value)} placeholder="Nhập tin nhắn..." className="flex-1 border rounded px-3 py-2 text-sm"/>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageSelected} />
+              <button onClick={handlePickImage} disabled={!selectedConv || uploadingImage} title="Gửi ảnh" className="px-3 py-2 border rounded inline-flex items-center gap-1 disabled:opacity-60">
+                <ImageIcon size={16} />
+              </button>
               <button onClick={handleSend} disabled={!selectedConv || !composeText.trim()} className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60 inline-flex items-center gap-1"><Send size={16}/>Gửi</button>
             </div>
           </div>
