@@ -61,7 +61,8 @@ export const zaloLoginQRStream = async (
     }
 
     const decoder = new TextDecoder();
-    
+    let buffer = '';
+
     const readStream = async () => {
       try {
         while (true) {
@@ -70,20 +71,44 @@ export const zaloLoginQRStream = async (
             onComplete();
             break;
           }
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data.trim()) {
-                try {
-                  const parsedData: QRResponse = JSON.parse(data);
-                  onMessage(parsedData);
-                } catch (parseError) {
-                  console.error('Error parsing SSE data:', parseError);
-                }
+
+          // Accumulate decoded text into buffer
+          buffer += decoder.decode(value, { stream: true });
+
+          // Normalize CRLF to LF to simplify parsing
+          buffer = buffer.replace(/\r\n/g, '\n');
+
+          // Split by SSE event delimiter (blank line)
+          const events = buffer.split('\n\n');
+          // Keep the last partial segment in buffer
+          buffer = events.pop() || '';
+
+          for (const evt of events) {
+            if (!evt) continue;
+
+            const evtLines = evt.split('\n');
+            let dataPayload = '';
+
+            for (let rawLine of evtLines) {
+              // Remove any stray CR
+              const line = rawLine.replace(/\r/g, '');
+              if (line.startsWith('data:')) {
+                // Strip leading 'data:' and one optional space per SSE spec
+                const part = line.replace(/^data:\s?/, '');
+                dataPayload += part + '\n';
+              }
+              // Ignore other SSE fields: event:, id:, retry:
+            }
+
+            if (dataPayload) {
+              // Remove trailing newline added during join
+              const jsonStr = dataPayload.endsWith('\n') ? dataPayload.slice(0, -1) : dataPayload;
+              try {
+                const parsedData: QRResponse = JSON.parse(jsonStr);
+                onMessage(parsedData);
+              } catch (parseError) {
+                // Log and continue reading further chunks
+                console.error('Error parsing SSE data chunk:', parseError);
               }
             }
           }
