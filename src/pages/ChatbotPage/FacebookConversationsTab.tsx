@@ -412,6 +412,28 @@ const FacebookConversationsTab: React.FC = () => {
                       <li key={m.id} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[75%] rounded-lg px-3 py-2 shadow-sm ${isOutgoing ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
                           {m.message && <div className="whitespace-pre-wrap break-words">{m.message}</div>}
+                          {Array.isArray(m?.attachments?.data) && m.attachments.data.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                              {m.attachments.data.map((att: any, idx: number) => {
+                                const img = att?.image_data;
+                                const preview = img?.preview_url || img?.url;
+                                const full = img?.url || preview;
+                                if (preview) {
+                                  return (
+                                    <a key={att?.id || idx} href={full} target="_blank" rel="noreferrer">
+                                      <img
+                                        src={preview}
+                                        alt={att?.name || 'attachment'}
+                                        loading="lazy"
+                                        className="max-w-full rounded border border-black/10"
+                                      />
+                                    </a>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          )}
                           <div className={`mt-1 text-[11px] ${isOutgoing ? 'text-blue-100' : 'text-gray-500'}`}>{time(m.created_time)}</div>
                           {!isOutgoing && m?.message && (
                             <div className="mt-1 text-[11px]">
