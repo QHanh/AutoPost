@@ -47,12 +47,13 @@ export async function listBotConfigs(params: { limit?: number; offset?: number }
 /**
  * Lấy bot config của chính người dùng hiện tại
  */
-export async function getMyBotConfig() {
+export async function getMyBotConfig(accountId?: string) {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = (await getMyApiKey()).api_key;
   
-  const resp = await fetch(`${API_BASE_URL}/api/v1/zalo/bot-configs/me`, {
+  const url = `${API_BASE_URL}/api/v1/zalo/bot-configs/me${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`;
+  const resp = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'X-API-Key': apiKey,
@@ -67,7 +68,7 @@ export async function getMyBotConfig() {
 /**
  * Tạo hoặc cập nhật bot config cho chính người dùng hiện tại
  */
-export async function upsertMyBotConfig(body: { stop_minutes: number }) {
+export async function upsertMyBotConfig(body: { stop_minutes: number }, accountId?: string) {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = (await getMyApiKey()).api_key;
@@ -79,7 +80,7 @@ export async function upsertMyBotConfig(body: { stop_minutes: number }) {
       'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...(accountId ? { account_id: accountId } : {}) }),
   });
   
   if (!resp.ok) throw new Error((await safeText(resp)) || `HTTP ${resp.status}`);

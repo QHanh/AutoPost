@@ -47,6 +47,8 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [ignoredItems, setIgnoredItems] = useState<IgnoredConversation[]>([]);
   const [isIgnoring, setIsIgnoring] = useState<boolean>(false);
   const [deletingIgnoredId, setDeletingIgnoredId] = useState<string | null>(null);
+  // Multi-account support
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   // Send message states
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
@@ -111,7 +113,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         arr.push({ kind: 'image', time: now });
         recentlySentRef.current[tid] = arr;
       }
-      await sendZaloImageFile(String(threadId), fileToSend, undefined);
+      await sendZaloImageFile(String(threadId), fileToSend, undefined, selectedAccountId || undefined);
       const href = URL.createObjectURL(fileToSend);
       const optimistic: any = {
         id: `${Date.now()}-imgf-local`,
@@ -151,7 +153,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const loadIgnored = async () => {
     setIsLoadingIgnored(true);
     try {
-      const resp = await listIgnoredZalo({ limit: 200, offset: 0 });
+      const resp = await listIgnoredZalo({ limit: 200, offset: 0, account_id: selectedAccountId || undefined });
       const items = (resp.data || resp.items || []) as IgnoredConversation[];
       setIgnoredItems(items);
     } catch (e) {
@@ -164,7 +166,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const loadBotConfig = async () => {
     setIsLoadingBotConfig(true);
     try {
-      const resp = await getMyBotConfig();
+      const resp = await getMyBotConfig(selectedAccountId || undefined);
       const config = resp.data;
       if (config) {
         setBotConfig(config);
@@ -186,7 +188,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const saveBotConfig = async () => {
     setIsSavingBotConfig(true);
     try {
-      const resp = await upsertMyBotConfig({ stop_minutes: stopMinutes });
+      const resp = await upsertMyBotConfig({ stop_minutes: stopMinutes }, selectedAccountId || undefined);
       setBotConfig(resp.data || null);
       alert('Đã lưu cấu hình bot thành công!');
     } catch (e: any) {
@@ -541,8 +543,15 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     
     setIsLoadingConversations(true);
     try {
-      const data = await getZaloConversations();
+      const data = await getZaloConversations(selectedAccountId || undefined);
       setConversations(data.items || []);
+      // Auto-pick first available account if none selected yet
+      try {
+        if (!selectedAccountId) {
+          const firstOwner = (data.items || []).map((it: any) => it?.owner_account_id).filter(Boolean)[0] || null;
+          if (firstOwner) setSelectedAccountId(String(firstOwner));
+        }
+      } catch {}
     } catch (error) {
       console.error('Error loading conversations:', error);
     } finally {
@@ -560,7 +569,8 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         conversation.thread_id,
         conversation.peer_id,
         50,
-        'asc'
+        'asc',
+        selectedAccountId || undefined,
       );
       setMessages(data.items || []);
       // Auto-scroll to bottom after messages load
@@ -598,7 +608,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         arr.push({ text, time: now });
         recentlySentRef.current[tid] = arr;
       }
-      await sendZaloTextMessage(String(threadId), text);
+      await sendZaloTextMessage(String(threadId), text, selectedAccountId || undefined);
       // Optimistic append to current messages
       const optimistic: ZaloMessage = {
         id: `${Date.now()}-local`,
@@ -855,7 +865,8 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         return;
       }
       setIsIgnoring(true);
-      await upsertIgnoredZalo({ thread_id, name: (conv as any).d_name || undefined });
+      if (!selectedAccountId) { alert('Vui lòng chọn tài khoản để chặn hội thoại.'); return; }
+      await upsertIgnoredZalo({ thread_id, name: (conv as any).d_name || undefined, account_id: selectedAccountId });
       setOpenConvMenu(null);
       await loadIgnored();
       alert('Đã thêm vào danh sách không trả lời.');

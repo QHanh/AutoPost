@@ -152,7 +152,8 @@ export const getZaloStatus = async (): Promise<any> => {
 export const sendZaloImageFile = async (
   threadId: string,
   file: File,
-  message?: string
+  message?: string,
+  accountId?: string
 ): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
@@ -164,6 +165,7 @@ export const sendZaloImageFile = async (
   form.set('thread_id', String(threadId));
   if (message && message.trim()) form.set('message', message.trim());
   form.set('image', file, file.name);
+  if (accountId && accountId.trim()) form.set('account_id', accountId.trim());
 
   const resp = await fetch(`${API_BASE_URL}/api/v1/zalo/send-image-file`, {
     method: 'POST',
@@ -189,7 +191,7 @@ export const sendZaloImageFile = async (
 
 export const sendZaloImageMessage = async (
   threadId: string,
-  opts: { image_url?: string; file_path?: string; message?: string }
+  opts: { image_url?: string; file_path?: string; message?: string; account_id?: string }
 ): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
   const token = getAuthToken();
   if (!token) {
@@ -233,6 +235,7 @@ export const sendZaloImageMessage = async (
 export const sendZaloTextMessage = async (
   threadId: string,
   message: string,
+  accountId?: string,
 ): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
   const token = getAuthToken();
   if (!token) {
@@ -253,7 +256,7 @@ export const sendZaloTextMessage = async (
       'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ thread_id: String(threadId), message: String(message) }),
+    body: JSON.stringify({ thread_id: String(threadId), message: String(message), ...(accountId ? { account_id: accountId } : {}) }),
   });
 
   if (!response.ok) {
@@ -419,14 +422,15 @@ export interface ZaloMessage {
   mentions?: any;
 }
 
-export const getZaloConversations = async (): Promise<{ items: ZaloConversation[]; count: number }> => {
+export const getZaloConversations = async (accountId?: string): Promise<{ items: ZaloConversation[]; count: number }> => {
   const token = getAuthToken();
   if (!token) {
     throw new Error('Không tìm thấy token xác thực');
   }
 
   const apiKey = await fetchApiKey();
-  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/conversations`, {
+  const url = `${API_BASE_URL}/api/v1/zalo/conversations${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`;
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -447,7 +451,8 @@ export const getZaloMessages = async (
   threadId?: string,
   peerId?: string,
   limit: number = 50,
-  order: string = 'asc'
+  order: string = 'asc',
+  accountId?: string,
 ): Promise<{ items: ZaloMessage[]; count: number; conversation_id?: string }> => {
   const token = getAuthToken();
   if (!token) {
@@ -470,6 +475,7 @@ export const getZaloMessages = async (
     params.set('peer_id', peerId);
   }
 
+  if (accountId) params.set('account_id', accountId);
   const response = await fetch(`${API_BASE_URL}/api/v1/zalo/messages?${params}`, {
     method: 'GET',
     headers: {

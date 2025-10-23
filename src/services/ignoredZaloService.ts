@@ -21,7 +21,7 @@ function buildQuery(params: Record<string, any>) {
   return s ? `?${s}` : '';
 }
 
-export async function listIgnoredZalo(params: { thread_id?: string; user_id?: string; limit?: number; offset?: number } = {}) {
+export async function listIgnoredZalo(params: { thread_id?: string; user_id?: string; limit?: number; offset?: number; account_id?: string } = {}) {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = (await getMyApiKey()).api_key;
@@ -37,7 +37,7 @@ export async function listIgnoredZalo(params: { thread_id?: string; user_id?: st
   return resp.json() as Promise<{ ok?: boolean; data?: IgnoredConversation[]; items?: IgnoredConversation[]; count?: number }>;
 }
 
-export async function upsertIgnoredZalo(body: { thread_id: string; name?: string; user_id?: string }) {
+export async function upsertIgnoredZalo(body: { thread_id: string; name?: string; user_id?: string; account_id: string }) {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = (await getMyApiKey()).api_key;
