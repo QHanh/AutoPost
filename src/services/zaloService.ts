@@ -11,6 +11,37 @@ const fetchApiKey = async (): Promise<string> => {
   return info.api_key;
 };
 
+export interface ZaloSessionInfo {
+  id: string;
+  session_key: string;
+  account_id: string | null;
+  is_active: boolean;
+  updated_at: string;
+  chatbot_priority?: string | null;
+}
+
+export const getZaloSessions = async (): Promise<{ ok?: boolean; items: ZaloSessionInfo[] }> => {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Không tìm thấy token xác thực');
+  }
+
+  const apiKey = await fetchApiKey();
+  const resp = await fetch(`${API_BASE_URL}/api/v1/zalo/sessions`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!resp.ok) {
+    const errorData = await resp.json();
+    throw new Error(errorData.detail || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
 export interface QRResponse {
   type: string;
   data?: {
@@ -374,14 +405,15 @@ export const updateStaffZalo = async (
   return resp.json();
 };
 
-export const logoutZalo = async (): Promise<any> => {
+export const logoutZalo = async (accountId?: string): Promise<any> => {
   const token = getAuthToken();
   if (!token) {
     throw new Error('Không tìm thấy token xác thực');
   }
 
   const apiKey = await fetchApiKey();
-  const response = await fetch(`${API_BASE_URL}/api/v1/zalo/logout`, {
+  const url = `${API_BASE_URL}/api/v1/zalo/logout${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`;
+  const response = await fetch(url, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,

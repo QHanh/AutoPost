@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut, Image } from 'lucide-react';
-import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage, sendZaloImageFile } from '../../services/zaloService';
+import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage, sendZaloImageFile, getZaloSessions, ZaloSessionInfo } from '../../services/zaloService';
 import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
 import { getMyBotConfig, upsertMyBotConfig, BotConfig } from '../../services/botConfigService';
 import MessageActionDropdown from '../../components/MessageActionDropdown';
@@ -49,6 +49,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const [deletingIgnoredId, setDeletingIgnoredId] = useState<string | null>(null);
   // Multi-account support
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ZaloSessionInfo[]>([]);
   // Send message states
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
@@ -90,6 +91,21 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       alert(`người này đã là nhân viên hoặc xảy ra lỗi hệ thống`);
     } finally {
       setIsCreatingStaff(false);
+    }
+  };
+
+  const loadSessions = async () => {
+    try {
+      const resp = await getZaloSessions();
+      const items = Array.isArray(resp.items) ? resp.items : [];
+      setSessions(items);
+      // Auto-pick selection if none selected or selected not found
+      if (!selectedAccountId || !items.find((s) => String(s.account_id || '') === String(selectedAccountId))) {
+        const first = items.find((s) => !!s.account_id)?.account_id || null;
+        setSelectedAccountId(first ? String(first) : null);
+      }
+    } catch (e) {
+      // ignore UI-blocking
     }
   };
 
@@ -674,11 +690,22 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     if (status === 'SessionSaved') {
       // Auto-load conversations when logged in; if user is on Messages tab, refresh
       loadConversations();
+      loadSessions();
       // Also load ignored list to reflect block/unblock state in menus
       loadIgnored();
       // If user is on Messages tab, list will be shown automatically
     }
   }, [status]);
+
+  // Reload data when switching accounts
+  useEffect(() => {
+    if (status === 'SessionSaved') {
+      loadConversations();
+      loadIgnored();
+      loadBotConfig();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccountId]);
 
   // Open WebSocket when logged in and keep it alive
   useEffect(() => {
@@ -1036,6 +1063,51 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
 
             {subTab === 'messages' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Account Manager */}
+              <div className="lg:col-span-3">
+                <div className="flex flex-col md:flex-row md:items-center gap-3 p-3 bg-white border rounded">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-700">Tài khoản:</label>
+                    <select
+                      className="border rounded px-2 py-1 text-sm"
+                      value={selectedAccountId || ''}
+                      onChange={(e) => setSelectedAccountId(e.target.value ? e.target.value : null)}
+                    >
+                      <option value="">Tất cả</option>
+                      {sessions.map((s) => (
+                        <option key={s.id} value={s.account_id || ''}>
+                          {s.account_id || '(chưa biết)'} {s.chatbot_priority ? `- ${s.chatbot_priority}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={connectToZalo}
+                      className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
+                    >
+                      Thêm tài khoản
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!selectedAccountId) { alert('Chọn tài khoản để đăng xuất.'); return; }
+                        try {
+                          await logoutZalo(selectedAccountId);
+                          await loadSessions();
+                          await loadConversations();
+                          await loadIgnored();
+                        } catch (e: any) {
+                          alert(e?.message || 'Đăng xuất tài khoản thất bại');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50"
+                      disabled={!selectedAccountId}
+                    >
+                      Đăng xuất tài khoản này
+                    </button>
+                  </div>
+                </div>
+              </div>
               {/* Conversations List */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm">
