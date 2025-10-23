@@ -1076,7 +1076,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                       <option value="">Tất cả</option>
                       {sessions.map((s) => (
                         <option key={s.id} value={s.account_id || ''}>
-                          {s.account_id || '(chưa biết)'} {s.chatbot_priority ? `- ${s.chatbot_priority}` : ''}
+                          {s.display_name || s.account_id || '(chưa có tên)'}
                         </option>
                       ))}
                     </select>

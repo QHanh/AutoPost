@@ -15,6 +15,7 @@ export interface ZaloSessionInfo {
   id: string;
   session_key: string;
   account_id: string | null;
+  display_name: string | null;
   is_active: boolean;
   updated_at: string;
   chatbot_priority?: string | null;
