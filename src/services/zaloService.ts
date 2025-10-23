@@ -321,9 +321,10 @@ export interface CreateStaffPayload {
     can_receive_notifications?: boolean;
   };
   associated_session_keys?: string[];
+  owner_account_id?: string;
 }
 
-export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?: number; offset?: number }) => {
+export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?: number; offset?: number; accountId?: string }) => {
   const token = getAuthToken();
   if (!token) throw new Error('Không tìm thấy token xác thực');
   const apiKey = await fetchApiKey();
@@ -331,6 +332,7 @@ export const listStaffZalo = async (params?: { includeInactive?: boolean; limit?
   if (params?.includeInactive !== undefined) search.set('includeInactive', String(params.includeInactive));
   if (params?.limit !== undefined) search.set('limit', String(params.limit));
   if (params?.offset !== undefined) search.set('offset', String(params.offset));
+  if (params?.accountId) search.set('account_id', String(params.accountId));
 
   const resp = await fetch(`${API_BASE_URL}/api/v1/staffzalo${search.toString() ? `?${search}` : ''}` , {
     headers: { 'Authorization': `Bearer ${token}`, 'X-API-Key': apiKey },

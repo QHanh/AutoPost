@@ -74,7 +74,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
     try {
       // Chỉ hỗ trợ thêm nhân viên cho chat 1-1 (không phải nhóm)
       if (conv.type === 1 || conv.group_name) {
-        alert('Chỉ hỗ trợ thêm nhân viên từ cuộc trò chuyện 1-1.');
+        alert('Chỉ thêm nhân viên cho chat 1-1, không hỗ trợ nhóm.');
         return;
       }
       const zalo_uid = conv.peer_id || conv.conversation_id;
@@ -84,7 +84,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         return;
       }
       setIsCreatingStaff(true);
-      await createStaffZalo({ zalo_uid, name, role: 'staff', permissions: { can_control_bot: true } });
+      await createStaffZalo({ zalo_uid, name, role: 'staff', permissions: { can_control_bot: true }, owner_account_id: selectedAccountId || undefined });
       alert(`Đã thêm ${name} làm nhân viên thành công`);
       setOpenConvMenu(null);
     } catch (e: any) {
@@ -253,7 +253,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   const loadStaff = async () => {
     setIsLoadingStaff(true);
     try {
-      const resp = await listStaffZalo({ includeInactive: true, limit: 100, offset: 0 });
+      const resp = await listStaffZalo({ includeInactive: true, limit: 100, offset: 0, accountId: selectedAccountId || undefined });
       const items = (resp.items || resp.data || []) as any[];
       setStaffItems(items.map((it) => ({
         id: it.id,
@@ -703,6 +703,9 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
       loadConversations();
       loadIgnored();
       loadBotConfig();
+      if (subTab === 'staff') {
+        loadStaff();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccountId]);
