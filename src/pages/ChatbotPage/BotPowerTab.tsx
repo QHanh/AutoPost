@@ -8,6 +8,9 @@ const BotPowerTab: React.FC = () => {
   const [mobileBotStatus, setMobileBotStatus] = useState<string>('unknown');
   const [customBotStatus, setCustomBotStatus] = useState<string>('unknown');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [platformCtrl, setPlatformCtrl] = useState<{ [k: string]: boolean }>({ zalo: true, zalo_oa: true, messenger: true });
+  const [platformLoading, setPlatformLoading] = useState<boolean>(false);
+  const [platformBusy, setPlatformBusy] = useState<string | null>(null);
 
   const CHAT_BOT_MOBILE_URL = import.meta.env.VITE_CHAT_BOT_MOBILE_URL as string | undefined;
   const CHAT_BOT_CUSTOM_URL = (import.meta.env.VITE_CHAT_BOT_CUSTOM_URL as string | undefined) || 'https://chatbotproduct.quandoiai.vn';
@@ -38,6 +41,56 @@ const BotPowerTab: React.FC = () => {
   };
 
   const isActiveStatus = (status: string) => ['active', 'running', 'on', 'enabled'].includes(String(status).toLowerCase());
+
+  // Per-platform controls
+  const loadPlatformControls = async () => {
+    setPlatformLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/chatbot-control/platforms`, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+      if (!res.ok) throw new Error('Load platform controls failed');
+      const data = await res.json().catch(() => ({}));
+      setPlatformCtrl({
+        zalo: Boolean(data?.zalo ?? true),
+        zalo_oa: Boolean(data?.zalo_oa ?? true),
+        messenger: Boolean(data?.messenger ?? true),
+      });
+    } catch (e) {
+      // keep defaults
+    } finally {
+      setPlatformLoading(false);
+    }
+  };
+
+  const setPlatformEnabled = async (platform: 'zalo' | 'zalo_oa' | 'messenger', enabled: boolean) => {
+    setPlatformBusy(platform);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/chatbot-control/platforms`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ platform, enabled }),
+      });
+      if (!res.ok) throw new Error('Update platform control failed');
+      const data = await res.json().catch(() => ({}));
+      setPlatformCtrl({
+        zalo: Boolean(data?.zalo ?? platformCtrl.zalo),
+        zalo_oa: Boolean(data?.zalo_oa ?? platformCtrl.zalo_oa),
+        messenger: Boolean(data?.messenger ?? platformCtrl.messenger),
+      });
+      setMessage({ type: 'success', text: `${enabled ? 'Đã bật' : 'Đã tắt'} nền tảng ${platform}` });
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Không thể cập nhật nền tảng' });
+    } finally {
+      setTimeout(() => setMessage(null), 2000);
+      setPlatformBusy(null);
+    }
+  };
 
   // Function to update chatbot priority based on current status
   const updateChatbotPriority = async (mobileStatus: string, customStatus: string) => {
@@ -193,6 +246,7 @@ const BotPowerTab: React.FC = () => {
 
   useEffect(() => {
     loadBotsStatus();
+    loadPlatformControls();
   }, []);
 
   return (
@@ -208,6 +262,52 @@ const BotPowerTab: React.FC = () => {
             {message.text}
           </div>
         )}
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center mb-4">
+            <Settings className="w-5 h-5 text-indigo-600 mr-2" />
+            <h3 className="text-xl font-semibold text-gray-900">Bật/Tắt theo nền tảng</h3>
+            {platformLoading && (
+              <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
+            )}
+            <button onClick={loadPlatformControls} className="ml-auto px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors font-medium flex items-center">
+              <RefreshCw className="w-4 h-4 mr-2" />Làm mới
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { key: 'zalo', label: 'Zalo (ZCA)' },
+              { key: 'zalo_oa', label: 'Zalo OA' },
+              { key: 'messenger', label: 'Messenger' },
+            ].map((p) => {
+              const key = p.key as 'zalo' | 'zalo_oa' | 'messenger';
+              const enabled = Boolean(platformCtrl[key]);
+              const busy = platformBusy === key;
+              return (
+                <div key={key} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{p.label}</h4>
+                    <p className="text-sm text-gray-600">Điều khiển bật/tắt tự động cho nền tảng này</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-sm ${enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{enabled ? 'on' : 'off'}</span>
+                    <button
+                      disabled={busy || enabled}
+                      onClick={() => setPlatformEnabled(key, true)}
+                      className={`px-3 py-1 rounded border ${busy || enabled ? 'opacity-50 cursor-not-allowed border-gray-300 text-gray-500' : 'border-green-500 text-green-700 hover:bg-green-50'}`}
+                    >Bật</button>
+                    <button
+                      disabled={busy || !enabled}
+                      onClick={() => setPlatformEnabled(key, false)}
+                      className={`px-3 py-1 rounded border ${busy || !enabled ? 'opacity-50 cursor-not-allowed border-gray-300 text-gray-500' : 'border-red-500 text-red-700 hover:bg-red-50'}`}
+                    >Tắt</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center mb-4">
