@@ -27,6 +27,44 @@ const DocumentsTab: React.FC = () => {
         return <Edit3 className="w-4 h-4 text-purple-600" />; // Manual input icon in purple
     }
   };
+
+  const reindexDocuments = async () => {
+    try {
+      setIsReindexing(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xây dựng chỉ mục' });
+        return;
+      }
+      const body: any = {};
+      if (reindexProvider !== 'auto') {
+        body.provider = reindexProvider;
+      }
+      if (reindexProvider === 'gemini') {
+        if (chatModel.trim()) body.chat_model = chatModel.trim();
+        if (embeddingModel.trim()) body.embedding_model = embeddingModel.trim();
+      }
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/documents/reindex`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Đã gửi yêu cầu xây dựng chỉ mục. Vui lòng đợi vài phút.' });
+      } else {
+        const text = await response.text();
+        throw new Error(text || 'Không thể gửi yêu cầu xây dựng chỉ mục');
+      }
+    } catch (error: any) {
+      console.error('Error reindexing documents:', error);
+      setMessage({ type: 'error', text: error?.message || 'Không thể xây dựng chỉ mục. Vui lòng thử lại.' });
+    } finally {
+      setIsReindexing(false);
+    }
+  };
   const [documents, setDocuments] = useState<Document[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
@@ -46,6 +84,10 @@ const DocumentsTab: React.FC = () => {
   const [viewingSource, setViewingSource] = useState<{ source: string; content: string } | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isReindexing, setIsReindexing] = useState(false);
+  const [reindexProvider, setReindexProvider] = useState<'auto' | 'openai' | 'gemini'>('auto');
+  const [chatModel, setChatModel] = useState('');
+  const [embeddingModel, setEmbeddingModel] = useState('');
 
   useEffect(() => {
     // Load data immediately without blocking UI
@@ -844,98 +886,61 @@ const DocumentsTab: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
+    </div>
+    </div>
 
-
-        {/* Documents List
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-gray-900">
-              Danh Sách Tài Liệu ({isLoadingDocuments ? '...' : documents.length})
-            </h3>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => { loadDocuments(); loadSources(); }}
-                disabled={isLoadingDocuments || isLoadingSources}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center"
-              >
-                {(isLoadingDocuments || isLoadingSources) ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Đang tải...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Làm Mới
-                  </>
-                )}
-              </button>
-              <button
-                onClick={deleteAllDocuments}
-                disabled={isLoadingDocuments || documents.length === 0}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Xóa Tất Cả
-              </button>
+    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h3 className="text-xl font-semibold text-gray-900 mb-4">Xây Dựng Chỉ Mục GraphRAG</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+          <select
+            value={reindexProvider}
+            onChange={(e) => setReindexProvider(e.target.value as 'auto' | 'openai' | 'gemini')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="auto">Tự động</option>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+          </select>
+        </div>
+        {reindexProvider === 'gemini' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chat model</label>
+              <input
+                type="text"
+                value={chatModel}
+                onChange={(e) => setChatModel(e.target.value)}
+                placeholder="gemini-2.5-flash-lite"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-          </div>
-
-          {isLoadingDocuments ? (
-            // Skeleton loading for documents
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="border border-gray-200 rounded-lg p-4 animate-pulse">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
-                        <div className="w-32 h-4 bg-gray-300 rounded"></div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="w-full h-4 bg-gray-300 rounded"></div>
-                        <div className="w-3/4 h-4 bg-gray-300 rounded"></div>
-                        <div className="w-1/2 h-4 bg-gray-300 rounded"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Embedding model</label>
+              <input
+                type="text"
+                value={embeddingModel}
+                onChange={(e) => setEmbeddingModel(e.target.value)}
+                placeholder="gemini-embedding-001"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-          ) : documents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p>Chưa có tài liệu nào. Hãy upload tài liệu đầu tiên!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {documents.map((doc, index) => (
-                <div key={doc.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <FileText className="w-4 h-4 text-blue-600 mr-2" />
-                        <span className="text-sm text-gray-500">
-                          Tài liệu #{index + 1}
-                          {doc.source && ` - ${doc.source}`}
-                        </span>
-                      </div>
-                      <p className="text-gray-900 text-sm line-clamp-3">
-                        {doc.text}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div> */}
+          </>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={reindexDocuments}
+          disabled={isReindexing}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isReindexing ? 'Đang gửi yêu cầu...' : 'Xây dựng chỉ mục ngay'}
+        </button>
+      </div>
+    </div>
 
         {/* Document Sources */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
