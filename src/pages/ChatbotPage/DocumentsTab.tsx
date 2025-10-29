@@ -886,63 +886,65 @@ const DocumentsTab: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    </div>
 
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h3 className="text-xl font-semibold text-gray-900 mb-4">Xây Dựng Chỉ Mục GraphRAG</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-          <select
-            value={reindexProvider}
-            onChange={(e) => setReindexProvider(e.target.value as 'auto' | 'openai' | 'gemini')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">Xây Dựng Chỉ Mục GraphRAG</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+            <select
+              value={reindexProvider}
+              onChange={(e) => setReindexProvider(e.currentTarget.value as 'auto' | 'openai' | 'gemini')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="auto">Tự động</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+          </div>
+          {reindexProvider === 'gemini' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chat model</label>
+                <input
+                  type="text"
+                  value={chatModel}
+                  onChange={(e) => setChatModel(e.target.value)}
+                  placeholder="gemini-2.5-flash-lite"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Embedding model</label>
+                <input
+                  type="text"
+                  value={embeddingModel}
+                  onChange={(e) => setEmbeddingModel(e.target.value)}
+                  placeholder="gemini-embedding-001"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={reindexDocuments}
+            disabled={isReindexing}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="auto">Tự động</option>
-            <option value="openai">OpenAI</option>
-            <option value="gemini">Gemini</option>
-          </select>
+            {isReindexing ? 'Đang gửi yêu cầu...' : 'Xây dựng chỉ mục ngay'}
+          </button>
         </div>
-        {reindexProvider === 'gemini' && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chat model</label>
-              <input
-                type="text"
-                value={chatModel}
-                onChange={(e) => setChatModel(e.target.value)}
-                placeholder="gemini-2.5-flash-lite"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Embedding model</label>
-              <input
-                type="text"
-                value={embeddingModel}
-                onChange={(e) => setEmbeddingModel(e.target.value)}
-                placeholder="gemini-embedding-001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </>
-        )}
       </div>
-      <div className="flex gap-2">
-        <button
-          onClick={reindexDocuments}
-          disabled={isReindexing}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isReindexing ? 'Đang gửi yêu cầu...' : 'Xây dựng chỉ mục ngay'}
-        </button>
-      </div>
-    </div>
 
-        {/* Document Sources */}
+      {/* Document Sources */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
             Nguồn Tài Liệu ({isLoadingSources ? '...' : sources.length})
