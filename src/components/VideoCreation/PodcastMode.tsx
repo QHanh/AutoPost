@@ -164,6 +164,25 @@ export const PodcastMode: React.FC = () => {
     setDialogueItems(prev => prev.filter(item => item.id !== id));
   };
 
+  const addDialogueItem = () => {
+    const newItem: DialogueItem = {
+      id: crypto.randomUUID(),
+      speaker: host1, // Mặc định là host 1
+      content: ""     // Nội dung trống
+    };
+    // Thêm item mới vào cuối danh sách
+    setDialogueItems(prev => [...prev, newItem]);
+  };
+
+  // Update dialogue item speaker
+  const updateDialogueSpeaker = (id: string, newSpeaker: string) => {
+    setDialogueItems(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, speaker: newSpeaker } : item
+      )
+    );
+  };
+
   // Button 1: Generate script, dialogue, and keywords from topic and content
   const handleGenerateAll = async () => {
     if (!videoPodcastTopic.trim() || !videoContent.trim()) {
@@ -594,17 +613,31 @@ export const PodcastMode: React.FC = () => {
                   <Edit3 size={16} />
                   Hội Thoại Podcast ({dialogueItems.length} câu)
                 </label>
-                {dialogueItems.length > 0 && (
+                
+                {/* === THAY ĐỔI: Thêm wrapper và nút "Thêm câu" === */}
+                <div className="flex items-center gap-3">
+                  {dialogueItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDialogueExpanded(true)}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm transition-colors"
+                      title="Mở rộng để chỉnh sửa"
+                    >
+                      <Maximize2 size={14} />
+                      Mở rộng
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setIsDialogueExpanded(true)}
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm transition-colors"
-                    title="Mở rộng để chỉnh sửa"
+                    onClick={addDialogueItem}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    title="Thêm câu mới"
                   >
-                    <Maximize2 size={14} />
-                    Mở rộng
+                    + Thêm câu
                   </button>
-                )}
+                </div>
+                {/* === KẾT THÚC THAY ĐỔI === */}
+
               </div>
               
               {dialogueItems.length > 0 ? (
@@ -613,9 +646,19 @@ export const PodcastMode: React.FC = () => {
                     <div key={item.id} className="bg-white rounded-lg p-3 border border-gray-200">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                            {item.speaker}
-                          </span>
+                          
+                          {/* === THAY ĐỔI: Đổi <span> thành <select> === */}
+                          <select
+                            value={item.speaker}
+                            onChange={(e) => updateDialogueSpeaker(item.id, e.target.value)}
+                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium border-none focus:ring-0 cursor-pointer appearance-none"
+                            style={{ paddingRight: '1.5rem' }} // Thêm không gian cho mũi tên
+                          >
+                            <option value={host1}>{host1}</option>
+                            <option value={host2}>{host2}</option>
+                          </select>
+                          {/* === KẾT THÚC THAY ĐỔI === */}
+
                           <span className="text-xs text-gray-500">Câu {index + 1}</span>
                         </div>
                         <button
@@ -686,9 +729,15 @@ export const PodcastMode: React.FC = () => {
                   <div key={item.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
-                          {item.speaker}
-                        </span>
+                        <select
+                          value={item.speaker}
+                          onChange={(e) => updateDialogueSpeaker(item.id, e.target.value)}
+                          className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium border-none focus:ring-0 cursor-pointer appearance-none"
+                          style={{ paddingRight: '1.75rem' }} // Thêm không gian cho mũi tên
+                        >
+                          <option value={host1}>{host1}</option>
+                          <option value={host2}>{host2}</option>
+                        </select>
                         <span className="text-sm text-gray-500">Câu {index + 1}</span>
                       </div>
                       <button
