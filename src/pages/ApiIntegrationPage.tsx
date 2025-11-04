@@ -277,7 +277,7 @@ curl -X POST ${API_BASE_URL}/api/v1/chatbot/chat \\
 //         const container = document.getElementById('chatbot-container');
 //         loadSession();
 
-//         fetch('https://chatbotmobile.quandoiai.vn/settings/${customerId}')
+//         fetch('http://localhost:8010/settings/${customerId}')
 //             .then(res => res.json())
 //             .then(settings => createChatbotUI(settings))
 //             .catch(error => {
@@ -428,7 +428,7 @@ curl -X POST ${API_BASE_URL}/api/v1/chatbot/chat \\
   <script>
   document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = "${API_BASE_URL}";
-    const SETTINGS_URL = "https://chatbotmobile.quandoiai.vn/settings/${customerId}";
+    const SETTINGS_URL = "http://localhost:8010/settings/${customerId}";
     const API_KEY = "${apiKey}";
     let sessionId = sessionStorage.getItem('chatbot_session_id') ||
                     \`session_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;

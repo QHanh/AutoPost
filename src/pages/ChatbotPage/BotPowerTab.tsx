@@ -13,7 +13,7 @@ const BotPowerTab: React.FC = () => {
   const [platformBusy, setPlatformBusy] = useState<string | null>(null);
 
   const CHAT_BOT_MOBILE_URL = import.meta.env.VITE_CHAT_BOT_MOBILE_URL as string | undefined;
-  const CHAT_BOT_CUSTOM_URL = (import.meta.env.VITE_CHAT_BOT_CUSTOM_URL as string | undefined) || 'https://chatbotproduct.quandoiai.vn';
+  const CHAT_BOT_CUSTOM_URL = (import.meta.env.VITE_CHAT_BOT_CUSTOM_URL as string | undefined) || 'http://localhost:8010';
 
   const getCustomerId = () => {
     try {
