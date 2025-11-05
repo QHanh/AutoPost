@@ -21,6 +21,10 @@ export default defineConfig({
       port: 5174
     }
   },
+  preview: {
+    // Allow serving preview from these hosts (for reverse proxy / external domain)
+    allowedHosts: ['doiquanai.vn']
+  },
   build: {
     sourcemap: false,
     rollupOptions: {
