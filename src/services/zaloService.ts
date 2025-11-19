@@ -268,6 +268,7 @@ export const sendZaloTextMessage = async (
   threadId: string,
   message: string,
   accountId?: string,
+  quote?: any,
 ): Promise<{ ok: boolean; data?: any; thread_id?: string }> => {
   const token = getAuthToken();
   if (!token) {
@@ -288,7 +289,12 @@ export const sendZaloTextMessage = async (
       'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ thread_id: String(threadId), message: String(message), ...(accountId ? { account_id: accountId } : {}) }),
+    body: JSON.stringify({ 
+      thread_id: String(threadId), 
+      message: String(message), 
+      ...(accountId ? { account_id: accountId } : {}),
+      ...(quote ? { quote } : {})
+    }),
   });
 
   if (!response.ok) {

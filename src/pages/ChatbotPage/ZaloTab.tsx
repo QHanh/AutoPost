@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut, Image } from 'lucide-react';
+import { QrCode, Smartphone, CheckCircle, XCircle, Clock, AlertCircle, Users, User, RefreshCw, MoreVertical, Plus, LogOut, Image, X } from 'lucide-react';
 import { zaloLoginQRStream, getZaloStatus, getZaloConversations, getZaloMessages, QRResponse, ZaloConversation, ZaloMessage, createStaffZalo, listStaffZalo, deleteStaffZalo, updateStaffZalo, logoutZalo, sendZaloTextMessage, sendZaloImageFile, getZaloSessions, ZaloSessionInfo } from '../../services/zaloService';
 import { listIgnoredZalo, upsertIgnoredZalo, deleteIgnoredZalo, IgnoredConversation } from '../../services/ignoredZaloService';
 import { getMyBotConfig, upsertMyBotConfig, BotConfig } from '../../services/botConfigService';
@@ -53,6 +53,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
   // Send message states
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
+  const [replyingMessage, setReplyingMessage] = useState<ZaloMessage | null>(null);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [isSendingImage, setIsSendingImage] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -624,13 +625,31 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         arr.push({ text, time: now });
         recentlySentRef.current[tid] = arr;
       }
-      await sendZaloTextMessage(String(threadId), text, selectedAccountId || undefined);
+      let quotePayload: any = undefined;
+      if (replyingMessage) {
+        const raw = (replyingMessage as any).raw_json;
+        if (raw) {
+          try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (parsed && typeof parsed === 'object' && (parsed as any).data) {
+              // Zalo SendMessageQuote mong đợi object giống message.data (content, msgType, propertyExt, uidFrom, msgId, ts, ttl, ...)
+              quotePayload = (parsed as any).data;
+            } else {
+              quotePayload = parsed;
+            }
+          } catch {
+            quotePayload = undefined;
+          }
+        }
+      }
+      await sendZaloTextMessage(String(threadId), text, selectedAccountId || undefined, quotePayload);
       // Optimistic append to current messages
       const optimistic: ZaloMessage = {
         id: `${Date.now()}-local`,
         content: text,
         is_self: true,
         ts: Date.now(),
+        quote: quotePayload,
       } as any;
       setMessages((prev) => {
         const next = [...prev, optimistic];
@@ -650,6 +669,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
         return c;
       }));
       setNewMessageText('');
+      setReplyingMessage(null);
     } catch (err: any) {
       alert(err?.message || 'Gửi tin nhắn thất bại');
     } finally {
@@ -792,6 +812,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
             }
           }
           const newMsg: any = {
+            ...d,
             id: d.msg_id || `${Date.now()}-${Math.random()}`,
             is_self: !!d.is_self,
             d_name: d.d_name,
@@ -1337,6 +1358,7 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                               isVisible={activeDropdown === index}
                               onToggle={() => setActiveDropdown(activeDropdown === index ? null : index)}
                               onClose={() => setActiveDropdown(null)}
+                              onReply={() => setReplyingMessage(msg)}
                             />
                           )}
                         </div>
@@ -1346,6 +1368,30 @@ const ZaloTab: React.FC<ZaloTabProps> = ({ initialActiveTab }) => {
                   </div>
                   {selectedConversation && (
                     <>
+                      {replyingMessage && (
+                        <div className="px-3 pt-2 pb-0 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="w-1 self-stretch bg-blue-500 rounded"></div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-blue-600">
+                                Đang trả lời {replyingMessage.d_name || 'Người dùng'}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {(() => {
+                                  const nc = normalizeContent(replyingMessage.content);
+                                  return nc.kind === 'photo' ? '[Ảnh]' : nc.text;
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setReplyingMessage(null)}
+                            className="p-1 hover:bg-gray-200 rounded-full text-gray-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
                       <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 flex gap-2 items-center">
                         <input
                           ref={fileInputRef}

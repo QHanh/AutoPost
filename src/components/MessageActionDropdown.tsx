@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreHorizontal, Plus, Copy, X, Check } from 'lucide-react';
+import { MoreHorizontal, Plus, Copy, X, Check, Reply } from 'lucide-react';
 import { faqMobileService } from '../services/faqMobileService';
 import Swal from 'sweetalert2';
 
@@ -8,13 +8,15 @@ interface MessageActionDropdownProps {
   isVisible: boolean;
   onToggle: () => void;
   onClose: () => void;
+  onReply?: () => void;
 }
 
 const MessageActionDropdown: React.FC<MessageActionDropdownProps> = ({
   messageText,
   isVisible,
   onToggle,
-  onClose
+  onClose,
+  onReply,
 }) => {
   const [showFaqForm, setShowFaqForm] = useState(false);
   const [faqQuestion, setFaqQuestion] = useState('');
@@ -156,9 +158,21 @@ const MessageActionDropdown: React.FC<MessageActionDropdownProps> = ({
         </button>
         {isVisible && (
           <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[150px]">
+            {onReply && (
+              <button
+                onClick={() => {
+                  onReply();
+                  onClose();
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 rounded-t-lg"
+              >
+                <Reply className="h-4 w-4" />
+                <span>Trả lời</span>
+              </button>
+            )}
             <button
               onClick={handleAddToFaq}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 rounded-t-lg"
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
             >
               <Plus className="h-4 w-4" />
               <span>Thêm vào FAQ</span>
