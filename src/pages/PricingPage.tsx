@@ -33,6 +33,7 @@ interface ChatbotPlan {
     description: string;
     monthly_price: number;
     services: ChatbotService[];
+    max_api_calls?: number | null;
 }
 
 interface VideoSubscription {
@@ -52,6 +53,9 @@ interface ChatbotSubscription {
     is_active: boolean;
     months_subscribed: number;
     total_price: number;
+    max_api_calls?: number | null;
+    api_calls_used?: number;
+    status?: string;
 }
 
 interface MySubscriptions {
@@ -387,6 +391,15 @@ export const PricingPage: React.FC = () => {
   
   const chatbotFeatureRows = [
       { name: "💵 Giá / tháng", getValue: (p: ChatbotPlan) => formatPrice(p.monthly_price) },
+      { 
+        name: "📞 Lượt API trong gói", 
+        getValue: (p: ChatbotPlan) => {
+          if (p.max_api_calls && p.max_api_calls > 0) {
+            return `${p.max_api_calls.toLocaleString()} lượt (dùng GEMINI_API_KEY của hệ thống)`;
+          }
+          return "Dùng API key của bạn (không giới hạn lượt từ hệ thống)";
+        } 
+      },
       { name: "🤖 Dịch vụ tích hợp", getValue: (p: ChatbotPlan) => p.services.map(s => s.name).join(', ') },
       { name: "🔌 Tích hợp API", getValue: () => true },
       { name: "💬 Script nhúng Website", getValue: () => true },
@@ -445,6 +458,17 @@ export const PricingPage: React.FC = () => {
   
   // Kiểm tra xem user có subscription active không
   const hasActiveSubscription = currentSub && currentSub.is_active;
+  
+  const chatbotUsage = currentSubs?.chatbot_subscription
+    ? {
+        max: currentSubs.chatbot_subscription.max_api_calls ?? null,
+        used: currentSubs.chatbot_subscription.api_calls_used ?? 0,
+      }
+    : null;
+
+  const chatbotUsagePercent = chatbotUsage && chatbotUsage.max && chatbotUsage.max > 0
+    ? Math.min(100, (chatbotUsage.used / chatbotUsage.max) * 100)
+    : null;
   
   // Kiểm tra xem plan hiện tại có phải là plan đang sử dụng không
   const isCurrentPlan = (plan: Plan) => {
@@ -647,6 +671,16 @@ export const PricingPage: React.FC = () => {
                           <> • {currentSubs.chatbot_subscription.months_subscribed} tháng</>
                         )}
                       </div>
+                      {typeof currentSubs.chatbot_subscription.max_api_calls !== 'undefined' && currentSubs.chatbot_subscription.max_api_calls !== null && currentSubs.chatbot_subscription.max_api_calls > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Lượt đã dùng: {(currentSubs.chatbot_subscription.api_calls_used ?? 0).toLocaleString()} / {currentSubs.chatbot_subscription.max_api_calls.toLocaleString()}
+                        </div>
+                      )}
+                      {(currentSubs.chatbot_subscription.max_api_calls === null || currentSubs.chatbot_subscription.max_api_calls === 0 || typeof currentSubs.chatbot_subscription.max_api_calls === 'undefined') && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Dùng API key riêng của bạn, không giới hạn lượt từ hệ thống.
+                        </div>
+                      )}
                 </div>
               ) : (
                     <div className="text-gray-500 text-sm mt-1">
@@ -708,6 +742,14 @@ export const PricingPage: React.FC = () => {
                         </div>
                     )}
                     
+                    {serviceType === 'chatbot' && 'monthly_price' in plan && (
+                      <p className="text-xs text-gray-500 mb-1 min-h-[1.25rem]">
+                        {'max_api_calls' in plan && (plan as any).max_api_calls && (plan as any).max_api_calls > 0
+                          ? `Gói mua theo lượt: ${((plan as any).max_api_calls as number).toLocaleString()} lượt API dùng GEMINI_API_KEY hệ thống.`
+                          : 'Dùng API key Gemini/OpenAI của riêng bạn, không giới hạn lượt từ hệ thống.'}
+                      </p>
+                    )}
+
                     <p className="text-gray-600 mb-6 h-10">
                       {plan.description?.split(', ')[0] || ''}
                     </p>

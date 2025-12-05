@@ -916,7 +916,7 @@ const DocumentsTab: React.FC = () => {
                   type="text"
                   value={chatModel}
                   onChange={(e) => setChatModel(e.target.value)}
-                  placeholder="gemini-2.5-flash-lite"
+                  placeholder="gemini-2.5-flash-lite-lite"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
