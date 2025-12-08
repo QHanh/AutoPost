@@ -671,18 +671,27 @@ export const PricingPage: React.FC = () => {
                           <> • {currentSubs.chatbot_subscription.months_subscribed} tháng</>
                         )}
                       </div>
-                      {typeof currentSubs.chatbot_subscription.max_api_calls !== 'undefined' && currentSubs.chatbot_subscription.max_api_calls !== null && currentSubs.chatbot_subscription.max_api_calls > 0 && (
+                      {chatbotUsage && chatbotUsage.max && chatbotUsage.max > 0 ? (
                         <div className="text-xs text-gray-500 mt-1">
-                          Lượt đã dùng: {(currentSubs.chatbot_subscription.api_calls_used ?? 0).toLocaleString()} / {currentSubs.chatbot_subscription.max_api_calls.toLocaleString()}
+                          <div>
+                            Lượt đã dùng: {chatbotUsage.used.toLocaleString()} / {chatbotUsage.max.toLocaleString()} • Còn lại: {Math.max(0, chatbotUsage.max - chatbotUsage.used).toLocaleString()}
+                          </div>
+                          {chatbotUsagePercent !== null && (
+                            <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-purple-500 h-1.5 rounded-full"
+                                style={{ width: `${chatbotUsagePercent}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {(currentSubs.chatbot_subscription.max_api_calls === null || currentSubs.chatbot_subscription.max_api_calls === 0 || typeof currentSubs.chatbot_subscription.max_api_calls === 'undefined') && (
+                      ) : (
                         <div className="text-xs text-gray-500 mt-1">
                           Dùng API key riêng của bạn, không giới hạn lượt từ hệ thống.
                         </div>
                       )}
-                </div>
-              ) : (
+                    </div>
+                  ) : (
                     <div className="text-gray-500 text-sm mt-1">
                       {console.log('No chatbot subscription found')}
                       Chưa có gói
