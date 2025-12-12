@@ -28,7 +28,7 @@ export const useAuth = () => {
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
-    
+
     if (token && userData) {
       try {
         const user = JSON.parse(userData);
@@ -73,9 +73,9 @@ export const useAuth = () => {
         return { success: false, message: data.detail || 'Không thể gửi mã xác thực. Vui lòng thử lại.' };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+      return {
+        success: false,
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.`
       };
     }
   };
@@ -83,17 +83,6 @@ export const useAuth = () => {
   const register = async (email: string, password: string, full_name: string, verificationCode: string) => {
     try {
       const apiBaseUrl = getApiBaseUrl();
-      const plansResponse = await fetch(`${apiBaseUrl}/api/v1/subscriptions/plans`);
-      if (!plansResponse.ok) {
-        throw new Error('Failed to fetch subscription plans.');
-      }
-      const plans = await plansResponse.json();
-
-      const freePlan = plans.find((plan: any) => plan.name.toLowerCase() === 'miễn phí');
-      if (!freePlan) {
-        throw new Error('"miễn phí" subscription plan not found.');
-      }
-
       const response = await fetch(`${apiBaseUrl}/api/v1/registration/register`, {
         method: 'POST',
         headers: {
@@ -103,7 +92,6 @@ export const useAuth = () => {
           email: email.trim(),
           password: password,
           full_name: full_name.trim(),
-          subscription_id: freePlan.id,
           verification_code: verificationCode
         })
       });
@@ -113,15 +101,15 @@ export const useAuth = () => {
       if (response.status === 201) {
         return { success: true, message: 'Đăng ký thành công! Vui lòng đăng nhập.' };
       } else {
-        return { 
-          success: false, 
-          message: data.detail || `Lỗi server (${response.status}). Vui lòng thử lại sau.` 
+        return {
+          success: false,
+          message: data.detail || `Lỗi server (${response.status}). Vui lòng thử lại sau.`
         };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+      return {
+        success: false,
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.`
       };
     }
   };
@@ -146,14 +134,14 @@ export const useAuth = () => {
           email: username,
           full_name: data.user?.full_name || data.full_name || 'User',
           token: data.access_token || data.token || 'auth_token',
-          role: data.role 
+          role: data.role
         };
 
         localStorage.setItem('auth_token', user.token);
         localStorage.setItem('user_data', JSON.stringify({
           id: user.id,
           email: user.email,
-          full_name: user.full_name, 
+          full_name: user.full_name,
           role: user.role
         }));
 
@@ -168,9 +156,9 @@ export const useAuth = () => {
         return { success: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.` 
+      return {
+        success: false,
+        message: `Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang hoạt động.`
       };
     }
   };
@@ -180,11 +168,11 @@ export const useAuth = () => {
     try {
       const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/api/v1/users/me`,
-       {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
@@ -246,9 +234,9 @@ export const useAuth = () => {
         return { success: false, message: data.detail || 'Không thể gửi yêu cầu. Vui lòng thử lại.' };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Không thể kết nối đến server.` 
+      return {
+        success: false,
+        message: `Không thể kết nối đến server.`
       };
     }
   };
@@ -271,9 +259,9 @@ export const useAuth = () => {
         return { success: false, message: data.detail || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.' };
       }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Không thể kết nối đến server.` 
+      return {
+        success: false,
+        message: `Không thể kết nối đến server.`
       };
     }
   };

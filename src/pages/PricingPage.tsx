@@ -21,19 +21,19 @@ interface VideoPlan {
 }
 
 interface ChatbotService {
-    id: string;
-    name: string;
-    description: string;
-    base_price: number;
+  id: string;
+  name: string;
+  description: string;
+  base_price: number;
 }
 
 interface ChatbotPlan {
-    id: string;
-    name: string;
-    description: string;
-    monthly_price: number;
-    services: ChatbotService[];
-    max_api_calls?: number | null;
+  id: string;
+  name: string;
+  description: string;
+  monthly_price: number;
+  services: ChatbotService[];
+  max_api_calls?: number | null;
 }
 
 interface VideoSubscription {
@@ -46,21 +46,21 @@ interface VideoSubscription {
 }
 
 interface ChatbotSubscription {
-    id: string;
-    plan: ChatbotPlan;
-    start_date: string;
-    end_date: string;
-    is_active: boolean;
-    months_subscribed: number;
-    total_price: number;
-    max_api_calls?: number | null;
-    api_calls_used?: number;
-    status?: string;
+  id: string;
+  plan: ChatbotPlan;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  months_subscribed: number;
+  total_price: number;
+  max_api_calls?: number | null;
+  api_calls_used?: number;
+  status?: string;
 }
 
 interface MySubscriptions {
-    video_subscription: VideoSubscription | null;
-    chatbot_subscription: ChatbotSubscription | null;
+  video_subscription: VideoSubscription | null;
+  chatbot_subscription: ChatbotSubscription | null;
 }
 
 type Plan = VideoPlan | ChatbotPlan;
@@ -89,25 +89,25 @@ const api = {
 
   post: async <T, U>(url: string, body: U, token?: string | null): Promise<{ data: T; status: number }> => {
     const headers: HeadersInit = {
-        'Content-Type': 'application/json',
+      'Content-Type': 'application/json',
     };
     if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}${url}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
     });
 
     const responseData = await response.json().catch(() => null);
 
     if (![200, 201].includes(response.status)) { // Chấp nhận cả 200 và 201
-        const errorMessage = responseData?.detail || responseData?.message || `Lỗi máy chủ: ${response.statusText}`;
-        throw new Error(errorMessage);
+      const errorMessage = responseData?.detail || responseData?.message || `Lỗi máy chủ: ${response.statusText}`;
+      throw new Error(errorMessage);
     }
-    
+
     return { data: responseData, status: response.status };
   },
 };
@@ -158,8 +158,8 @@ const getVideoPlanUIDetails = (planName: string) => {
 };
 
 const getChatbotPlanUIDetails = (planName: string) => {
-    // Tạm thời dùng chung, có thể tùy chỉnh sau
-    return getVideoPlanUIDetails(planName);
+  // Tạm thời dùng chung, có thể tùy chỉnh sau
+  return getVideoPlanUIDetails(planName);
 }
 
 const formatPrice = (price: number) => {
@@ -168,16 +168,16 @@ const formatPrice = (price: number) => {
 };
 
 const formatDuration = (plan: Plan) => {
-    if ('duration_days' in plan) { // It's a VideoPlan
-        if (plan?.name === 'Chuyên nghiệp') return '/ năm';
-        if (plan?.duration_days >= 90) return `/ ${plan.duration_days / 30} tháng`;
-        if (plan?.duration_days >= 30) return '/ tháng';
-        return `/ ${plan?.duration_days || 0} ngày`;
-    }
-    if ('monthly_price' in plan) { // It's a ChatbotPlan
-        return '/ tháng';
-    }
-    return '';
+  if ('duration_days' in plan) { // It's a VideoPlan
+    if (plan?.name === 'Chuyên nghiệp') return '/ năm';
+    if (plan?.duration_days >= 90) return `/ ${plan.duration_days / 30} tháng`;
+    if (plan?.duration_days >= 30) return '/ tháng';
+    return `/ ${plan?.duration_days || 0} ngày`;
+  }
+  if ('monthly_price' in plan) { // It's a ChatbotPlan
+    return '/ tháng';
+  }
+  return '';
 };
 
 
@@ -193,7 +193,7 @@ export const PricingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // State để quản lý modal QR và trạng thái đang đăng ký
-  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  // const [isQrModalOpen, setIsQrModalOpen] = useState(false); // Removed for VNPay
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isSubscribing, setIsSubscribing] = useState<string | null>(null);
   const [selectedMonths, setSelectedMonths] = useState(1);
@@ -205,15 +205,15 @@ export const PricingPage: React.FC = () => {
       console.log('=== STARTING FETCH DATA ===');
       console.log('isAuthenticated:', isAuthenticated);
       console.log('token:', token ? 'exists' : 'null');
-      
+
       try {
         setLoading(true);
         setError(null); // Reset error state
-        
+
         // Luôn fetch plans trước (không cần token)
         const videoPlansPromise = api.get<VideoPlan[]>('/api/v1/subscriptions/plans', token);
         const chatbotPlansPromise = api.get<ChatbotPlan[]>('/api/v1/chatbot-subscriptions/plans', token);
-        
+
         // Fetch plans trước
         const [videoPlansResponse, chatbotPlansResponse] = await Promise.all([videoPlansPromise, chatbotPlansPromise]);
 
@@ -234,12 +234,12 @@ export const PricingPage: React.FC = () => {
 
         // Process Chatbot Plans
         if (chatbotPlansResponse && Array.isArray(chatbotPlansResponse.data)) {
-            setChatbotPlans(chatbotPlansResponse.data.filter(p => p).sort((a,b) => a.monthly_price - b.monthly_price));
+          setChatbotPlans(chatbotPlansResponse.data.filter(p => p).sort((a, b) => a.monthly_price - b.monthly_price));
         } else {
           console.warn("Chatbot plans data is invalid, setting empty array");
           setChatbotPlans([]);
         }
-        
+
         // Sau khi đã load plans thành công, mới fetch subscriptions (nếu user đã đăng nhập)
         if (isAuthenticated && token) {
           console.log('User is authenticated, fetching subscriptions...');
@@ -252,32 +252,32 @@ export const PricingPage: React.FC = () => {
 
           const videoResult = results[0];
           const chatbotResult = results[1];
-          
+
           let finalVideoSub: VideoSubscription | null = null;
           let finalChatbotSub: ChatbotSubscription | null = null;
 
           if (videoResult.status === 'fulfilled') {
-              console.log('Video subscription API call successful:', videoResult.value);
-              finalVideoSub = videoResult.value.data?.video_subscription || null;
-              // Lấy thông tin chatbot từ API này làm cơ sở
-              finalChatbotSub = videoResult.value.data?.chatbot_subscription || null; 
+            console.log('Video subscription API call successful:', videoResult.value);
+            finalVideoSub = videoResult.value.data?.video_subscription || null;
+            // Lấy thông tin chatbot từ API này làm cơ sở
+            finalChatbotSub = videoResult.value.data?.chatbot_subscription || null;
           } else {
-              console.warn('Failed to fetch video subscriptions:', videoResult.reason);
+            console.warn('Failed to fetch video subscriptions:', videoResult.reason);
           }
 
           if (chatbotResult.status === 'fulfilled') {
-              console.log('Chatbot subscription API call successful:', chatbotResult.value);
-              // Nếu API chatbot trả về dữ liệu, nó sẽ ghi đè lên dữ liệu cũ
-              if (chatbotResult.value.data) {
-                   finalChatbotSub = chatbotResult.value.data;
-              }
+            console.log('Chatbot subscription API call successful:', chatbotResult.value);
+            // Nếu API chatbot trả về dữ liệu, nó sẽ ghi đè lên dữ liệu cũ
+            if (chatbotResult.value.data) {
+              finalChatbotSub = chatbotResult.value.data;
+            }
           } else {
-              console.warn('Failed to fetch chatbot subscription:', chatbotResult.reason);
+            console.warn('Failed to fetch chatbot subscription:', chatbotResult.reason);
           }
 
           setCurrentSubs({
-              video_subscription: finalVideoSub,
-              chatbot_subscription: finalChatbotSub
+            video_subscription: finalVideoSub,
+            chatbot_subscription: finalChatbotSub
           });
 
         } else {
@@ -287,12 +287,12 @@ export const PricingPage: React.FC = () => {
             chatbot_subscription: null
           });
         }
-        
+
       } catch (err: any) {
         console.error("Critical error when loading data:", err);
         // Chỉ set error nếu không load được plans (critical)
         if (videoPlans.length === 0 && chatbotPlans.length === 0) {
-        setError(err.message || "Không thể tải dữ liệu bảng giá.");
+          setError(err.message || "Không thể tải dữ liệu bảng giá.");
         } else {
           // Nếu đã load được plans nhưng không load được subscriptions, chỉ log warning
           console.warn("Failed to load some data, but plans are available:", err);
@@ -308,21 +308,21 @@ export const PricingPage: React.FC = () => {
     const token = localStorage.getItem('auth_token');
 
     if (!isAuthenticated || !token) {
-        Swal.fire({
-            title: 'Yêu cầu đăng nhập',
-            text: 'Bạn cần đăng nhập hoặc đăng ký để chọn gói cước.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Đăng nhập',
-            cancelButtonText: 'Để sau',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Chuyển hướng đến trang đăng nhập
-                window.location.href = '/login';
-            }
-        });
-        return;
+      Swal.fire({
+        title: 'Yêu cầu đăng nhập',
+        text: 'Bạn cần đăng nhập hoặc đăng ký để chọn gói cước.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Đăng nhập',
+        cancelButtonText: 'Để sau',
+        reverseButtons: true
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Chuyển hướng đến trang đăng nhập
+          window.location.href = '/login';
+        }
+      });
+      return;
     }
 
     if (('price' in plan && plan.price === 0)) {
@@ -331,49 +331,103 @@ export const PricingPage: React.FC = () => {
     }
 
     const confirmation = await Swal.fire({
-        title: 'Xác nhận chọn gói',
-        html: `Bạn có chắc chắn muốn đăng ký <b>Gói ${plan.name}</b> không?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Xác nhận',
-        cancelButtonText: 'Hủy',
-        reverseButtons: true
+      title: 'Xác nhận chọn gói',
+      html: `Bạn có chắc chắn muốn đăng ký <b>Gói ${plan.name}</b> không?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Xác nhận',
+      cancelButtonText: 'Hủy',
+      reverseButtons: true
     });
 
     if (confirmation.isConfirmed) {
-        setIsSubscribing(plan.id);
-        try {
-          let response;
-          if (serviceType === 'video' && 'duration_days' in plan) {
-              response = await api.post(
-                '/api/v1/subscriptions/',
-                { subscription_id: plan.id },
-                token
-              );
-          } else if (serviceType === 'chatbot' && 'monthly_price' in plan) {
-              response = await api.post(
-                  '/api/v1/chatbot-subscriptions/subscribe',
-                  { plan_id: plan.id, months_subscribed: selectedMonths },
-                  token
-              );
-          } else {
-              throw new Error("Loại gói không hợp lệ.");
+      setIsSubscribing(plan.id);
+      try {
+        let response;
+        if (serviceType === 'video' && 'duration_days' in plan) {
+          response = await api.post(
+            '/api/v1/subscriptions/',
+            { subscription_id: plan.id },
+            token
+          );
+        } else if (serviceType === 'chatbot' && 'monthly_price' in plan) {
+          response = await api.post(
+            '/api/v1/chatbot-subscriptions/subscribe',
+            { plan_id: plan.id, months_subscribed: selectedMonths },
+            token
+          );
+        } else {
+          throw new Error("Loại gói không hợp lệ.");
+        }
+
+        if (response.status === 201 || response.status === 200) {
+          const subscriptionData = response.data;
+          const subId = subscriptionData.id;
+
+          // Tính giá để kiểm tra xem có cần thanh toán không
+          let price = 0;
+          if (serviceType === 'chatbot' && 'total_price' in subscriptionData) {
+            price = subscriptionData.total_price;
+          } else if (serviceType === 'video' && 'subscription_plan' in subscriptionData) {
+            price = subscriptionData.subscription_plan.price;
+          } else if (serviceType === 'video' && 'price' in plan) {
+            // Fallback if backend doesn't return plan details nested, though it should based on DTO
+            // But safest is check plan.price from the selected plan which we have access to
+            price = plan.price;
           }
 
-          if (response.status === 201 || response.status === 200) {
-            // Hiển thị mã QR cho cả video và chatbot
-            setSelectedPlan(plan);
-            setIsQrModalOpen(true);
+          // Nếu giá > 0, thực hiện thanh toán VNPay
+          if (price > 0) {
+            Swal.fire({
+              title: 'Đang chuyển hướng...',
+              text: 'Đang chuyển hướng đến cổng thanh toán VNPay. Vui lòng không tắt trình duyệt.',
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+
+            try {
+              const paymentResponse = await api.post<any, any>(
+                '/api/v1/payment/create_url',
+                { subscription_id: subId, type: serviceType },
+                token
+              );
+
+              if (paymentResponse.data && paymentResponse.data.payment_url) {
+                window.location.href = paymentResponse.data.payment_url;
+              } else {
+                throw new Error("Không nhận được URL thanh toán từ hệ thống.");
+              }
+
+            } catch (paymentErr: any) {
+              Swal.fire({
+                title: 'Lỗi thanh toán',
+                text: paymentErr.message || "Không thể khởi tạo thanh toán. Vui lòng thử lại sau.",
+                icon: 'error'
+              });
+            }
+
+          } else {
+            // Gói miễn phí - Đã active
+            Swal.fire({
+              title: 'Đăng ký thành công!',
+              text: 'Gói miễn phí của bạn đã được kích hoạt.',
+              icon: 'success'
+            }).then(() => {
+              window.location.reload();
+            });
           }
-        } catch (err: any) {
-          Swal.fire({
-            title: 'Đăng ký thất bại',
-            text: err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại sau.',
-            icon: 'error',
-          });
-        } finally {
-          setIsSubscribing(null);
         }
+      } catch (err: any) {
+        Swal.fire({
+          title: 'Đăng ký thất bại',
+          text: err.message || 'Đã có lỗi xảy ra. Vui lòng thử lại sau.',
+          icon: 'error',
+        });
+      } finally {
+        setIsSubscribing(null);
+      }
     }
   };
 
@@ -388,22 +442,22 @@ export const PricingPage: React.FC = () => {
     { name: "🤖 Hỗ trợ AI viết nội dung", getValue: (p: VideoPlan) => p.ai_content_generation },
     { name: "☁️ Lưu trữ trên", getValue: () => "Đám mây" },
   ];
-  
+
   const chatbotFeatureRows = [
-      { name: "💵 Giá / tháng", getValue: (p: ChatbotPlan) => formatPrice(p.monthly_price) },
-      { 
-        name: "📞 Lượt API trong gói", 
-        getValue: (p: ChatbotPlan) => {
-          if (p.max_api_calls && p.max_api_calls > 0) {
-            return `${p.max_api_calls.toLocaleString()} lượt (dùng GEMINI_API_KEY của hệ thống)`;
-          }
-          return "Dùng API key của bạn (không giới hạn lượt từ hệ thống)";
-        } 
-      },
-      { name: "🤖 Dịch vụ tích hợp", getValue: (p: ChatbotPlan) => p.services.map(s => s.name).join(', ') },
-      { name: "🔌 Tích hợp API", getValue: () => true },
-      { name: "💬 Script nhúng Website", getValue: () => true },
-      { name: "📊 Phân tích cuộc trò chuyện", getValue: () => "Sắp ra mắt" },
+    { name: "💵 Giá / tháng", getValue: (p: ChatbotPlan) => formatPrice(p.monthly_price) },
+    {
+      name: "📞 Lượt API trong gói",
+      getValue: (p: ChatbotPlan) => {
+        if (p.max_api_calls && p.max_api_calls > 0) {
+          return `${p.max_api_calls.toLocaleString()} lượt (dùng GEMINI_API_KEY của hệ thống)`;
+        }
+        return "Dùng API key của bạn (không giới hạn lượt từ hệ thống)";
+      }
+    },
+    { name: "🤖 Dịch vụ tích hợp", getValue: (p: ChatbotPlan) => p.services.map(s => s.name).join(', ') },
+    { name: "🔌 Tích hợp API", getValue: () => true },
+    { name: "💬 Script nhúng Website", getValue: () => true },
+    { name: "📊 Phân tích cuộc trò chuyện", getValue: () => "Sắp ra mắt" },
   ];
 
   const renderFeatureValue = (
@@ -418,7 +472,7 @@ export const PricingPage: React.FC = () => {
         </div>
       );
     }
-  
+
     // FIX: Restore special rendering for video plan price with note
     if (feature.name === "🔥 Giá bán" && 'getNote' in feature && typeof feature.getNote === 'function') {
       const note = feature.getNote(plan as VideoPlan);
@@ -431,45 +485,45 @@ export const PricingPage: React.FC = () => {
         </div>
       );
     }
-  
+
     return <div className="text-center font-medium">{value}</div>;
   };
 
   const plansToDisplay = serviceType === 'video' ? videoPlans : chatbotPlans;
   const featureRows = serviceType === 'video' ? videoFeatureRows : chatbotFeatureRows;
-  
+
   // Lấy subscription hiện tại dựa trên loại dịch vụ
   const currentSub = serviceType === 'video' ? currentSubs?.video_subscription : currentSubs?.chatbot_subscription;
-  
+
   // Sửa lại logic để truy cập đúng cấu trúc dữ liệu
-  const currentPlanDetails = currentSub ? 
+  const currentPlanDetails = currentSub ?
     (serviceType === 'video' ? currentSub.subscription_plan : currentSub.plan) : null;
-  
+
   // Kiểm tra xem user có subscription đang chờ phê duyệt không
-  const hasPendingSubscription = serviceType === 'chatbot' && 
-                               currentSubs?.chatbot_subscription && 
-                               !currentSubs.chatbot_subscription.is_active;
-  
+  const hasPendingSubscription = serviceType === 'chatbot' &&
+    currentSubs?.chatbot_subscription &&
+    !currentSubs.chatbot_subscription.is_active;
+
   console.log('=== DEBUG SUBSCRIPTION STATUS ===');
   console.log('Service type:', serviceType);
   console.log('Has chatbot subscription:', !!currentSubs?.chatbot_subscription);
   console.log('Chatbot subscription is_active:', currentSubs?.chatbot_subscription?.is_active);
   console.log('Has pending subscription:', hasPendingSubscription);
-  
+
   // Kiểm tra xem user có subscription active không
   const hasActiveSubscription = currentSub && currentSub.is_active;
-  
+
   const chatbotUsage = currentSubs?.chatbot_subscription
     ? {
-        max: currentSubs.chatbot_subscription.max_api_calls ?? null,
-        used: currentSubs.chatbot_subscription.api_calls_used ?? 0,
-      }
+      max: currentSubs.chatbot_subscription.max_api_calls ?? null,
+      used: currentSubs.chatbot_subscription.api_calls_used ?? 0,
+    }
     : null;
 
   const chatbotUsagePercent = chatbotUsage && chatbotUsage.max && chatbotUsage.max > 0
     ? Math.min(100, (chatbotUsage.used / chatbotUsage.max) * 100)
     : null;
-  
+
   // Kiểm tra xem plan hiện tại có phải là plan đang sử dụng không
   const isCurrentPlan = (plan: Plan) => {
     if (!currentPlanDetails) {
@@ -480,7 +534,7 @@ export const PricingPage: React.FC = () => {
     console.log(`Plan ${plan.name} (${plan.id}) vs Current ${currentPlanDetails.name} (${currentPlanDetails.id}): ${isMatch}`);
     return isMatch;
   };
-  
+
   // Kiểm tra xem có thể đăng ký plan này không
   const canSubscribeToPlan = (plan: Plan) => {
     if (isSubscribing === plan.id) {
@@ -498,7 +552,7 @@ export const PricingPage: React.FC = () => {
     console.log(`Plan ${plan.name}: Enabled - có thể đăng ký`);
     return true;
   };
-  
+
   // Debug log để xem dữ liệu
   console.log('Current service type:', serviceType);
   console.log('Current subscriptions:', currentSubs);
@@ -539,8 +593,8 @@ export const PricingPage: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-red-800 mb-4">Không thể tải bảng giá</h2>
             <p className="text-red-600 mb-6">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
+            <button
+              onClick={() => window.location.reload()}
               className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
             >
               Thử lại
@@ -584,17 +638,17 @@ export const PricingPage: React.FC = () => {
 
           {/* Service Type Toggle */}
           <div className="inline-flex bg-gray-200 rounded-full p-1 mb-8">
-            <button 
-                onClick={() => setServiceType('video')}
-                className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'video' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
+            <button
+              onClick={() => setServiceType('video')}
+              className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'video' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
             >
-                <Video className="inline mr-2" size={20} /> Gói đăng bài
+              <Video className="inline mr-2" size={20} /> Gói đăng bài
             </button>
-            <button 
-                onClick={() => setServiceType('chatbot')}
-                className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'chatbot' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
+            <button
+              onClick={() => setServiceType('chatbot')}
+              className={`px-6 py-2 rounded-full text-lg font-semibold transition-colors duration-300 ${serviceType === 'chatbot' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'}`}
             >
-                <Bot className="inline mr-2" size={20} /> Gói Chatbot
+              <Bot className="inline mr-2" size={20} /> Gói Chatbot
             </button>
           </div>
 
@@ -609,7 +663,7 @@ export const PricingPage: React.FC = () => {
               {console.log('currentSubs?.chatbot_subscription:', currentSubs?.chatbot_subscription)}
               {console.log('Video subscription structure:', JSON.stringify(currentSubs?.video_subscription, null, 2))}
               {console.log('Chatbot subscription structure:', JSON.stringify(currentSubs?.chatbot_subscription, null, 2))}
-              
+
               {/* Thông báo cảnh báo nếu có lỗi load subscriptions */}
               {error && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -623,7 +677,7 @@ export const PricingPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Gói Video */}
                 <div className="text-center">
@@ -632,11 +686,10 @@ export const PricingPage: React.FC = () => {
                   {currentSubs?.video_subscription ? (
                     <div className="mt-1">
                       {console.log('Rendering video subscription:', currentSubs.video_subscription)}
-                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
-                        currentSubs.video_subscription.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${currentSubs.video_subscription.is_active
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {currentSubs.video_subscription.subscription_plan?.name || 'Không xác định'}
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
@@ -650,7 +703,7 @@ export const PricingPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Gói Chatbot */}
                 <div className="text-center">
                   <Bot className="inline mr-2 text-purple-600" size={20} />
@@ -658,11 +711,10 @@ export const PricingPage: React.FC = () => {
                   {currentSubs?.chatbot_subscription ? (
                     <div className="mt-1">
                       {console.log('Rendering chatbot subscription:', currentSubs.chatbot_subscription)}
-                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${
-                        currentSubs.chatbot_subscription.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium ${currentSubs.chatbot_subscription.is_active
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {currentSubs.chatbot_subscription.plan?.name || 'Không xác định'}
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
@@ -702,77 +754,76 @@ export const PricingPage: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {plansToDisplay.length > 0 ? (
             plansToDisplay.map((plan) => {
-            const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
-            const price = 'price' in plan ? plan.price : plan.monthly_price;
-            return (
-              <div
-                key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-xl border-2 ${uiDetails.color} overflow-hidden transform hover:scale-105 transition-all duration-300 ${
-                  uiDetails.popular ? 'ring-4 ring-purple-200' : ''
-                }`}
-              >
-                {uiDetails.popular && (
-                  <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-center py-2 text-sm font-bold">
-                    Phổ biến nhất
-                  </div>
-                )}
-                
-                <div className={`${uiDetails.bgColor} p-8 ${uiDetails.popular ? 'pt-12' : ''}`}>
-                  <div className="text-center">
-                    <div className="h-8 mb-4 flex items-center justify-center">
-                      <div className="relative">
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
-                          {uiDetails.icon}
-                        </div>
-                        <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name?.toUpperCase()}</h3>
-                      </div>
+              const uiDetails = serviceType === 'video' ? getVideoPlanUIDetails(plan.name) : getChatbotPlanUIDetails(plan.name);
+              const price = 'price' in plan ? plan.price : plan.monthly_price;
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white rounded-2xl shadow-xl border-2 ${uiDetails.color} overflow-hidden transform hover:scale-105 transition-all duration-300 ${uiDetails.popular ? 'ring-4 ring-purple-200' : ''
+                    }`}
+                >
+                  {uiDetails.popular && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-center py-2 text-sm font-bold">
+                      Phổ biến nhất
                     </div>
-                    
-                    <div className="mb-4">
-                      <span className={`text-4xl font-bold ${uiDetails.textColor}`}>{formatPrice(price)}</span>
-                      <span className="text-gray-600 text-lg">{formatDuration(plan)}</span>
-                    </div>
-                    
-                    {serviceType === 'chatbot' && (
-                        <div className="my-4">
-                            <label className="text-sm font-medium text-gray-700">Số tháng:</label>
-                            <select 
-                                value={selectedMonths} 
-                                onChange={(e) => setSelectedMonths(Number(e.target.value))}
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                            >
-                                {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} tháng</option>)}
-                            </select>
-                        </div>
-                    )}
-                    
-                    {serviceType === 'chatbot' && 'monthly_price' in plan && (
-                      <p className="text-xs text-gray-500 mb-1 min-h-[1.25rem]">
-                        {'max_api_calls' in plan && (plan as any).max_api_calls && (plan as any).max_api_calls > 0
-                          ? `Gói mua theo lượt: ${((plan as any).max_api_calls as number).toLocaleString()} lượt API dùng GEMINI_API_KEY hệ thống.`
-                          : 'Dùng API key Gemini/OpenAI của riêng bạn, không giới hạn lượt từ hệ thống.'}
-                      </p>
-                    )}
+                  )}
 
-                    <p className="text-gray-600 mb-6 h-10">
-                      {plan.description?.split(', ')[0] || ''}
-                    </p>
-                    
-                    <button 
-                      onClick={() => handleSelectPlan(plan)}
+                  <div className={`${uiDetails.bgColor} p-8 ${uiDetails.popular ? 'pt-12' : ''}`}>
+                    <div className="text-center">
+                      <div className="h-8 mb-4 flex items-center justify-center">
+                        <div className="relative">
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2">
+                            {uiDetails.icon}
+                          </div>
+                          <h3 className={`text-xl font-bold ${uiDetails.textColor}`}>{plan.name?.toUpperCase()}</h3>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <span className={`text-4xl font-bold ${uiDetails.textColor}`}>{formatPrice(price)}</span>
+                        <span className="text-gray-600 text-lg">{formatDuration(plan)}</span>
+                      </div>
+
+                      {serviceType === 'chatbot' && (
+                        <div className="my-4">
+                          <label className="text-sm font-medium text-gray-700">Số tháng:</label>
+                          <select
+                            value={selectedMonths}
+                            onChange={(e) => setSelectedMonths(Number(e.target.value))}
+                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                          >
+                            {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} tháng</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      {serviceType === 'chatbot' && 'monthly_price' in plan && (
+                        <p className="text-xs text-gray-500 mb-1 min-h-[1.25rem]">
+                          {'max_api_calls' in plan && (plan as any).max_api_calls && (plan as any).max_api_calls > 0
+                            ? `Gói mua theo lượt: ${((plan as any).max_api_calls as number).toLocaleString()} lượt API dùng GEMINI_API_KEY hệ thống.`
+                            : 'Dùng API key Gemini/OpenAI của riêng bạn, không giới hạn lượt từ hệ thống.'}
+                        </p>
+                      )}
+
+                      <p className="text-gray-600 mb-6 h-10">
+                        {plan.description?.split(', ')[0] || ''}
+                      </p>
+
+                      <button
+                        onClick={() => handleSelectPlan(plan)}
                         disabled={!canSubscribeToPlan(plan)}
-                      className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
-                    >
-                        {isSubscribing === plan.id ? 'Đang xử lý...' : 
-                         isCurrentPlan(plan) ? 'Gói hiện tại' :
-                         hasPendingSubscription ? 'Đang chờ phê duyệt' :
-                         'Chọn gói này'}
-                    </button>
+                        className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${uiDetails.buttonColor} disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {isSubscribing === plan.id ? 'Đang xử lý...' :
+                          isCurrentPlan(plan) ? 'Gói hiện tại' :
+                            hasPendingSubscription ? 'Đang chờ phê duyệt' :
+                              'Chọn gói này'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -790,7 +841,7 @@ export const PricingPage: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* Detailed Comparison Table */}
         {plansToDisplay && plansToDisplay.length > 0 ? (
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
@@ -849,71 +900,7 @@ export const PricingPage: React.FC = () => {
         )}
       </div>
 
-      {/* QR Code Payment Modal */}
-      {isQrModalOpen && selectedPlan && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[100]"
-          onClick={() => setIsQrModalOpen(false)}
-        >
-          <div 
-            className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full m-4 transform transition-all duration-300 scale-95 animate-in fade-in-0 zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">
-              Thanh toán cho gói "{selectedPlan.name}" 
-              {serviceType === 'chatbot' && ` (${selectedMonths} tháng)`}
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {serviceType === 'chatbot' 
-                ? 'Vui lòng quét mã QR để thanh toán. Gói sẽ được admin phê duyệt sau khi thanh toán.'
-                : 'Vui lòng quét mã QR để thanh toán'
-              }
-            </p>
-            
-            <img 
-              src="/assets/qr-bank.jpg" 
-              alt="Mã QR thanh toán ngân hàng" 
-              className="mx-auto mb-4 w-64 h-64 object-contain rounded-lg border-4 border-gray-200"
-              onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x256/e2e8f0/4a5568?text=QR+Lỗi'; e.currentTarget.alt = 'Lỗi tải mã QR'; }}
-            />
-            
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-lg text-gray-700 mb-2">
-                    Số tiền cần chuyển: <span className="font-bold text-blue-600 text-xl">
-                    {serviceType === 'chatbot' && 'monthly_price' in selectedPlan 
-                      ? formatPrice(selectedPlan.monthly_price * selectedMonths)
-                      : formatPrice('price' in selectedPlan ? selectedPlan.price : 0)
-                    }</span>
-                </p>
-                <p className="text-gray-600">
-                    Nội dung chuyển khoản: <br/>
-                    <strong className="text-red-600 text-lg tracking-wider bg-red-100 px-2 py-1 rounded">
-                      {serviceType === 'chatbot' ? 'CHATBOT_' : ''}[SỐ ĐIỆN THOẠI CỦA BẠN]
-                    </strong>
-                </p>
-                {serviceType === 'chatbot' && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    <strong>Lưu ý:</strong> Sau khi thanh toán, gói chatbot sẽ được admin phê duyệt trong vòng 24h.
-                  </p>
-                )}
-            </div>
-            
-            <p className="text-sm text-gray-500 mt-4">
-                {serviceType === 'chatbot' 
-                  ? 'Sau khi chuyển khoản, gói chatbot sẽ được admin phê duyệt trong vòng 24h.'
-                  : 'Sau khi chuyển khoản, hệ thống sẽ tự động kích hoạt gói trong vòng 1-3 phút.'
-                }
-            </p>
-
-            <button 
-              onClick={() => setIsQrModalOpen(false)}
-              className="mt-6 bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold w-full"
-            >
-              Đã hiểu
-            </button>
-          </div>
-        </div>
-      )}
+      {/* QR Code Payment Modal - Removed for VNPay Integration */}
     </div>
   );
 };

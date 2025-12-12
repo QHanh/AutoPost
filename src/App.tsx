@@ -18,14 +18,15 @@ import { usePosts } from './hooks/usePosts';
 import { useAuth } from './hooks/useAuth';
 import { ServiceManagementPage } from './pages/ServiceManagementPage';
 import ApiIntegrationPage from './pages/ApiIntegrationPage';
+import { PaymentResultPage } from './pages/PaymentResultPage';
 
 import { ChatBot } from './components/ChatBot';
 import { ZaloButton } from './components/ZaloButton';
 
 function App() {
-  const { 
-    platforms, 
-    accounts, 
+  const {
+    platforms,
+    accounts,
     savedAccounts,
     isLoadingAccounts,
     getAccountsByPlatform,
@@ -34,20 +35,20 @@ function App() {
     loadSavedAccounts,
     removeAccountFromState,
   } = usePlatforms();
-  
-  const { 
-    publishedPosts, 
-    unpublishedPosts, 
-    isLoadingPublished, 
-    isLoadingUnpublished, 
+
+  const {
+    publishedPosts,
+    unpublishedPosts,
+    isLoadingPublished,
+    isLoadingUnpublished,
     refreshPosts,
     updatePost,
     deletePost,
     retryPost
   } = usePosts();
-  
+
   const { isLoading } = useAuth();
-  
+
   const location = useLocation();
   const showChatButtons = !location.pathname.startsWith('/chatbot-tabs');
 
@@ -67,7 +68,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header 
+      <Header
         connectedCount={connectedAccounts.length}
         totalPosts={publishedPosts.length + unpublishedPosts.length}
       />
@@ -81,8 +82,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/login/callback" element={<LoginCallbackPage />} />
-        
-        
+        <Route path="/payment-result" element={<PaymentResultPage />} />
+
+
         {/* Protected routes */}
         <Route
           path="/services"
@@ -92,8 +94,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route 
-          path="/posts" 
+        <Route
+          path="/posts"
           element={
             <ProtectedRoute>
               <PostsPage
@@ -109,10 +111,10 @@ function App() {
                 onRetryPost={retryPost}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/accounts" 
+        <Route
+          path="/accounts"
           element={
             <ProtectedRoute>
               <AccountsPage
@@ -126,66 +128,66 @@ function App() {
                 onAccountDeleted={removeAccountFromState}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/video" 
+        <Route
+          path="/video"
           element={
             <ProtectedRoute>
               <VideoPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/chatbot" 
+        <Route
+          path="/chatbot"
           element={
             <ProtectedRoute>
               <ChatbotPage />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/chatbot-tabs" 
+        <Route
+          path="/chatbot-tabs"
           element={
             <ProtectedRoute>
               <ChatbotPageWithTabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/chatbot-tabs/:tab" 
+        <Route
+          path="/chatbot-tabs/:tab"
           element={
             <ProtectedRoute>
               <ChatbotPageWithTabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/chatbot-tabs/:tab/:page" 
+        <Route
+          path="/chatbot-tabs/:tab/:page"
           element={
             <ProtectedRoute>
               <ChatbotPageWithTabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/chatbot-tabs/:tab/:page/:limit" 
+        <Route
+          path="/chatbot-tabs/:tab/:page/:limit"
           element={
             <ProtectedRoute>
               <ChatbotPageWithTabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/api-integration" 
+        <Route
+          path="/api-integration"
           element={
             <ProtectedRoute>
               <ApiIntegrationPage />
             </ProtectedRoute>
-          } 
+          }
         />
       </Routes>
-      
+
       {showChatButtons && <ZaloButton />}
       {showChatButtons && <ChatBot />}
     </div>
